@@ -1,0 +1,30 @@
+.box1{
+    background-color: aqua;
+}
+
+.box2{
+    background-color: lightgreen;
+}
+
+.box3{
+    // background-color: gray;
+    min-width: 202px;
+}
+
+.box4{
+    // background-color: darkslategray;
+    min-width: 400px;
+}
+
+// .overlay1 {
+//     background-color: palevioletred;
+//     border: 10px solid gray;
+// }
+
+.text1{
+    background-color: black;
+    color: white;
+
+    transition-property: min-width, min-height;
+    transition-duration: 3s;
+}

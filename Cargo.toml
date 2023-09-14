@@ -1,0 +1,22 @@
+[package]
+name = "dynisland"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+clap = { version = "4.4.1", features = ["derive"] }
+
+gtk = "0.18.1"
+gtk-layer-shell = "0.7.1"
+gdk = "0.18.0"
+glib = "0.18.1"
+cairo = "0.0.4"
+
+tokio = { version = "1.32.0", features = ["rt", "time", "sync"] }
+
+grass = {version = "0.13.1", default-features = false} #scss parsing
+glib-macros = "0.18.0"
+soy = "0.2.0"
