@@ -1,27 +1,19 @@
-.box1{
-    background-color: aqua;
+
+.overlay {
+    background-color: palevioletred;
+    border: 10px solid gray;
+    border-radius: 100px;
 }
 
-.box2{
-    background-color: lightgreen;
+.mode-compact{
+    background-color: gray;
 }
 
-.box3{
-    // background-color: gray;
-    min-width: 202px;
+.mode-minimal{
+    background-color: pink;
 }
 
-.box4{
-    // background-color: darkslategray;
-    min-width: 400px;
-}
-
-// .overlay1 {
-//     background-color: palevioletred;
-//     border: 10px solid gray;
-// }
-
-.text1{
+.activity-background{
     background-color: black;
     color: white;
 
