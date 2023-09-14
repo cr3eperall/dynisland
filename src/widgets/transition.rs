@@ -26,6 +26,14 @@ impl Transition {
         }
     }
 
+    pub fn duration_to_end(&self)-> Duration {
+        if self.get_progress()==1.0{
+            Duration::ZERO
+        }else{
+            (self.start_time+self.duration).duration_since(Instant::now())
+        }
+    }
+
     pub fn update_active(&mut self) {
         if let Some(dur) = Instant::now().checked_duration_since(self.start_time) {
             if dur < self.duration {

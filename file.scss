@@ -7,10 +7,22 @@
 
 .mode-compact{
     background-color: gray;
+    border-radius: 100px;
 }
 
 .mode-minimal{
     background-color: pink;
+    border-radius: 100px;
+}
+
+.mode-expanded{
+    background-color: violet;
+    border-radius: 100px;
+}
+
+.mode-overlay{
+    background-color: violet;
+    border-radius: 100px;
 }
 
 .activity-background{

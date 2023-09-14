@@ -154,9 +154,19 @@ impl ObjectImpl for ActivityWidgetPriv {
             "mode" => {
                 self.last_mode.replace(self.mode.borrow().clone());
                 self.mode.replace(value.get().unwrap());
+                let start: Instant;
+                let duration: Duration;
+                if self.transition.borrow().is_active(){
+                    duration=Duration::from_millis(*self.transition_duration.borrow())+self.transition.borrow().duration_to_end();
+                    start=Instant::now().checked_sub(self.transition.borrow().duration_to_end()).expect("time error");
+                } else {
+                    start=Instant::now();
+                    duration=Duration::from_millis(*self.transition_duration.borrow());
+                }
+
                 self.transition.replace(Transition::new(
-                    Instant::now(),
-                    Duration::from_millis(*self.transition_duration.borrow()),
+                    start,
+                    duration,
                 ));
 
                 if let Some(widget) = &*self.get_mode_widget(self.mode.borrow().clone()).borrow() {
@@ -497,7 +507,7 @@ impl WidgetImpl for ActivityWidgetPriv {
             //animate blur and opacity if during transition
             if self.transition.borrow().is_active() {
                 let progress = self.transition.borrow().get_progress();
-                // println!("{progress}");
+                // println!("{}, start: {:?}, dur: {:?}",progress, self.transition.borrow().start_time.elapsed(), self.transition.borrow().duration);
                 let last_widget_to_render = self.get_mode_widget(self.last_mode.borrow().clone());
 
                 const RAD: f32 = 4.0;

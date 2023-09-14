@@ -45,11 +45,13 @@ fn main() -> Result<()> {
     let background = get_bg();
     let minimal = get_minimal();
     let compact = get_compact();
+    let expanded = get_expanded();
 
     //load widgets in the overlay
     overlay.add(&*background);
     overlay.set_minimal_mode(&minimal.upcast());
     overlay.set_compact_mode(&compact.upcast());
+    overlay.set_expanded_mode(&expanded.upcast());
 
     //add overlay to window
     window.add(&overlay);
@@ -67,14 +69,16 @@ fn main() -> Result<()> {
             .build()
             .expect("idk tokio rt failed");
         rt.block_on(async {
-            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-            ui_send.send(ActivityMode::Compact).expect("recv closed");
-            tokio::time::sleep(tokio::time::Duration::from_millis(3000)).await;
-            ui_send.send(ActivityMode::Minimal).expect("recv closed");
-            tokio::time::sleep(tokio::time::Duration::from_millis(3000)).await;
-            ui_send.send(ActivityMode::Compact).expect("recv closed");
-            tokio::time::sleep(tokio::time::Duration::from_millis(3000)).await;
-            ui_send.send(ActivityMode::Minimal).expect("recv closed");
+            loop {
+                tokio::time::sleep(tokio::time::Duration::from_millis(4000)).await;
+                ui_send.send(ActivityMode::Minimal).expect("recv closed");
+                tokio::time::sleep(tokio::time::Duration::from_millis(4000)).await;
+                ui_send.send(ActivityMode::Compact).expect("recv closed");
+                tokio::time::sleep(tokio::time::Duration::from_millis(4000)).await;
+                ui_send.send(ActivityMode::Expanded).expect("recv closed");
+                tokio::time::sleep(tokio::time::Duration::from_millis(4000)).await;
+                ui_send.send(ActivityMode::Compact).expect("recv closed");
+            }
         });
     });
 
@@ -85,6 +89,7 @@ fn main() -> Result<()> {
                 Some(n) => n,
                 None => return,
             };
+            // println!("switch");
             overlay.set_mode(mode)
         }
     });
@@ -104,18 +109,17 @@ fn get_bg() -> Box<impl IsA<gtk::Widget>> {
 
 fn get_compact() -> Box<impl IsA<gtk::Widget>> {
     let compact = gtk::Box::builder()
-        .height_request(400)
-        .width_request(800)
+        .height_request(40)
+        .width_request(180)
         .valign(gtk::Align::Center)
         .halign(gtk::Align::Center)
         .vexpand(false)
         .hexpand(false)
         .build();
-    compact.style_context().add_class("box4");
 
     compact.add(
         &gtk::Label::builder()
-            .label("sadhfjasd")
+            .label("compact")
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .hexpand(true)
@@ -126,22 +130,42 @@ fn get_compact() -> Box<impl IsA<gtk::Widget>> {
 
 fn get_minimal() -> Box<impl IsA<gtk::Widget>> {
     let minimal = gtk::Box::builder()
-        .height_request(100)
-        .width_request(200)
+        .height_request(40)
+        .width_request(50)
         .valign(gtk::Align::Center)
         .halign(gtk::Align::Center)
         .vexpand(false)
         .hexpand(false)
         .build();
-    minimal.style_context().add_class("box3");
 
     minimal.add(
         &gtk::Label::builder()
-            .label("label")
+            .label("m")
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .hexpand(true)
             .build(),
     );
     Box::new(minimal)
+}
+
+fn get_expanded() -> Box<impl IsA<gtk::Widget>> {
+    let expanded = gtk::Box::builder()
+        .height_request(100)
+        .width_request(350)
+        .valign(gtk::Align::Center)
+        .halign(gtk::Align::Center)
+        .vexpand(false)
+        .hexpand(false)
+        .build();
+
+    expanded.add(
+        &gtk::Label::builder()
+            .label("Expanded label,\n Hello Hello")
+            .halign(gtk::Align::Center)
+            .valign(gtk::Align::Center)
+            .hexpand(true)
+            .build(),
+    );
+    Box::new(expanded)
 }
