@@ -13,13 +13,93 @@ use super::transition::Transition;
 
 //Add function to set background_widget css
 
-#[derive(Clone, glib::Boxed)]
+const MINIMAL_HEIGHT: i32 = 40;
+
+#[derive(Clone, glib::Boxed, Debug)]
 #[boxed_type(name = "BoxedActivityMode")]
 pub enum ActivityMode {
     Minimal = 0,
     Compact = 1,
     Expanded = 2,
     Overlay = 3,
+}
+
+#[derive(Clone, glib::Boxed, Debug)]
+#[boxed_type(name = "BoxedLocalCssContext")]
+pub struct LocalCssContext {
+    css_provider: CssProvider,
+
+    size: (i32, i32),
+    border_radius: i32,
+}
+
+impl LocalCssContext {
+    pub fn new() -> Self {
+        Self {
+            css_provider: gtk::CssProvider::new(),
+            size: (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
+            border_radius: 100,
+        }
+    }
+
+    pub fn get_css_provider(&self) -> CssProvider {
+        self.css_provider.clone()
+    }
+    pub fn get_size(&self) -> (i32, i32) {
+        self.size
+    }
+    pub fn get_border_radius(&self) -> i32 {
+        self.border_radius
+    }
+
+    pub fn set_size(&mut self, size: (i32, i32)) -> Result<()> {
+        if self.size == size {
+            return Ok(());
+        };
+        self.size = size;
+        self.update_provider()
+    }
+    pub fn set_border_radius(&mut self, border_radius: i32) -> Result<()> {
+        if self.border_radius == border_radius {
+            return Ok(());
+        };
+        self.border_radius = border_radius;
+        self.update_provider()
+    }
+
+    fn update_provider(&self) -> Result<()> {
+        let (w, h) = self.size;
+        let border_radius = self.border_radius;
+        self.css_provider
+            .load_from_data(
+                format!(
+                    r".activity-background{{ 
+                        min-width: {w}px; 
+                        min-height: {h}px; 
+                    }}
+                    .mode-compact{{
+                        border-radius: {border_radius}px;
+                    }}
+                    .mode-minimal{{
+                        border-radius: {border_radius}px;
+                    }}
+                    .mode-expanded{{
+                        border-radius: {border_radius}px;
+                    }}
+                    .mode-overlay{{
+                        border-radius: {border_radius}px;
+                    }}"
+                )
+                .as_bytes(),
+            )
+            .with_context(|| "failed to update css provider data")
+    }
+}
+
+impl Default for LocalCssContext {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 wrapper! {
@@ -42,13 +122,11 @@ pub struct ActivityWidgetPriv {
     transition_duration: RefCell<u64>,
 
     #[property(get, nick = "Local CSS Provider")]
-    local_css_provider: RefCell<CssProvider>,
+    local_css_context: RefCell<LocalCssContext>,
 
     last_mode: RefCell<ActivityMode>,
 
     transition: RefCell<Transition>,
-
-    size_initialized: RefCell<bool>,
 
     background_widget: RefCell<Option<gtk::Widget>>,
 
@@ -125,10 +203,9 @@ impl Default for ActivityWidgetPriv {
         Self {
             mode: RefCell::new(ActivityMode::Minimal),
             transition_duration: RefCell::new(0),
-            local_css_provider: RefCell::new(gtk::CssProvider::new()),
+            local_css_context: RefCell::new(LocalCssContext::new()),
             last_mode: RefCell::new(ActivityMode::Minimal),
             transition: RefCell::new(Transition::new(Instant::now(), Duration::ZERO)),
-            size_initialized: RefCell::new(false),
             minimal_mode_widget: RefCell::new(None),
             compact_mode_widget: RefCell::new(None),
             expanded_mode_widget: RefCell::new(None),
@@ -138,13 +215,19 @@ impl Default for ActivityWidgetPriv {
     }
 }
 
-// pub fn default_background_widget() -> RefCell<Option<gtk::Widget>> {
-//     let widget = gtk::Box::builder().vexpand(false).hexpand(false).build();
-//     RefCell::new(Some(widget.upcast()))
-// }
-
 //set properties
+#[glib::derived_properties]
 impl ObjectImpl for ActivityWidgetPriv {
+    // fn signals() -> &'static [glib::subclass::Signal] { //TODO check if it's really necessary
+    //     static SIGNALS: LazyLock<Vec<Signal>> = LazyLock::new(|| {
+    //         vec![Signal::builder("scheduled-clock")
+    //         .param_types([i32::static_type()])
+    //         .run_first()
+    //         .build()]
+    //     });
+    //     SIGNALS.as_ref()
+    // }
+
     fn properties() -> &'static [glib::ParamSpec] {
         Self::derived_properties()
     }
@@ -156,30 +239,30 @@ impl ObjectImpl for ActivityWidgetPriv {
                 self.mode.replace(value.get().unwrap());
                 let start: Instant;
                 let duration: Duration;
-                if self.transition.borrow().is_active(){
-                    duration=Duration::from_millis(*self.transition_duration.borrow())+self.transition.borrow().duration_to_end();
-                    start=Instant::now().checked_sub(self.transition.borrow().duration_to_end()).expect("time error");
+                if self.transition.borrow().is_active() {
+                    duration = Duration::from_millis(*self.transition_duration.borrow())
+                        + self.transition.borrow().duration_to_end();
+                    start = Instant::now()
+                        .checked_sub(self.transition.borrow().duration_to_end())
+                        .expect("time error");
                 } else {
-                    start=Instant::now();
-                    duration=Duration::from_millis(*self.transition_duration.borrow());
+                    start = Instant::now();
+                    duration = Duration::from_millis(*self.transition_duration.borrow());
                 }
 
-                self.transition.replace(Transition::new(
-                    start,
-                    duration,
-                ));
+                self.transition.replace(Transition::new(start, duration));
 
                 if let Some(widget) = &*self.get_mode_widget(self.mode.borrow().clone()).borrow() {
-                    let (w, h) = (widget.allocation().width(), widget.allocation().height());
-                    self.local_css_provider
-                        .borrow()
-                        .load_from_data(
-                            format!(
-                                ".activity-background{{ min-width: {w}px; min-height: {h}px; }}"
-                            )
-                            .as_bytes(),
-                        )
-                        .unwrap(); //TODO change css class to unique identifier
+                    let height = match *self.mode.borrow() {
+                        ActivityMode::Minimal | ActivityMode::Compact => MINIMAL_HEIGHT,
+                        ActivityMode::Expanded | ActivityMode::Overlay => {
+                            widget.allocation().height()
+                        }
+                    };
+                    self.local_css_context
+                        .borrow_mut()
+                        .set_size((widget.allocation().width(), height))
+                        .expect("failed to set activity size");
                 }
                 self.obj().queue_draw(); // Queue a draw call with the updated value
             }
@@ -222,7 +305,7 @@ impl ActivityWidget {
 
         gtk::StyleContext::add_provider_for_screen(
             &gdk::Screen::default().unwrap(),
-            &*wid.imp().local_css_provider.borrow(),
+            &wid.imp().local_css_context.borrow().get_css_provider(),
             gtk::STYLE_PROVIDER_PRIORITY_SETTINGS,
         );
         wid
@@ -233,17 +316,14 @@ impl ActivityWidget {
             content.unparent();
             content.style_context().remove_class("mode-minimal");
         }
+
         widget.set_parent(self);
         widget.style_context().add_class("mode-minimal");
         priv_.minimal_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Minimal = self.mode() {
-            let (w, h) = (widget.width_request(), widget.height_request());
-            self.local_css_provider()
-                .load_from_data(
-                    format!(".activity-background{{ min-width: {w}px; min-height: {h}px; }}")
-                        .as_bytes(),
-                )
-                .unwrap(); //TODO change css class to unique identifier
+            self.local_css_context()
+                .set_size((widget.width_request(), MINIMAL_HEIGHT))
+                .expect("failed to set activity size");
         }
         self.queue_draw(); // Queue a draw call with the updated widget
     }
@@ -257,13 +337,9 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-compact");
         priv_.compact_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Compact = self.mode() {
-            let (w, h) = (widget.width_request(), widget.height_request());
-            self.local_css_provider()
-                .load_from_data(
-                    format!(".activity-background{{ min-width: {w}px; min-height: {h}px; }}")
-                        .as_bytes(),
-                )
-                .unwrap(); //TODO change css class to unique identifier
+            self.local_css_context()
+                .set_size((widget.width_request(), MINIMAL_HEIGHT))
+                .expect("failed to set activity size");
         }
         self.queue_draw(); // Queue a draw call with the updated widget
     }
@@ -277,13 +353,9 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-expanded");
         priv_.expanded_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Expanded = self.mode() {
-            let (w, h) = (widget.width_request(), widget.height_request());
-            self.local_css_provider()
-                .load_from_data(
-                    format!(".activity-background{{ min-width: {w}px; min-height: {h}px; }}")
-                        .as_bytes(),
-                )
-                .unwrap(); //TODO change css class to unique identifier
+            self.local_css_context()
+                .set_size((widget.width_request(), widget.height_request()))
+                .expect("failed to set activity size");
         }
         self.queue_draw(); // Queue a draw call with the updated widget
     }
@@ -297,13 +369,9 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-overlay");
         priv_.overlay_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Overlay = self.mode() {
-            let (w, h) = (widget.width_request(), widget.height_request());
-            self.local_css_provider()
-                .load_from_data(
-                    format!(".activity-background{{ min-width: {w}px; min-height: {h}px; }}")
-                        .as_bytes(),
-                )
-                .unwrap(); //TODO change css class to unique identifier
+            self.local_css_context()
+                .set_size((widget.width_request(), widget.height_request()))
+                .expect("failed to set activity size");
         }
         self.queue_draw(); // Queue a draw call with the updated widget
     }
@@ -318,7 +386,6 @@ impl ContainerImpl for ActivityWidgetPriv {
                 .remove_class("activity-background"); //TODO change css class to unique identifier
             bg_widget.unparent();
         }
-        self.size_initialized.replace(false);
         widget.set_parent(self.obj().as_ref());
         widget.style_context().add_class("activity-background"); //TODO change css class to unique identifier
         self.background_widget.replace(Some(widget.clone()));
@@ -370,7 +437,7 @@ impl WidgetImpl for ActivityWidgetPriv {
             Some(content) if content.is_visible() => {
                 get_max_preferred_size(content.preferred_width_for_height(height), (height, height))
             }
-            _ => (0, 0),
+            _ => (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
         }
     }
     fn preferred_height_for_width(&self, width: i32) -> (i32, i32) {
@@ -378,21 +445,21 @@ impl WidgetImpl for ActivityWidgetPriv {
             Some(content) if content.is_visible() => {
                 get_max_preferred_size(content.preferred_height_for_width(width), (0, width))
             }
-            _ => (0, 0),
+            _ => (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
         }
     }
 
     fn preferred_height(&self) -> (i32, i32) {
         match &*self.background_widget.borrow() {
             Some(content) if content.is_visible() => content.preferred_height(),
-            _ => (0, 0),
+            _ => (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
         }
     }
 
     fn preferred_width(&self) -> (i32, i32) {
         match &*self.background_widget.borrow() {
             Some(content) if content.is_visible() => content.preferred_width(),
-            _ => (0, 0),
+            _ => (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
         }
     }
 
@@ -448,6 +515,10 @@ impl WidgetImpl for ActivityWidgetPriv {
                     self.obj().allocated_width() as f64 / 2.0,
                 ),
             );
+            self.local_css_context
+                .borrow_mut()
+                .set_border_radius(radius as i32)
+                .expect("failed to set activity border-radius");
 
             //draw background
             cr.rectangle(
@@ -538,8 +609,10 @@ impl WidgetImpl for ActivityWidgetPriv {
                     cr.set_source_surface(&blurred_surface, 0.0, 0.0)
                         .with_context(|| "failed to set source surface")?;
 
-                    cr.paint_with_alpha(1.0 - progress as f64)
-                        .with_context(|| "failed to paint surface to context")?;
+                    cr.paint_with_alpha(
+                        soy::Lerper::calculate(&soy::EASE_OUT, 1.0 - progress) as f64
+                    )
+                    .with_context(|| "failed to paint surface to context")?;
                 }
 
                 if let Some(widget) = &*widget_to_render.borrow() {
@@ -567,7 +640,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                     cr.set_source_surface(&blurred_surface, 0.0, 0.0)
                         .with_context(|| "failed to set source surface")?;
 
-                    cr.paint_with_alpha(progress as f64)
+                    cr.paint_with_alpha(soy::Lerper::calculate(&soy::EASE_IN, progress) as f64)
                         .with_context(|| "failed to paint surface to context")?;
                 }
             } else if let Some(widget) = &*widget_to_render.borrow() {

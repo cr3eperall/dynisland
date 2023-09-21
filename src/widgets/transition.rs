@@ -26,11 +26,11 @@ impl Transition {
         }
     }
 
-    pub fn duration_to_end(&self)-> Duration {
-        if self.get_progress()==1.0{
+    pub fn duration_to_end(&self) -> Duration {
+        if self.get_progress() == 1.0 {
             Duration::ZERO
-        }else{
-            (self.start_time+self.duration).duration_since(Instant::now())
+        } else {
+            (self.start_time + self.duration).duration_since(Instant::now())
         }
     }
 
