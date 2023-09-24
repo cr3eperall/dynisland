@@ -3,6 +3,9 @@ use std::any::Any;
 
 use dyn_clone::DynClone;
 
+
+pub struct PropertyUpdate(pub String, pub Box<dyn ValidDynType>);
+
 pub trait ValidDynType: Any + Sync + Send + DynClone {}
 impl<T: Any + Sync + Send + Clone> ValidDynType for T {}
 
@@ -16,7 +19,7 @@ impl Clone for Box<dyn ValidDynamicClosure> {
 }
 
 pub struct DynamicProperty {
-    pub backend_channel: tokio::sync::mpsc::UnboundedSender<(String, Box<dyn ValidDynType>)>,
+    pub backend_channel: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
     pub name: String,
     pub value: Box<dyn ValidDynType>,
 }
@@ -51,7 +54,7 @@ impl DynamicProperty {
         self.value = Box::new(value);
         match self
             .backend_channel
-            .send((self.name.clone(), dyn_clone::clone_box(&*self.value)))
+            .send(PropertyUpdate(self.name.clone(), dyn_clone::clone_box(&*self.value)))
         {
             Ok(_) => Ok(()),
             Err(err) => bail!("error sending update request to ui: {:?}", err),

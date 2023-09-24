@@ -3,9 +3,10 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
 use super::{
-    dynamic_property::{DynamicProperty, ValidDynType, ValidDynamicClosure},
+    dynamic_property::{DynamicProperty, ValidDynType, ValidDynamicClosure, PropertyUpdate},
     activity_widget::ActivityWidget,
 };
+
 
 pub struct SubscribableProperty {
     pub property: Arc<Mutex<DynamicProperty>>,
@@ -15,11 +16,11 @@ pub struct SubscribableProperty {
 pub struct DynamicActivity {
     pub widget: ActivityWidget,
     pub property_dictionary: HashMap<String, SubscribableProperty>,
-    pub ui_send: UnboundedSender<(String, Box<dyn ValidDynType>)>,
+    pub ui_send: UnboundedSender<PropertyUpdate>,
 }
 
 impl DynamicActivity {
-    pub fn new(ui_send: UnboundedSender<(String, Box<dyn ValidDynType>)>) -> Self {
+    pub fn new(ui_send: UnboundedSender<PropertyUpdate>) -> Self {
         Self {
             widget: ActivityWidget::new(),
             property_dictionary: HashMap::new(),
@@ -69,7 +70,7 @@ impl DynamicActivity {
     }
 
     /// for producer, returns Err if the property doesn't exist
-    pub fn get_property(&mut self, name: &str) -> Result<Arc<Mutex<DynamicProperty>>> {
+    pub fn get_property(&self, name: &str) -> Result<Arc<Mutex<DynamicProperty>>> {
         match self.property_dictionary.get(name) {
             Some(property) => Ok(property.property.clone()),
             None => bail!("property {} doesn't exist on this activity", name),
