@@ -265,6 +265,7 @@ dependencies = [
  "grass",
  "gtk",
  "gtk-layer-shell",
+ "rand 0.8.5",
  "soy",
  "tokio",
 ]

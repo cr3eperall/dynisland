@@ -3,6 +3,7 @@ use std::{
     f64::consts::PI,
     time::{Duration, Instant},
 };
+use rand::{distributions::Alphanumeric, Rng};
 
 use anyhow::{Context, Result};
 use glib::{object_subclass, prelude::*, wrapper};
@@ -28,15 +29,17 @@ pub enum ActivityMode {
 #[boxed_type(name = "BoxedLocalCssContext")]
 pub struct LocalCssContext {
     css_provider: CssProvider,
+    name: String,
 
     size: (i32, i32),
     border_radius: i32,
 }
 
 impl LocalCssContext {
-    pub fn new() -> Self {
+    pub fn new(name:&str) -> Self {
         Self {
             css_provider: gtk::CssProvider::new(),
+            name: name.to_string(),
             size: (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
             border_radius: 100,
         }
@@ -44,6 +47,12 @@ impl LocalCssContext {
 
     pub fn get_css_provider(&self) -> CssProvider {
         self.css_provider.clone()
+    }
+    pub fn get_name(&self)-> String {
+        self.name.clone()
+    }
+    pub fn set_name(&mut self, name: &str) {
+        self.name=name.to_string();
     }
     pub fn get_size(&self) -> (i32, i32) {
         self.size
@@ -70,26 +79,29 @@ impl LocalCssContext {
     fn update_provider(&self) -> Result<()> {
         let (w, h) = self.size;
         let border_radius = self.border_radius;
+        let name=self.name.as_str();
+        let css=format!(
+            r".{name} .activity-background{{ 
+                min-width: {w}px; 
+                min-height: {h}px; 
+            }}
+            .{name} .mode-compact{{
+                border-radius: {border_radius}px;
+            }}
+            .{name} .mode-minimal{{
+                border-radius: {border_radius}px;
+            }}
+            .{name} .mode-expanded{{
+                border-radius: {border_radius}px;
+            }}
+            .{name} .mode-overlay{{
+                border-radius: {border_radius}px;
+            }}"
+        );
+        // println!("{css}");
         self.css_provider
             .load_from_data(
-                format!(
-                    r".activity-background{{ 
-                        min-width: {w}px; 
-                        min-height: {h}px; 
-                    }}
-                    .mode-compact{{
-                        border-radius: {border_radius}px;
-                    }}
-                    .mode-minimal{{
-                        border-radius: {border_radius}px;
-                    }}
-                    .mode-expanded{{
-                        border-radius: {border_radius}px;
-                    }}
-                    .mode-overlay{{
-                        border-radius: {border_radius}px;
-                    }}"
-                )
+                css
                 .as_bytes(),
             )
             .with_context(|| "failed to update css provider data")
@@ -98,7 +110,7 @@ impl LocalCssContext {
 
 impl Default for LocalCssContext {
     fn default() -> Self {
-        Self::new()
+        Self::new(rand::thread_rng().sample_iter(&Alphanumeric).take(6).map(char::from).collect::<String>().as_str())
     }
 }
 
@@ -120,9 +132,12 @@ pub struct ActivityWidgetPriv {
         blurb = "The Duration of the Transition"
     )]
     transition_duration: RefCell<u64>,
-
+    
     #[property(get, nick = "Local CSS Provider")]
     local_css_context: RefCell<LocalCssContext>,
+
+    #[property(get, set, nick = "Widget name")]
+    name: RefCell<String>,
 
     last_mode: RefCell<ActivityMode>,
 
@@ -200,11 +215,13 @@ impl ActivityWidgetPriv {
 //default data
 impl Default for ActivityWidgetPriv {
     fn default() -> Self {
+        let name:String=rand::thread_rng().sample_iter(&Alphanumeric).take(6).map(char::from).collect();
         Self {
             mode: RefCell::new(ActivityMode::Minimal),
             transition_duration: RefCell::new(0),
-            local_css_context: RefCell::new(LocalCssContext::new()),
+            local_css_context: RefCell::new(LocalCssContext::new(&name)),
             last_mode: RefCell::new(ActivityMode::Minimal),
+            name: RefCell::new(name),
             transition: RefCell::new(Transition::new(Instant::now(), Duration::ZERO)),
             minimal_mode_widget: RefCell::new(None),
             compact_mode_widget: RefCell::new(None),
@@ -268,6 +285,13 @@ impl ObjectImpl for ActivityWidgetPriv {
             }
             "transition-duration" => {
                 self.transition_duration.replace(value.get().unwrap());
+            },
+            "name" => {
+                self.obj().style_context().remove_class(&*self.name.borrow());
+
+                self.name.replace(value.get().unwrap());
+                self.local_css_context.try_borrow_mut().unwrap().set_name(value.get().unwrap());
+                self.obj().style_context().add_class(value.get().unwrap());
             }
             x => panic!("Tried to set inexistant property of ActivityWidget: {}", x),
         }
@@ -293,15 +317,16 @@ impl ObjectSubclass for ActivityWidgetPriv {
 
 impl Default for ActivityWidget {
     fn default() -> Self {
-        Self::new()
+        Self::new(rand::thread_rng().sample_iter(&Alphanumeric).take(6).map(char::from).collect::<String>().as_str())
     }
 }
 
 //set mode widgets and get new instance
 impl ActivityWidget {
-    pub fn new() -> Self {
+    pub fn new(name: &str) -> Self {
         let wid = glib::Object::new::<Self>();
         wid.set_has_window(false);
+        wid.set_name(name);
 
         gtk::StyleContext::add_provider_for_screen(
             &gdk::Screen::default().unwrap(),

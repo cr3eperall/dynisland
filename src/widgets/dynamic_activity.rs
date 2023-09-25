@@ -13,20 +13,33 @@ pub struct SubscribableProperty {
     pub subscribers: Vec<Box<dyn ValidDynamicClosure>>,
 }
 
-pub struct DynamicActivity {
-    pub widget: ActivityWidget,
-    pub property_dictionary: HashMap<String, SubscribableProperty>,
-    pub ui_send: UnboundedSender<PropertyUpdate>,
+pub struct DynamicActivity {//TODO change to getters and setters
+    widget: ActivityWidget,
+    property_dictionary: HashMap<String, SubscribableProperty>,
+    ui_send: UnboundedSender<PropertyUpdate>,
+    identifier: String
 }
 
 impl DynamicActivity {
-    pub fn new(ui_send: UnboundedSender<PropertyUpdate>) -> Self {
-        Self {
-            widget: ActivityWidget::new(),
+    pub fn new(ui_send: UnboundedSender<PropertyUpdate>, name: &str) -> Self {
+        let mut act=Self {
+            widget: ActivityWidget::new(name),
             property_dictionary: HashMap::new(),
             ui_send,
-        }
+            identifier: name.to_string()
+        };
+        act.identifier=name.to_string();
+        act
     }
+
+    pub fn set_activity_widget(&mut self, widget:ActivityWidget) {
+        widget.set_name(self.identifier.clone());
+        self.widget=widget;
+    }
+    pub fn get_activity_widget(&self) -> ActivityWidget {
+        self.widget.clone()
+    }
+
     /// Returns Err if the property already exists
     pub fn add_dynamic_property<T>(&mut self, name: &str, initial_value: T) -> Result<()>
     where

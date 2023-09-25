@@ -53,25 +53,9 @@ impl ExampleModule {
                 }
             }
         });
-        // activity.blocking_lock().widget.clone();
     }
 
-    // pub fn init_producer() {
-    //     let (send, recv) = tokio::sync::oneshot::channel::<Arc<Runtime>>();
-    //     std::thread::spawn(move || {
-    //         let rt = tokio::runtime::Builder::new_current_thread()
-    //             .enable_all()
-    //             .build()
-    //             .expect("idk tokio rt failed");
-    //         let rt = Arc::new(rt);
-    //         send.send(rt.clone()).expect("failed to send rt");
-    //         rt.block_on(pending::<()>()); //keep thread alive
-    //     });
-    //     let rt = recv.blocking_recv().expect("failed to get rt");
-    //     producer(&rt);
-    // }
-
-    //TODO replace activities with module context
+    //TODO replace 'activities' with module context
     pub fn producer(activities: &[Arc<Mutex<DynamicActivity>>], rt: &Runtime) {
         //data producer
         let act = activities[0].blocking_lock();
@@ -114,7 +98,7 @@ impl ExampleModule {
     fn get_activity(
         prop_send: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
     ) -> DynamicActivity {
-        let mut activity = DynamicActivity::new(prop_send);
+        let mut activity = DynamicActivity::new(prop_send, "exampleActivity");
 
         //create activity widget
         let activity_widget = Self::get_act_widget();
@@ -134,7 +118,7 @@ impl ExampleModule {
             let l = f.mode();
             println!("Changed mode: {:?}", l);
         });
-        activity.widget = activity_widget.clone();
+        activity.set_activity_widget(activity_widget.clone());
 
         activity
             .add_dynamic_property("mode", ActivityMode::Minimal)
@@ -172,7 +156,7 @@ impl ExampleModule {
     }
 
     fn get_act_widget() -> ActivityWidget {
-        let activity_widget = ActivityWidget::new();
+        let activity_widget = ActivityWidget::default();
         activity_widget.set_vexpand(false);
         activity_widget.set_hexpand(false);
         activity_widget.set_valign(gtk::Align::Start);

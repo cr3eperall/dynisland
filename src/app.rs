@@ -8,7 +8,8 @@ use crate::{modules::example, widgets::dynamic_activity::DynamicActivity};
 
 pub enum ServerCommand{
     AddActivity(Arc<Mutex<DynamicActivity>>),
-    AddProducer(fn(activity: &[Arc<Mutex<DynamicActivity>>], rt: &Runtime))
+    AddProducer(fn(activity: &[Arc<Mutex<DynamicActivity>>], rt: &Runtime)),
+    //TODO add remove activity and producer
 }
 
 
@@ -48,8 +49,6 @@ pub fn initialize_server() -> Result<()>{
     window.connect_destroy(|_| std::process::exit(0));
     window.show_all();
     
-    //TODO add activity to window
-    
     let (app_send, mut app_recv) = unbounded_channel::<ServerCommand>();
     
     let example_mod=example::ExampleModule::new(app_send);
@@ -66,7 +65,7 @@ pub fn initialize_server() -> Result<()>{
                     producer(v.as_slice(), &rt);
                 },
                 ServerCommand::AddActivity(activity) => {
-                    act_container.add(&activity.lock().await.widget);
+                    act_container.add(&activity.lock().await.get_activity_widget());
                     act_container.show_all();
                     v.push(activity);
                 },
@@ -80,12 +79,20 @@ pub fn initialize_server() -> Result<()>{
 }
 
 fn get_window() -> gtk::Window {
-    gtk::Window::builder()
+    let window =gtk::Window::builder()
         .title("test")
-        .type_(gtk::WindowType::Toplevel)
+        .type_(gtk::WindowType::Popup)
+        .has_focus(true)
         .height_request(500)
         .width_request(800)
-        .build()
+        .build();
+    // gtk_layer_shell::init_for_window(&window);
+    // gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
+    // gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, true);
+    // gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, 5);
+
+    window
+
 }
 
 fn get_new_tokio_rt()-> Arc<Runtime> {

@@ -34,14 +34,17 @@ pub fn apply_blur(
         .map(|val| val.try_into().unwrap())
         .collect::<Vec<[u8; 4]>>();
 
-    gaussian_blur(
-        &mut surface_data,
-        width as usize,
-        height as usize,
-        radius,
-        n,
-    );
-
+    if radius<height as f32 && radius<width as f32 {
+    
+        gaussian_blur(
+            &mut surface_data,
+            width as usize,
+            height as usize,
+            radius,
+            n,
+        );
+    }
+    
     for i in 0..surface_data.len() {
         blurred_surface_data2[i][0] = surface_data[i][0];
         blurred_surface_data2[i][1] = surface_data[i][1];
