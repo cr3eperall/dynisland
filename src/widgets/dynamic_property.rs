@@ -3,7 +3,6 @@ use std::any::Any;
 
 use dyn_clone::DynClone;
 
-
 pub struct PropertyUpdate(pub String, pub Box<dyn ValidDynType>);
 
 pub trait ValidDynType: Any + Sync + Send + DynClone {}
@@ -52,10 +51,10 @@ impl DynamicProperty {
             bail!("tried to set wrong type")
         }
         self.value = Box::new(value);
-        match self
-            .backend_channel
-            .send(PropertyUpdate(self.name.clone(), dyn_clone::clone_box(&*self.value)))
-        {
+        match self.backend_channel.send(PropertyUpdate(
+            self.name.clone(),
+            dyn_clone::clone_box(&*self.value),
+        )) {
             Ok(_) => Ok(()),
             Err(err) => bail!("error sending update request to ui: {:?}", err),
         }

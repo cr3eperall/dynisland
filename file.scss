@@ -1,5 +1,5 @@
 
-.overlay {
+activity-widget {
     background-color: palevioletred;
     border: 10px solid gray;
     border-radius: 20px;
@@ -27,8 +27,4 @@
 
     transition-property: min-width, min-height;
     transition-duration: 3s;
-}
-
-*:backdrop {
-
 }

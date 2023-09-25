@@ -3,41 +3,44 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
 use super::{
-    dynamic_property::{DynamicProperty, ValidDynType, ValidDynamicClosure, PropertyUpdate},
     activity_widget::ActivityWidget,
+    dynamic_property::{DynamicProperty, PropertyUpdate, ValidDynType, ValidDynamicClosure},
 };
-
 
 pub struct SubscribableProperty {
     pub property: Arc<Mutex<DynamicProperty>>,
     pub subscribers: Vec<Box<dyn ValidDynamicClosure>>,
 }
 
-pub struct DynamicActivity {//TODO change to getters and setters
+pub struct DynamicActivity {
+    //TODO change to getters and setters
     widget: ActivityWidget,
     property_dictionary: HashMap<String, SubscribableProperty>,
     ui_send: UnboundedSender<PropertyUpdate>,
-    identifier: String
+    identifier: String,
 }
 
 impl DynamicActivity {
     pub fn new(ui_send: UnboundedSender<PropertyUpdate>, name: &str) -> Self {
-        let mut act=Self {
+        let mut act = Self {
             widget: ActivityWidget::new(name),
             property_dictionary: HashMap::new(),
             ui_send,
-            identifier: name.to_string()
+            identifier: name.to_string(),
         };
-        act.identifier=name.to_string();
+        act.identifier = name.to_string();
         act
     }
 
-    pub fn set_activity_widget(&mut self, widget:ActivityWidget) {
+    pub fn set_activity_widget(&mut self, widget: ActivityWidget) {
         widget.set_name(self.identifier.clone());
-        self.widget=widget;
+        self.widget = widget;
     }
     pub fn get_activity_widget(&self) -> ActivityWidget {
         self.widget.clone()
+    }
+    pub fn get_identifier(&self) -> String {
+        self.identifier.clone()
     }
 
     /// Returns Err if the property already exists

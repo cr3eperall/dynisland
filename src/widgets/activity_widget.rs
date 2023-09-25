@@ -1,9 +1,9 @@
+use rand::{distributions::Alphanumeric, Rng};
 use std::{
     cell::RefCell,
     f64::consts::PI,
     time::{Duration, Instant},
 };
-use rand::{distributions::Alphanumeric, Rng};
 
 use anyhow::{Context, Result};
 use glib::{object_subclass, prelude::*, wrapper};
@@ -36,7 +36,7 @@ pub struct LocalCssContext {
 }
 
 impl LocalCssContext {
-    pub fn new(name:&str) -> Self {
+    pub fn new(name: &str) -> Self {
         Self {
             css_provider: gtk::CssProvider::new(),
             name: name.to_string(),
@@ -48,11 +48,11 @@ impl LocalCssContext {
     pub fn get_css_provider(&self) -> CssProvider {
         self.css_provider.clone()
     }
-    pub fn get_name(&self)-> String {
-        self.name.clone()
+    pub fn get_name(&self) -> &str {
+        &self.name
     }
     pub fn set_name(&mut self, name: &str) {
-        self.name=name.to_string();
+        self.name = name.to_string();
     }
     pub fn get_size(&self) -> (i32, i32) {
         self.size
@@ -79,8 +79,8 @@ impl LocalCssContext {
     fn update_provider(&self) -> Result<()> {
         let (w, h) = self.size;
         let border_radius = self.border_radius;
-        let name=self.name.as_str();
-        let css=format!(
+        let name = self.name.as_str();
+        let css = format!(
             r".{name} .activity-background{{ 
                 min-width: {w}px; 
                 min-height: {h}px; 
@@ -100,17 +100,21 @@ impl LocalCssContext {
         );
         // println!("{css}");
         self.css_provider
-            .load_from_data(
-                css
-                .as_bytes(),
-            )
+            .load_from_data(css.as_bytes())
             .with_context(|| "failed to update css provider data")
     }
 }
 
 impl Default for LocalCssContext {
     fn default() -> Self {
-        Self::new(rand::thread_rng().sample_iter(&Alphanumeric).take(6).map(char::from).collect::<String>().as_str())
+        Self::new(
+            rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(6)
+                .map(char::from)
+                .collect::<String>()
+                .as_str(),
+        )
     }
 }
 
@@ -132,7 +136,7 @@ pub struct ActivityWidgetPriv {
         blurb = "The Duration of the Transition"
     )]
     transition_duration: RefCell<u64>,
-    
+
     #[property(get, nick = "Local CSS Provider")]
     local_css_context: RefCell<LocalCssContext>,
 
@@ -152,6 +156,103 @@ pub struct ActivityWidgetPriv {
     expanded_mode_widget: RefCell<Option<gtk::Widget>>,
 
     overlay_mode_widget: RefCell<Option<gtk::Widget>>,
+}
+
+//set properties
+#[glib::derived_properties]
+impl ObjectImpl for ActivityWidgetPriv {
+    // fn signals() -> &'static [glib::subclass::Signal] { //TODO check if it's really necessary
+    //     static SIGNALS: LazyLock<Vec<Signal>> = LazyLock::new(|| {
+    //         vec![Signal::builder("scheduled-clock")
+    //         .param_types([i32::static_type()])
+    //         .run_first()
+    //         .build()]
+    //     });
+    //     SIGNALS.as_ref()
+    // }
+
+    fn properties() -> &'static [glib::ParamSpec] {
+        Self::derived_properties()
+    }
+
+    fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+        match pspec.name() {
+            "mode" => {
+                self.last_mode.replace(self.mode.borrow().clone());
+                self.mode.replace(value.get().unwrap());
+                let start: Instant;
+                let duration: Duration;
+                if self.transition.borrow().is_active() {
+                    duration = Duration::from_millis(*self.transition_duration.borrow())
+                        + self.transition.borrow().duration_to_end();
+                    start = Instant::now()
+                        .checked_sub(self.transition.borrow().duration_to_end())
+                        .expect("time error");
+                } else {
+                    start = Instant::now();
+                    duration = Duration::from_millis(*self.transition_duration.borrow());
+                }
+
+                self.transition.replace(Transition::new(start, duration));
+
+                if let Some(widget) = &*self.get_mode_widget(self.mode.borrow().clone()).borrow() {
+                    let height = match *self.mode.borrow() {
+                        ActivityMode::Minimal | ActivityMode::Compact => MINIMAL_HEIGHT,
+                        ActivityMode::Expanded | ActivityMode::Overlay => {
+                            widget.allocation().height()
+                        }
+                    };
+                    self.local_css_context
+                        .borrow_mut()
+                        .set_size((widget.allocation().width(), height))
+                        .expect("failed to set activity size");
+                }
+                self.obj().queue_draw(); // Queue a draw call with the updated value
+            }
+            "transition-duration" => {
+                self.transition_duration.replace(value.get().unwrap());
+            }
+            "name" => {
+                self.obj().style_context().remove_class(&self.name.borrow());
+
+                self.name.replace(value.get().unwrap());
+                self.local_css_context
+                    .try_borrow_mut()
+                    .unwrap()
+                    .set_name(value.get().unwrap());
+                self.obj().style_context().add_class(value.get().unwrap());
+            }
+            x => panic!("Tried to set inexistant property of ActivityWidget: {}", x),
+        }
+    }
+
+    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
+        self.derived_property(id, pspec)
+    }
+}
+
+//default data
+impl Default for ActivityWidgetPriv {
+    fn default() -> Self {
+        let name: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(6)
+            .map(char::from)
+            .collect();
+        Self {
+            mode: RefCell::new(ActivityMode::Minimal),
+            transition_duration: RefCell::new(0),
+            local_css_context: RefCell::new(LocalCssContext::new(&name)),
+            last_mode: RefCell::new(ActivityMode::Minimal),
+            name: RefCell::new(name),
+            transition: RefCell::new(Transition::new(Instant::now(), Duration::ZERO)),
+            minimal_mode_widget: RefCell::new(None),
+            compact_mode_widget: RefCell::new(None),
+            expanded_mode_widget: RefCell::new(None),
+            overlay_mode_widget: RefCell::new(None),
+            background_widget: RefCell::new(None),
+        }
+    }
 }
 
 impl ActivityWidgetPriv {
@@ -212,96 +313,6 @@ impl ActivityWidgetPriv {
     }
 }
 
-//default data
-impl Default for ActivityWidgetPriv {
-    fn default() -> Self {
-        let name:String=rand::thread_rng().sample_iter(&Alphanumeric).take(6).map(char::from).collect();
-        Self {
-            mode: RefCell::new(ActivityMode::Minimal),
-            transition_duration: RefCell::new(0),
-            local_css_context: RefCell::new(LocalCssContext::new(&name)),
-            last_mode: RefCell::new(ActivityMode::Minimal),
-            name: RefCell::new(name),
-            transition: RefCell::new(Transition::new(Instant::now(), Duration::ZERO)),
-            minimal_mode_widget: RefCell::new(None),
-            compact_mode_widget: RefCell::new(None),
-            expanded_mode_widget: RefCell::new(None),
-            overlay_mode_widget: RefCell::new(None),
-            background_widget: RefCell::new(None),
-        }
-    }
-}
-
-//set properties
-#[glib::derived_properties]
-impl ObjectImpl for ActivityWidgetPriv {
-    // fn signals() -> &'static [glib::subclass::Signal] { //TODO check if it's really necessary
-    //     static SIGNALS: LazyLock<Vec<Signal>> = LazyLock::new(|| {
-    //         vec![Signal::builder("scheduled-clock")
-    //         .param_types([i32::static_type()])
-    //         .run_first()
-    //         .build()]
-    //     });
-    //     SIGNALS.as_ref()
-    // }
-
-    fn properties() -> &'static [glib::ParamSpec] {
-        Self::derived_properties()
-    }
-
-    fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
-        match pspec.name() {
-            "mode" => {
-                self.last_mode.replace(self.mode.borrow().clone());
-                self.mode.replace(value.get().unwrap());
-                let start: Instant;
-                let duration: Duration;
-                if self.transition.borrow().is_active() {
-                    duration = Duration::from_millis(*self.transition_duration.borrow())
-                        + self.transition.borrow().duration_to_end();
-                    start = Instant::now()
-                        .checked_sub(self.transition.borrow().duration_to_end())
-                        .expect("time error");
-                } else {
-                    start = Instant::now();
-                    duration = Duration::from_millis(*self.transition_duration.borrow());
-                }
-
-                self.transition.replace(Transition::new(start, duration));
-
-                if let Some(widget) = &*self.get_mode_widget(self.mode.borrow().clone()).borrow() {
-                    let height = match *self.mode.borrow() {
-                        ActivityMode::Minimal | ActivityMode::Compact => MINIMAL_HEIGHT,
-                        ActivityMode::Expanded | ActivityMode::Overlay => {
-                            widget.allocation().height()
-                        }
-                    };
-                    self.local_css_context
-                        .borrow_mut()
-                        .set_size((widget.allocation().width(), height))
-                        .expect("failed to set activity size");
-                }
-                self.obj().queue_draw(); // Queue a draw call with the updated value
-            }
-            "transition-duration" => {
-                self.transition_duration.replace(value.get().unwrap());
-            },
-            "name" => {
-                self.obj().style_context().remove_class(&*self.name.borrow());
-
-                self.name.replace(value.get().unwrap());
-                self.local_css_context.try_borrow_mut().unwrap().set_name(value.get().unwrap());
-                self.obj().style_context().add_class(value.get().unwrap());
-            }
-            x => panic!("Tried to set inexistant property of ActivityWidget: {}", x),
-        }
-    }
-
-    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
-        self.derived_property(id, pspec)
-    }
-}
-
 //init widget info
 #[object_subclass]
 impl ObjectSubclass for ActivityWidgetPriv {
@@ -317,7 +328,14 @@ impl ObjectSubclass for ActivityWidgetPriv {
 
 impl Default for ActivityWidget {
     fn default() -> Self {
-        Self::new(rand::thread_rng().sample_iter(&Alphanumeric).take(6).map(char::from).collect::<String>().as_str())
+        Self::new(
+            rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(6)
+                .map(char::from)
+                .collect::<String>()
+                .as_str(),
+        )
     }
 }
 

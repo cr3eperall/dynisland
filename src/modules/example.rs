@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use gtk::prelude::*;
 use tokio::{
@@ -17,29 +17,54 @@ use crate::{
 };
 
 pub struct ExampleModule {
+    name: String,
     app_send: UnboundedSender<ServerCommand>,
+    registered_activities: Arc<Mutex<HashMap<String, Arc<Mutex<DynamicActivity>>>>>,
 }
 impl ExampleModule {
     pub fn new(app_send: UnboundedSender<ServerCommand>) -> Self {
         Self {
-            app_send
+            name: "ExampleModule".to_string(),
+            app_send,
+            registered_activities: Arc::new(Mutex::new(HashMap::new())),
         }
     }
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+    pub fn get_registered_activities(
+        &self,
+    ) -> Arc<Mutex<HashMap<String, Arc<Mutex<DynamicActivity>>>>> {
+        self.registered_activities.clone()
+    }
+    pub async fn register_activity(&self, activity: Arc<Mutex<DynamicActivity>>) {
+        self.registered_activities
+            .lock()
+            .await
+            .insert(activity.lock().await.get_identifier(), activity.clone());
+    }
 
-    pub fn init(&self){//TODO subdivide in phases
+    pub fn init(&self) {
+        //TODO subdivide in phases
 
         //create ui channel
         let (prop_send, mut prop_recv) = tokio::sync::mpsc::unbounded_channel::<PropertyUpdate>();
 
         //TODO maybe move to server
         let app_send = self.app_send.clone();
+        let name = self.name.clone();
         glib::MainContext::default().spawn_local(async move {
             //create activity
             let activity = Arc::new(Mutex::new(Self::get_activity(prop_send)));
 
             //register activity and data producer
-            app_send.send(ServerCommand::AddActivity(activity.clone())).unwrap();
-            app_send.send(ServerCommand::AddProducer(Self::producer)).unwrap();
+            app_send
+                .send(ServerCommand::AddActivity(name.clone(), activity.clone()))
+                .unwrap();
+
+            app_send
+                .send(ServerCommand::AddProducer(name, Self::producer))
+                .unwrap();
 
             //start data consumer
             while let Some(res) = prop_recv.recv().await {
@@ -56,11 +81,26 @@ impl ExampleModule {
     }
 
     //TODO replace 'activities' with module context
-    pub fn producer(activities: &[Arc<Mutex<DynamicActivity>>], rt: &Runtime) {
+    pub fn producer(
+        activities: Arc<Mutex<HashMap<String, Arc<Mutex<DynamicActivity>>>>>,
+        rt: &Runtime,
+        _app_send: UnboundedSender<ServerCommand>,
+    ) {
         //data producer
-        let act = activities[0].blocking_lock();
-        let mode = act.get_property("mode").unwrap();
-        let label = act.get_property("comp-label").unwrap();
+        //TODO shouldn't be blocking locks, maybe execute async with glib::MainContext
+        let act = activities.blocking_lock();
+        let mode = act
+            .get("exampleActivity")
+            .unwrap()
+            .blocking_lock()
+            .get_property("mode")
+            .unwrap();
+        let label = act
+            .get("exampleActivity")
+            .unwrap()
+            .blocking_lock()
+            .get_property("comp-label")
+            .unwrap();
 
         rt.spawn(async move {
             loop {
