@@ -10,12 +10,12 @@ anyhow = "1.0.75"
 clap = { version = "4.4.1", features = ["derive"] }
 
 gtk = "0.18.1"
-gtk-layer-shell = "0.7.1"
+gtk-layer-shell = "0.8.0"
 gdk = "0.18.0"
 glib = "0.18.1"
 cairo = "0.0.4"
 
-tokio = { version = "1.32.0", features = ["rt", "time", "sync"] }
+tokio = { version = "1.32.0", features = ["rt", "time", "sync", "macros"] }
 
 grass = {version = "0.13.1", default-features = false} #scss parsing
 glib-macros = "0.18.0"
@@ -23,3 +23,7 @@ soy = "0.2.0"
 
 dyn-clone = "1.0.13"
 rand = "0.8.5"
+async-trait = "0.1.73"
+ron = "0.8.1"
+serde = { version = "1.0.188", features = ["serde_derive"] }
+notify = { version = "6.1.1", features = ["fsevent-sys"] }

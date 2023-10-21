@@ -3,6 +3,7 @@
 #![feature(lazy_cell)]
 #![feature(trait_upcasting)]
 pub mod app;
+pub mod config;
 pub mod filter;
 
 pub mod modules;

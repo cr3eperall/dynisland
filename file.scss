@@ -2,7 +2,7 @@
 activity-widget {
     background-color: palevioletred;
     border: 10px solid gray;
-    border-radius: 20px;
+    border-radius: 50px;
 }
 
 .mode-compact{
@@ -25,6 +25,7 @@ activity-widget {
     background-color: black;
     color: white;
 
-    transition-property: min-width, min-height;
-    transition-duration: 3s;
+    transition-property: min-width, min-height; //TODO move into activity_widget
+    transition-duration: 3s; //TODO move into activity_widget and add to config file
+
 }

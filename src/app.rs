@@ -1,9 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::Result;
 use gtk::prelude::*;
+use notify::Watcher;
 use tokio::{
-    runtime::Runtime,
+    runtime::Handle,
     sync::{
         mpsc::{unbounded_channel, UnboundedSender},
         Mutex,
@@ -11,31 +12,34 @@ use tokio::{
 };
 
 use crate::{
-    modules::example::{self, ExampleModule},
+    config,
+    modules::{
+        base_module::{Module, Producer},
+        example::{self},
+    },
     widgets::dynamic_activity::DynamicActivity,
 };
 
-pub type Producer = fn(
-    activities: Arc<Mutex<HashMap<String, Arc<Mutex<DynamicActivity>>>>>,
-    rt: &Runtime,
-    app_send: UnboundedSender<ServerCommand>,
-);
-
-pub enum ServerCommand {
+pub enum UIServerCommand {
     AddActivity(String, Arc<Mutex<DynamicActivity>>),
     AddProducer(String, Producer),
-    //TODO add remove activity and producer
+    //TODO add: remove activity and remove producer
+}
+
+pub enum BackendServerCommand {
+    ReloadConfig(),
 }
 
 pub struct App {
     pub window: gtk::Window,
-    pub module_map: Arc<Mutex<HashMap<String, ExampleModule>>>,
-    pub producers_runtime: Arc<Runtime>,
-    pub app_send: Option<UnboundedSender<ServerCommand>>,
+    pub module_map: Arc<Mutex<HashMap<String, Box<dyn Module>>>>,
+    pub producers_handle: Handle,
+    pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
+    pub app_send: Option<UnboundedSender<UIServerCommand>>,
 }
 
 impl App {
-    pub fn initialize_server(&mut self) -> Result<()> {
+    pub fn initialize_server(mut self) -> Result<()> {
         //parse static scss file
         let css_content = grass::from_path(
             "/home/david/dev/rust/dynisland/file.scss",
@@ -66,40 +70,101 @@ impl App {
         self.window.connect_destroy(|_| std::process::exit(0));
         self.window.show_all();
 
-        let (app_send, mut app_recv) = unbounded_channel::<ServerCommand>();
+        let (app_send, mut app_recv) = unbounded_channel::<UIServerCommand>();
+
         self.app_send = Some(app_send.clone());
 
         self.load_modules();
+        self.load_configs();
+        self.init_loaded_modules();
 
-        let rt = self.producers_runtime.clone();
+        let rt = self.producers_handle.clone();
         let map = self.module_map.clone();
+
+        // let app_send1=self.app_send.clone().unwrap();
+        // glib::MainContext::default().spawn_local(async move {
+        //     glib::timeout_future_seconds(10).await;
+        //     println!("reloading config");
+        //     app_send1.send(UIServerCommand::ReloadConfig()).unwrap();
+        // });
+
+        //UI command consumer
         glib::MainContext::default().spawn_local(async move {
+            // TODO check if there are too many tasks on the UI thread and it begins to stutter
             while let Some(command) = app_recv.recv().await {
                 match command {
-                    ServerCommand::AddProducer(module, producer) => {
+                    UIServerCommand::AddProducer(module_identifier, producer) => {
+                        let map = map.lock().await;
+                        let module = map
+                            .get(&module_identifier)
+                            .unwrap_or_else(|| panic!("module {} not found", module_identifier));
+
+                        module.register_producer(producer).await; //add inside module
                         producer(
-                            map.lock()
-                                .await
-                                .get(&module)
-                                .unwrap_or_else(|| panic!("module {} not found", module))
-                                .get_registered_activities(),
+                            //execute //TODO make sure this doesn't get executed twice at the same time when the configuration is being reloaded
+                            module.get_registered_activities(),
                             &rt,
                             app_send.clone(),
+                            module.get_config(),
                         );
+                        println!("registered producer {}", module.get_name());
                     }
-                    ServerCommand::AddActivity(module, activity) => {
-                        act_container.add(&activity.lock().await.get_activity_widget());
+                    UIServerCommand::AddActivity(module, activity) => {
+                        act_container.add(&activity.lock().await.get_activity_widget()); //add to window
                         act_container.show_all();
                         let map = map.lock().await;
                         let module = map
                             .get(&module)
                             .unwrap_or_else(|| panic!("module {} not found", module));
-                        module.register_activity(activity).await;
-                        println!("registered activity");
+                        module.register_activity(activity).await; //add inside its module
+                        println!("registered activity {}", module.get_name());
                     }
                 }
             }
         });
+
+        let (server_send, mut server_recv) = unbounded_channel::<BackendServerCommand>();
+
+        //server command consumer
+        glib::MainContext::default().spawn_local(async move {
+            while let Some(command) = server_recv.recv().await {
+                match command {
+                    BackendServerCommand::ReloadConfig() => {
+                        // without this sleep, reading the config file sometimes gives an empty file.
+                        glib::timeout_future(std::time::Duration::from_millis(50)).await;
+
+                        self.load_configs();
+                        self.restart_producer_rt();
+                    }
+                }
+            }
+        });
+        let mut watcher =
+            notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
+                Ok(evt) => {
+                    match evt.kind {
+                        notify::EventKind::Create(_) | notify::EventKind::Modify(_) => {
+                            println!("filesystem event");
+                            server_send
+                                .send(BackendServerCommand::ReloadConfig())
+                                .expect("failed to send notification")
+                        }
+                        _ => {}
+                    }
+                    println!("{evt:?}");
+                }
+                Err(err) => {
+                    eprintln!("notify watcher error: {err}")
+                }
+            })
+            .expect("failed to start file watcher");
+        watcher
+            .watch(
+                Path::new(config::CONFIG_FILE),
+                notify::RecursiveMode::NonRecursive,
+            )
+            .expect("error starting watcher");
+        println!("started file watcher");
 
         //start application
         gtk::main();
@@ -107,15 +172,89 @@ impl App {
     }
 
     pub fn load_modules(&mut self) {
-        let example_mod = example::ExampleModule::new(self.app_send.as_ref().unwrap().clone());
+        //TODO needs to change, execute fn reload_configs on file change
+
+        let example_mod =
+            example::ExampleModule::new(self.app_send.as_ref().unwrap().clone(), None);
+
         self.module_map
             .blocking_lock()
-            .insert(example_mod.get_name().to_string(), example_mod);
+            .insert(example_mod.get_name().to_string(), Box::new(example_mod));
+
+        let example_mod2 =
+            example::ExampleModule2::new(self.app_send.as_ref().unwrap().clone(), None);
+        self.module_map
+            .blocking_lock()
+            .insert(example_mod2.get_name().to_string(), Box::new(example_mod2));
+
+        println!(
+            "loaded modules: {:?}",
+            self.module_map.blocking_lock().keys()
+        );
+    }
+
+    fn load_configs(&mut self) {
+        let conf = config::get_config(); //TODO listen for changes, when config is updated (kill producers_runtime and restart all processes, DONE)
+        for module in self.module_map.blocking_lock().values_mut() {
+            if let Err(err) = match conf.module_config.get(module.get_name()) {
+                Some(conf) => module.parse_config(conf.clone()),
+                None => Ok(()),
+            } {
+                eprintln!(
+                    "failed to parse config for module {}: {err:?}",
+                    module.get_name()
+                )
+            }
+            println!("{}: {:?}", module.get_name(), module.get_config());
+        }
+    }
+
+    fn init_loaded_modules(&self) {
         for module in self.module_map.blocking_lock().values() {
             module.init();
         }
     }
+
+    fn restart_producer_rt(&mut self) {
+        self.producers_shutdown
+            .blocking_send(())
+            .expect("failed to shutdown old producer runtime"); //stop current producers_runtime
+        let (handle, shutdown) = get_new_tokio_rt(); //start new producers_runtime
+        self.producers_handle = handle;
+        self.producers_shutdown = shutdown;
+        for module in self.module_map.blocking_lock().values() {
+            //restart producers
+            for producer in module.get_registered_producers().blocking_lock().iter() {
+                producer(
+                    module.get_registered_activities(),
+                    &self.producers_handle,
+                    self.app_send.clone().unwrap(),
+                    module.get_config(),
+                )
+            }
+        }
+    }
 }
+
+// // doesn't work when called trough a function, idk why
+// fn init_notifiers(server_send: UnboundedSender<BackendServerCommand>) {
+//     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+//         match res {
+//             Ok(evt) => {
+//                 match evt.kind {
+//                     notify::EventKind::Create(_) | notify::EventKind::Modify(_) => {
+//                         println!("filesystem event");
+//                         server_send.send(BackendServerCommand::ReloadConfig()).expect("failed to send notification")
+//                     },
+//                     _ => {}
+//                 }
+//                 println!("{evt:?}");
+//             },
+//             Err(err) => {eprintln!("notify watcher error: {err}")},
+//         }
+//     }).expect("failed to start file watcher");
+//     watcher.watch(Path::new(config::CONFIG_FILE), notify::RecursiveMode::NonRecursive).expect("error starting watcher");
+// }
 
 pub fn get_window() -> gtk::Window {
     gtk::Window::builder()
@@ -133,17 +272,24 @@ pub fn get_window() -> gtk::Window {
     // window
 }
 
-pub fn get_new_tokio_rt() -> Arc<Runtime> {
-    let (rt_send, rt_recv) = tokio::sync::oneshot::channel::<Arc<Runtime>>();
-    std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("idk tokio rt failed");
-        let rt = Arc::new(rt);
-        rt_send.send(rt.clone()).expect("failed to send rt");
-        rt.block_on(std::future::pending::<()>()); //keep thread alive
-    });
+pub fn get_new_tokio_rt() -> (Handle, tokio::sync::mpsc::Sender<()>) {
+    let (rt_send, rt_recv) =
+        tokio::sync::oneshot::channel::<(Handle, tokio::sync::mpsc::Sender<()>)>();
+    let (shutdown_send, mut shutdown_recv) = tokio::sync::mpsc::channel::<()>(1);
+    std::thread::Builder::new()
+        .name("dyn-producers".to_string())
+        .spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("idk tokio rt failed");
+            let handle = rt.handle();
+            rt_send
+                .send((handle.clone(), shutdown_send))
+                .expect("failed to send rt");
+            rt.block_on(async { shutdown_recv.recv().await }); //keep thread alive
+        })
+        .expect("failed to spawn new trhread");
 
     rt_recv.blocking_recv().expect("failed to receive rt")
 }

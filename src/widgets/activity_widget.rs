@@ -135,7 +135,7 @@ pub struct ActivityWidgetPriv {
         nick = "Change Transition Duration",
         blurb = "The Duration of the Transition"
     )]
-    transition_duration: RefCell<u64>,
+    transition_duration: RefCell<u64>, //must be smaller than the transition duration for the width/height - frame time
 
     #[property(get, nick = "Local CSS Provider")]
     local_css_context: RefCell<LocalCssContext>,

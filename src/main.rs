@@ -10,11 +10,12 @@ use tokio::sync::Mutex;
 fn main() -> Result<()> {
     //init GTK
     gtk::init().with_context(|| "failed to init gtk")?;
-
-    let mut app = App {
+    let (hdl, shutdown) = dynisland::app::get_new_tokio_rt(); //TODO it's ugly, should change it
+    let app = App {
         window: dynisland::app::get_window(),
         module_map: Arc::new(Mutex::new(HashMap::new())),
-        producers_runtime: dynisland::app::get_new_tokio_rt(),
+        producers_handle: hdl,
+        producers_shutdown: shutdown,
         app_send: None,
     };
     app.initialize_server()?;
