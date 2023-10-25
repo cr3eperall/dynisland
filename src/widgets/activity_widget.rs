@@ -33,6 +33,8 @@ pub struct LocalCssContext {
 
     size: (i32, i32),
     border_radius: i32,
+    transition_duration: u64,
+    transition_duration_set_by_module: bool
 }
 
 impl LocalCssContext {
@@ -42,6 +44,8 @@ impl LocalCssContext {
             name: name.to_string(),
             size: (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
             border_radius: 100,
+            transition_duration:0,
+            transition_duration_set_by_module: false
         }
     }
 
@@ -51,8 +55,9 @@ impl LocalCssContext {
     pub fn get_name(&self) -> &str {
         &self.name
     }
-    pub fn set_name(&mut self, name: &str) {
+    pub fn set_name(&mut self, name: &str) -> Result<()> {
         self.name = name.to_string();
+        self.update_provider()
     }
     pub fn get_size(&self) -> (i32, i32) {
         self.size
@@ -60,19 +65,37 @@ impl LocalCssContext {
     pub fn get_border_radius(&self) -> i32 {
         self.border_radius
     }
+    pub fn get_transition_duration(&self) -> u64 {
+        self.transition_duration
+    }
+    pub fn get_transition_duration_set_by_module(&self) -> bool {
+        self.transition_duration_set_by_module
+    }
 
     pub fn set_size(&mut self, size: (i32, i32)) -> Result<()> {
         if self.size == size {
             return Ok(());
-        };
+        }
         self.size = size;
         self.update_provider()
     }
     pub fn set_border_radius(&mut self, border_radius: i32) -> Result<()> {
         if self.border_radius == border_radius {
             return Ok(());
-        };
+        }
         self.border_radius = border_radius;
+        self.update_provider()
+    }
+    pub fn set_transition_duration(&mut self, transition_duration: u64, module: bool) -> Result<()> {
+        if self.transition_duration == transition_duration {
+            return Ok(());
+        }
+        if module {
+            self.transition_duration_set_by_module=true;
+        }else if self.transition_duration_set_by_module{
+            return Ok(());
+        }
+        self.transition_duration = transition_duration;
         self.update_provider()
     }
 
@@ -80,10 +103,13 @@ impl LocalCssContext {
         let (w, h) = self.size;
         let border_radius = self.border_radius;
         let name = self.name.as_str();
+        let transition_duration = self.transition_duration;
         let css = format!(
             r".{name} .activity-background{{ 
                 min-width: {w}px; 
                 min-height: {h}px; 
+                transition-property: min-width, min-height;
+                transition-duration: {transition_duration}ms;
             }}
             .{name} .mode-compact{{
                 border-radius: {border_radius}px;
@@ -129,13 +155,13 @@ pub struct ActivityWidgetPriv {
     #[property(get, set, nick = "Change mode", blurb = "The Activity Mode")]
     mode: RefCell<ActivityMode>,
 
-    #[property(
-        get,
-        set,
-        nick = "Change Transition Duration",
-        blurb = "The Duration of the Transition"
-    )]
-    transition_duration: RefCell<u64>, //must be smaller than the transition duration for the width/height - frame time
+    // #[property(
+    //     get,
+    //     set,
+    //     nick = "Change Transition Duration",
+    //     blurb = "The Duration of the Transition"
+    // )]
+    // transition_duration: RefCell<u64>, //must be smaller than the transition duration for the width/height - frame time
 
     #[property(get, nick = "Local CSS Provider")]
     local_css_context: RefCell<LocalCssContext>,
@@ -183,14 +209,14 @@ impl ObjectImpl for ActivityWidgetPriv {
                 let start: Instant;
                 let duration: Duration;
                 if self.transition.borrow().is_active() {
-                    duration = Duration::from_millis(*self.transition_duration.borrow())
+                    duration = Duration::from_millis(self.local_css_context.borrow().get_transition_duration())
                         + self.transition.borrow().duration_to_end();
                     start = Instant::now()
                         .checked_sub(self.transition.borrow().duration_to_end())
                         .expect("time error");
                 } else {
                     start = Instant::now();
-                    duration = Duration::from_millis(*self.transition_duration.borrow());
+                    duration = Duration::from_millis(self.local_css_context.borrow().get_transition_duration());
                 }
 
                 self.transition.replace(Transition::new(start, duration));
@@ -209,17 +235,17 @@ impl ObjectImpl for ActivityWidgetPriv {
                 }
                 self.obj().queue_draw(); // Queue a draw call with the updated value
             }
-            "transition-duration" => {
-                self.transition_duration.replace(value.get().unwrap());
-            }
+            // "transition-duration" => {
+            //     self.transition_duration.replace(value.get().unwrap());
+            // }
             "name" => {
                 self.obj().style_context().remove_class(&self.name.borrow());
-
+                
                 self.name.replace(value.get().unwrap());
                 self.local_css_context
-                    .try_borrow_mut()
-                    .unwrap()
-                    .set_name(value.get().unwrap());
+                    .borrow_mut()
+                    .set_name(value.get().unwrap())
+                    .expect("failed to set activity name");
                 self.obj().style_context().add_class(value.get().unwrap());
             }
             x => panic!("Tried to set inexistant property of ActivityWidget: {}", x),
@@ -241,7 +267,7 @@ impl Default for ActivityWidgetPriv {
             .collect();
         Self {
             mode: RefCell::new(ActivityMode::Minimal),
-            transition_duration: RefCell::new(0),
+            // transition_duration: RefCell::new(0),
             local_css_context: RefCell::new(LocalCssContext::new(&name)),
             last_mode: RefCell::new(ActivityMode::Minimal),
             name: RefCell::new(name),
@@ -348,7 +374,7 @@ impl ActivityWidget {
 
         gtk::StyleContext::add_provider_for_screen(
             &gdk::Screen::default().unwrap(),
-            &wid.imp().local_css_context.borrow().get_css_provider(),
+            &wid.local_css_context().get_css_provider(),
             gtk::STYLE_PROVIDER_PRIORITY_SETTINGS,
         );
         wid
@@ -364,7 +390,7 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-minimal");
         priv_.minimal_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Minimal = self.mode() {
-            self.local_css_context()
+            self.imp().local_css_context.borrow_mut()
                 .set_size((widget.width_request(), MINIMAL_HEIGHT))
                 .expect("failed to set activity size");
         }
@@ -380,7 +406,7 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-compact");
         priv_.compact_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Compact = self.mode() {
-            self.local_css_context()
+            self.imp().local_css_context.borrow_mut()
                 .set_size((widget.width_request(), MINIMAL_HEIGHT))
                 .expect("failed to set activity size");
         }
@@ -396,7 +422,7 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-expanded");
         priv_.expanded_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Expanded = self.mode() {
-            self.local_css_context()
+            self.imp().local_css_context.borrow_mut()
                 .set_size((widget.width_request(), widget.height_request()))
                 .expect("failed to set activity size");
         }
@@ -412,11 +438,28 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-overlay");
         priv_.overlay_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Overlay = self.mode() {
-            self.local_css_context()
+            self.imp().local_css_context.borrow_mut()
                 .set_size((widget.width_request(), widget.height_request()))
                 .expect("failed to set activity size");
         }
         self.queue_draw(); // Queue a draw call with the updated widget
+    }
+
+    pub fn minimal_mode(&self)-> Option<gtk::Widget> {
+        self.imp().minimal_mode_widget.borrow().clone()
+    }
+    pub fn compact_mode(&self)-> Option<gtk::Widget> {
+        self.imp().compact_mode_widget.borrow().clone()
+    }
+    pub fn expanded_mode(&self)-> Option<gtk::Widget> {
+        self.imp().expanded_mode_widget.borrow().clone()
+    }
+    pub fn overlay_mode(&self)-> Option<gtk::Widget> {
+        self.imp().overlay_mode_widget.borrow().clone()
+    }
+
+    pub fn set_transition_duration(&mut self, duration_millis: u64, module: bool) -> Result<()> {
+        self.imp().local_css_context.borrow_mut().set_transition_duration(duration_millis, module)
     }
 }
 
@@ -532,7 +575,6 @@ impl WidgetImpl for ActivityWidgetPriv {
 
     fn draw(&self, cr: &gdk::cairo::Context) -> glib::Propagation {
         let res: Result<()> = try {
-            // println!("{}",self.local_css_provider.borrow().to_str());
             let bg_color: gdk::RGBA = self
                 .obj()
                 .style_context()
@@ -708,7 +750,9 @@ impl WidgetImpl for ActivityWidgetPriv {
             // cr.stroke()?;
 
             self.transition.borrow_mut().update_active();
-
+            if self.transition.borrow().is_active() {
+                self.obj().queue_draw();
+            }
             //reset
             cr.reset_clip();
 

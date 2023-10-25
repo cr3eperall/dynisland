@@ -23,7 +23,8 @@ pub type Producer = fn(
     config: &dyn ModuleConfig,
 );
 
-pub trait ModuleConfig: Any + Debug {}
+pub trait ModuleConfig: Any + Debug {
+}
 
 #[async_trait(?Send)]
 pub trait Module {
@@ -37,6 +38,7 @@ pub trait Module {
 
     fn get_registered_activities(&self) -> ActivityMap;
     async fn register_activity(&self, activity: Arc<Mutex<DynamicActivity>>);
+    async fn unregister_activity(&self, activity: &str);
 
     fn get_registered_producers(&self) -> Arc<Mutex<HashSet<Producer>>>;
     async fn register_producer(&self, producer: Producer);

@@ -24,8 +24,4 @@ activity-widget {
 .activity-background{
     background-color: black;
     color: white;
-
-    transition-property: min-width, min-height; //TODO move into activity_widget
-    transition-duration: 3s; //TODO move into activity_widget and add to config file
-
 }

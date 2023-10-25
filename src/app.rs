@@ -12,7 +12,7 @@ use tokio::{
 };
 
 use crate::{
-    config,
+    config::{self, Config},
     modules::{
         base_module::{Module, Producer},
         example::{self},
@@ -20,10 +20,10 @@ use crate::{
     widgets::dynamic_activity::DynamicActivity,
 };
 
-pub enum UIServerCommand {
+pub enum UIServerCommand { //TODO change to APIServerCommand
     AddActivity(String, Arc<Mutex<DynamicActivity>>),
     AddProducer(String, Producer),
-    //TODO add: remove activity and remove producer
+    RemoveActivity(String, String) //TODO needs to be tested
 }
 
 pub enum BackendServerCommand {
@@ -36,6 +36,7 @@ pub struct App {
     pub producers_handle: Handle,
     pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
     pub app_send: Option<UnboundedSender<UIServerCommand>>,
+    pub config: Config,
 }
 
 impl App {
@@ -75,7 +76,7 @@ impl App {
         self.app_send = Some(app_send.clone());
 
         self.load_modules();
-        self.load_configs();
+        self.load_module_configs();
         self.init_loaded_modules();
 
         let rt = self.producers_handle.clone();
@@ -109,15 +110,27 @@ impl App {
                         );
                         println!("registered producer {}", module.get_name());
                     }
-                    UIServerCommand::AddActivity(module, activity) => {
+                    UIServerCommand::AddActivity(module_identifier, activity) => {
                         act_container.add(&activity.lock().await.get_activity_widget()); //add to window
                         act_container.show_all();
+                        activity.lock().await.get_activity_widget().set_transition_duration(self.config.general_config.transition_duration,false).expect("failed to set transition-duration");
                         let map = map.lock().await;
                         let module = map
-                            .get(&module)
-                            .unwrap_or_else(|| panic!("module {} not found", module));
+                            .get(&module_identifier)
+                            .unwrap_or_else(|| panic!("module {} not found", module_identifier));
                         module.register_activity(activity).await; //add inside its module
                         println!("registered activity {}", module.get_name());
+                    }
+                    UIServerCommand::RemoveActivity(module_identifier, name) => {
+                        let map = map.lock().await;
+                        let module = map
+                            .get(&module_identifier)
+                            .unwrap_or_else(|| panic!("module {} not found", module_identifier));
+                        let activity_map = module.get_registered_activities();
+                        let activity_map= activity_map.lock().await;
+                        let act=activity_map.get(&name).unwrap_or_else(|| panic!("activity {} not found on module {}", name, module_identifier));
+                        act_container.remove(&act.lock().await.get_activity_widget());
+                        module.unregister_activity(&name).await;
                     }
                 }
             }
@@ -132,8 +145,8 @@ impl App {
                     BackendServerCommand::ReloadConfig() => {
                         // without this sleep, reading the config file sometimes gives an empty file.
                         glib::timeout_future(std::time::Duration::from_millis(50)).await;
-
-                        self.load_configs();
+                        self.load_general_configs().await;
+                        self.load_module_configs();
                         self.restart_producer_rt();
                     }
                 }
@@ -144,14 +157,13 @@ impl App {
                 Ok(evt) => {
                     match evt.kind {
                         notify::EventKind::Create(_) | notify::EventKind::Modify(_) => {
-                            println!("filesystem event");
                             server_send
                                 .send(BackendServerCommand::ReloadConfig())
                                 .expect("failed to send notification")
                         }
                         _ => {}
                     }
-                    println!("{evt:?}");
+                    // println!("{evt:?}");
                 }
                 Err(err) => {
                     eprintln!("notify watcher error: {err}")
@@ -164,7 +176,6 @@ impl App {
                 notify::RecursiveMode::NonRecursive,
             )
             .expect("error starting watcher");
-        println!("started file watcher");
 
         //start application
         gtk::main();
@@ -172,8 +183,6 @@ impl App {
     }
 
     pub fn load_modules(&mut self) {
-        //TODO needs to change, execute fn reload_configs on file change
-
         let example_mod =
             example::ExampleModule::new(self.app_send.as_ref().unwrap().clone(), None);
 
@@ -181,11 +190,11 @@ impl App {
             .blocking_lock()
             .insert(example_mod.get_name().to_string(), Box::new(example_mod));
 
-        let example_mod2 =
-            example::ExampleModule2::new(self.app_send.as_ref().unwrap().clone(), None);
-        self.module_map
-            .blocking_lock()
-            .insert(example_mod2.get_name().to_string(), Box::new(example_mod2));
+        // let example_mod2 =
+        //     example::ExampleModule2::new(self.app_send.as_ref().unwrap().clone(), None);
+        // self.module_map
+        //     .blocking_lock()
+        //     .insert(example_mod2.get_name().to_string(), Box::new(example_mod2));
 
         println!(
             "loaded modules: {:?}",
@@ -193,19 +202,32 @@ impl App {
         );
     }
 
-    fn load_configs(&mut self) {
-        let conf = config::get_config(); //TODO listen for changes, when config is updated (kill producers_runtime and restart all processes, DONE)
+    fn load_module_configs(&mut self) {
+        let conf = config::get_config();
+        self.config=conf;
         for module in self.module_map.blocking_lock().values_mut() {
-            if let Err(err) = match conf.module_config.get(module.get_name()) {
+            let config_parsed = match self.config.module_config.get(module.get_name()) {
                 Some(conf) => module.parse_config(conf.clone()),
                 None => Ok(()),
-            } {
-                eprintln!(
-                    "failed to parse config for module {}: {err:?}",
-                    module.get_name()
-                )
+            };
+            match config_parsed {
+                Err(err) => {
+                    eprintln!(
+                        "failed to parse config for module {}: {err:?}",
+                        module.get_name()
+                    )
+                },
+                Ok(()) => {println!("{}: {:?}", module.get_name(), module.get_config());}
             }
-            println!("{}: {:?}", module.get_name(), module.get_config());
+            
+        }
+    }
+
+    async fn load_general_configs(&mut self) {
+        for module in self.module_map.blocking_lock().values_mut() {
+            for activity in module.get_registered_activities().lock().await.values() {
+                activity.lock().await.get_activity_widget().set_transition_duration(self.config.general_config.transition_duration,false).expect("failed to set transition-duration");
+            }
         }
     }
 
