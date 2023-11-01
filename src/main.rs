@@ -19,7 +19,7 @@ fn main() -> Result<()> {
         producers_handle: hdl,
         producers_shutdown: shutdown,
         app_send: None,
-        config: dynisland::config::Config::default()
+        config: dynisland::config::Config::default(),
     };
     app.initialize_server()?;
     Ok(())

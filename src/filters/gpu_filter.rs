@@ -7,10 +7,9 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, TextureDescriptor, TextureDimension, TextureFormat,
     TextureUsages, TextureViewDescriptor,
 };
-use wgpu::{
-    Buffer, BufferUsages, ComputePipeline, Device, InstanceFlags, Queue,
-    Texture,
-};
+use wgpu::{Buffer, BufferUsages, ComputePipeline, Device, InstanceFlags, Queue, Texture};
+
+use super::filter::kernel_size_for_sigma;
 
 const GAUSSIAN_BLUR_SHADER: &str = include_str!("../shaders/gaussian_blur.wgsl");
 
@@ -40,15 +39,14 @@ impl Kernel {
 pub struct GpuContext {
     pub(crate) device: Device,
     pub(crate) queue: Queue,
-    // pub(crate) texture: Texture,
-    // pub(crate) texture_size: Extent3d,
     pub vertical: Buffer,
     pub horizontal: Buffer,
     pub pipeline: ComputePipeline,
 }
 
-pub static GPU_INSTANCE: Lazy<Mutex<GpuContext>> = Lazy::new(|| Mutex::new(GpuContext::new()));
+pub static GPU_INSTANCE: Lazy<Mutex<GpuContext>> = Lazy::new(|| Mutex::new(GpuContext::new())); //TODO move to app::initialize_server and configure with config file
 impl GpuContext {
+    //TODO could be furter optimized by processing 2 images at the same time
     pub fn new() -> Self {
         let name = "gaussian blur";
 
@@ -281,8 +279,8 @@ impl GpuContext {
 
     pub fn texture_from_data(&self, data: &[u8], width: u32, height: u32) -> Texture {
         let texture_size = wgpu::Extent3d {
-            width: width,
-            height: height,
+            width,
+            height,
             depth_or_array_layers: 1,
         };
 
@@ -319,10 +317,6 @@ pub fn compute_work_group_count(
     let height = (height + workgroup_height - 1) / workgroup_height;
 
     (width, height)
-}
-
-fn kernel_size_for_sigma(sigma: f32) -> u32 {
-    2 * (sigma * 3.0).ceil() as u32 + 1
 }
 
 fn kernel(sigma: f32) -> Kernel {

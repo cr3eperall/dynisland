@@ -195,7 +195,7 @@ impl ExampleModule {
                 // label.lock().await.set(old_label_val).unwrap();
 
                 mode.lock().await.set(ActivityMode::Expanded).unwrap();
-                
+
                 tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
                 mode.lock().await.set(ActivityMode::Overlay).unwrap();
                 tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
@@ -371,8 +371,8 @@ impl ExampleModule {
 
     fn get_overlay() -> gtk::Widget {
         let expanded = gtk::Box::builder()
-            .height_request(550)
-            .width_request(900)
+            .height_request(1080)
+            .width_request(1920)
             .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
             .vexpand(false)

@@ -2,13 +2,7 @@ use std::cmp::min;
 
 // code borrowed from https://github.com/fschutt/fastblur/blob/master/src/blur.rs
 // changed [u8; 3] to [u8; 4] and removed round() for performance
-pub fn gaussian_blur(
-    data: &mut [[u8; 4]],
-    width: usize,
-    height: usize,
-    sigma: f32,
-    n: usize,
-) {
+pub fn gaussian_blur(data: &mut [[u8; 4]], width: usize, height: usize, sigma: f32, n: usize) {
     let boxes = create_box_gauss(sigma, n);
     let mut backbuf = data.to_owned();
 

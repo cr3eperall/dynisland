@@ -20,10 +20,11 @@ use crate::{
     widgets::dynamic_activity::DynamicActivity,
 };
 
-pub enum UIServerCommand { //TODO change to APIServerCommand
+pub enum UIServerCommand {
+    //TODO change to APIServerCommand
     AddActivity(String, Arc<Mutex<DynamicActivity>>),
     AddProducer(String, Producer),
-    RemoveActivity(String, String) //TODO needs to be tested
+    RemoveActivity(String, String), //TODO needs to be tested
 }
 
 pub enum BackendServerCommand {
@@ -76,7 +77,7 @@ impl App {
         self.app_send = Some(app_send.clone());
 
         self.load_modules();
-        self.load_module_configs();
+        self.load_configs();
         self.init_loaded_modules();
 
         let rt = self.producers_handle.clone();
@@ -113,7 +114,15 @@ impl App {
                     UIServerCommand::AddActivity(module_identifier, activity) => {
                         act_container.add(&activity.lock().await.get_activity_widget()); //add to window
                         act_container.show_all();
-                        activity.lock().await.get_activity_widget().set_transition_duration(self.config.general_config.transition_duration,false).expect("failed to set transition-duration");
+                        activity
+                            .lock()
+                            .await
+                            .get_activity_widget()
+                            .set_transition_duration(
+                                self.config.general_config.transition_duration,
+                                false,
+                            )
+                            .expect("failed to set transition-duration");
                         let map = map.lock().await;
                         let module = map
                             .get(&module_identifier)
@@ -127,8 +136,13 @@ impl App {
                             .get(&module_identifier)
                             .unwrap_or_else(|| panic!("module {} not found", module_identifier));
                         let activity_map = module.get_registered_activities();
-                        let activity_map= activity_map.lock().await;
-                        let act=activity_map.get(&name).unwrap_or_else(|| panic!("activity {} not found on module {}", name, module_identifier));
+                        let activity_map = activity_map.lock().await;
+                        let act = activity_map.get(&name).unwrap_or_else(|| {
+                            panic!(
+                                "activity {} not found on module {}",
+                                name, module_identifier
+                            )
+                        });
                         act_container.remove(&act.lock().await.get_activity_widget());
                         module.unregister_activity(&name).await;
                     }
@@ -145,8 +159,8 @@ impl App {
                     BackendServerCommand::ReloadConfig() => {
                         // without this sleep, reading the config file sometimes gives an empty file.
                         glib::timeout_future(std::time::Duration::from_millis(50)).await;
-                        self.load_general_configs().await;
-                        self.load_module_configs();
+                        self.load_configs();
+                        self.update_general_configs().await;
                         self.restart_producer_rt();
                     }
                 }
@@ -156,11 +170,9 @@ impl App {
             notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
                 Ok(evt) => {
                     match evt.kind {
-                        notify::EventKind::Create(_) | notify::EventKind::Modify(_) => {
-                            server_send
-                                .send(BackendServerCommand::ReloadConfig())
-                                .expect("failed to send notification")
-                        }
+                        notify::EventKind::Create(_) | notify::EventKind::Modify(_) => server_send
+                            .send(BackendServerCommand::ReloadConfig())
+                            .expect("failed to send notification"),
                         _ => {}
                     }
                     // println!("{evt:?}");
@@ -202,9 +214,8 @@ impl App {
         );
     }
 
-    fn load_module_configs(&mut self) {
-        let conf = config::get_config();
-        self.config=conf;
+    fn load_configs(&mut self) {
+        self.config = config::get_config();
         for module in self.module_map.blocking_lock().values_mut() {
             let config_parsed = match self.config.module_config.get(module.get_name()) {
                 Some(conf) => module.parse_config(conf.clone()),
@@ -216,17 +227,23 @@ impl App {
                         "failed to parse config for module {}: {err:?}",
                         module.get_name()
                     )
-                },
-                Ok(()) => {println!("{}: {:?}", module.get_name(), module.get_config());}
+                }
+                Ok(()) => {
+                    println!("{}: {:?}", module.get_name(), module.get_config());
+                }
             }
-            
         }
     }
 
-    async fn load_general_configs(&mut self) {
+    async fn update_general_configs(&mut self) {
         for module in self.module_map.blocking_lock().values_mut() {
             for activity in module.get_registered_activities().lock().await.values() {
-                activity.lock().await.get_activity_widget().set_transition_duration(self.config.general_config.transition_duration,false).expect("failed to set transition-duration");
+                activity
+                    .lock()
+                    .await
+                    .get_activity_widget()
+                    .set_transition_duration(self.config.general_config.transition_duration, false)
+                    .expect("failed to set transition-duration");
             }
         }
     }

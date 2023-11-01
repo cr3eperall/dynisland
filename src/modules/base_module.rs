@@ -23,8 +23,7 @@ pub type Producer = fn(
     config: &dyn ModuleConfig,
 );
 
-pub trait ModuleConfig: Any + Debug {
-}
+pub trait ModuleConfig: Any + Debug {}
 
 #[async_trait(?Send)]
 pub trait Module {

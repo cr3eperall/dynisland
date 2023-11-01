@@ -36,7 +36,7 @@ pub struct LocalCssContext {
     size: (i32, i32),
     border_radius: i32,
     transition_duration: u64,
-    transition_duration_set_by_module: bool
+    transition_duration_set_by_module: bool,
 }
 
 impl LocalCssContext {
@@ -46,8 +46,8 @@ impl LocalCssContext {
             name: name.to_string(),
             size: (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
             border_radius: 100,
-            transition_duration:0,
-            transition_duration_set_by_module: false
+            transition_duration: 0,
+            transition_duration_set_by_module: false,
         }
     }
 
@@ -88,13 +88,17 @@ impl LocalCssContext {
         self.border_radius = border_radius;
         self.update_provider()
     }
-    pub fn set_transition_duration(&mut self, transition_duration: u64, module: bool) -> Result<()> {
+    pub fn set_transition_duration(
+        &mut self,
+        transition_duration: u64,
+        module: bool,
+    ) -> Result<()> {
         if self.transition_duration == transition_duration {
             return Ok(());
         }
         if module {
-            self.transition_duration_set_by_module=true;
-        }else if self.transition_duration_set_by_module{
+            self.transition_duration_set_by_module = true;
+        } else if self.transition_duration_set_by_module {
             return Ok(());
         }
         self.transition_duration = transition_duration;
@@ -164,7 +168,6 @@ pub struct ActivityWidgetPriv {
     //     blurb = "The Duration of the Transition"
     // )]
     // transition_duration: RefCell<u64>, //must be smaller than the transition duration for the width/height - frame time
-
     #[property(get, nick = "Local CSS Provider")]
     local_css_context: RefCell<LocalCssContext>,
 
@@ -211,14 +214,17 @@ impl ObjectImpl for ActivityWidgetPriv {
                 let start: Instant;
                 let duration: Duration;
                 if self.transition.borrow().is_active() {
-                    duration = Duration::from_millis(self.local_css_context.borrow().get_transition_duration())
-                        + self.transition.borrow().duration_to_end();
+                    duration = Duration::from_millis(
+                        self.local_css_context.borrow().get_transition_duration(),
+                    ) + self.transition.borrow().duration_to_end();
                     start = Instant::now()
                         .checked_sub(self.transition.borrow().duration_to_end())
                         .expect("time error");
                 } else {
                     start = Instant::now();
-                    duration = Duration::from_millis(self.local_css_context.borrow().get_transition_duration());
+                    duration = Duration::from_millis(
+                        self.local_css_context.borrow().get_transition_duration(),
+                    );
                 }
 
                 self.transition.replace(Transition::new(start, duration));
@@ -242,7 +248,7 @@ impl ObjectImpl for ActivityWidgetPriv {
             // }
             "name" => {
                 self.obj().style_context().remove_class(&self.name.borrow());
-                
+
                 self.name.replace(value.get().unwrap());
                 self.local_css_context
                     .borrow_mut()
@@ -392,7 +398,9 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-minimal");
         priv_.minimal_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Minimal = self.mode() {
-            self.imp().local_css_context.borrow_mut()
+            self.imp()
+                .local_css_context
+                .borrow_mut()
                 .set_size((widget.width_request(), MINIMAL_HEIGHT))
                 .expect("failed to set activity size");
         }
@@ -408,7 +416,9 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-compact");
         priv_.compact_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Compact = self.mode() {
-            self.imp().local_css_context.borrow_mut()
+            self.imp()
+                .local_css_context
+                .borrow_mut()
                 .set_size((widget.width_request(), MINIMAL_HEIGHT))
                 .expect("failed to set activity size");
         }
@@ -424,7 +434,9 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-expanded");
         priv_.expanded_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Expanded = self.mode() {
-            self.imp().local_css_context.borrow_mut()
+            self.imp()
+                .local_css_context
+                .borrow_mut()
                 .set_size((widget.width_request(), widget.height_request()))
                 .expect("failed to set activity size");
         }
@@ -440,28 +452,33 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-overlay");
         priv_.overlay_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Overlay = self.mode() {
-            self.imp().local_css_context.borrow_mut()
+            self.imp()
+                .local_css_context
+                .borrow_mut()
                 .set_size((widget.width_request(), widget.height_request()))
                 .expect("failed to set activity size");
         }
         self.queue_draw(); // Queue a draw call with the updated widget
     }
 
-    pub fn minimal_mode(&self)-> Option<gtk::Widget> {
+    pub fn minimal_mode(&self) -> Option<gtk::Widget> {
         self.imp().minimal_mode_widget.borrow().clone()
     }
-    pub fn compact_mode(&self)-> Option<gtk::Widget> {
+    pub fn compact_mode(&self) -> Option<gtk::Widget> {
         self.imp().compact_mode_widget.borrow().clone()
     }
-    pub fn expanded_mode(&self)-> Option<gtk::Widget> {
+    pub fn expanded_mode(&self) -> Option<gtk::Widget> {
         self.imp().expanded_mode_widget.borrow().clone()
     }
-    pub fn overlay_mode(&self)-> Option<gtk::Widget> {
+    pub fn overlay_mode(&self) -> Option<gtk::Widget> {
         self.imp().overlay_mode_widget.borrow().clone()
     }
 
     pub fn set_transition_duration(&mut self, duration_millis: u64, module: bool) -> Result<()> {
-        self.imp().local_css_context.borrow_mut().set_transition_duration(duration_millis, module)
+        self.imp()
+            .local_css_context
+            .borrow_mut()
+            .set_transition_duration(duration_millis, module)
     }
 }
 
@@ -576,6 +593,7 @@ impl WidgetImpl for ActivityWidgetPriv {
     }
 
     fn draw(&self, cr: &gdk::cairo::Context) -> glib::Propagation {
+        // let start = Instant::now();
         let res: Result<()> = try {
             let bg_color: gdk::RGBA = self
                 .obj()
@@ -669,8 +687,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                 let last_widget_to_render = self.get_mode_widget(self.last_mode.borrow().clone());
 
                 const RAD: f32 = 4.0;
-                const N: usize = 5;
-                const FILTER_BACKEND: FilterBackend =  FilterBackend::CPU;
+                const FILTER_BACKEND: FilterBackend = FilterBackend::Gpu; //TODO move to config file
 
                 if let Some(widget) = &*last_widget_to_render.borrow() {
                     let mut tmp_surface = gtk::cairo::ImageSurface::create(
@@ -687,15 +704,14 @@ impl WidgetImpl for ActivityWidgetPriv {
 
                     drop(tmp_cr);
 
-                    let blurred_surface = crate::filters::filter::apply_blur(
+                    crate::filters::filter::apply_blur(
                         &mut tmp_surface,
                         soy::Lerper::calculate(&soy::EASE_OUT, progress) * RAD,
-                        N,
-                        FILTER_BACKEND
+                        FILTER_BACKEND,
                     )
                     .with_context(|| "failed to apply blur to tmp surface")?;
 
-                    cr.set_source_surface(&blurred_surface, 0.0, 0.0)
+                    cr.set_source_surface(&tmp_surface, 0.0, 0.0)
                         .with_context(|| "failed to set source surface")?;
 
                     cr.paint_with_alpha(
@@ -719,15 +735,14 @@ impl WidgetImpl for ActivityWidgetPriv {
 
                     drop(tmp_cr);
 
-                    let blurred_surface = crate::filters::filter::apply_blur(
+                    crate::filters::filter::apply_blur(
                         &mut tmp_surface,
                         soy::Lerper::calculate(&soy::EASE_IN, 1.0 - progress) * RAD,
-                        N,
-                        FILTER_BACKEND
+                        FILTER_BACKEND,
                     )
                     .with_context(|| "failed to apply blur to tmp surface")?;
 
-                    cr.set_source_surface(&blurred_surface, 0.0, 0.0)
+                    cr.set_source_surface(&tmp_surface, 0.0, 0.0)
                         .with_context(|| "failed to set source surface")?;
 
                     cr.paint_with_alpha(soy::Lerper::calculate(&soy::EASE_IN, progress) as f64)
@@ -768,6 +783,7 @@ impl WidgetImpl for ActivityWidgetPriv {
             eprintln!("{err}");
         }
 
+        // println!("{:?}", start.elapsed());
         glib::Propagation::Proceed
     }
 }

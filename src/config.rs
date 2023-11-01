@@ -12,16 +12,18 @@ pub struct Config {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GeneralConfig{
-    pub transition_duration: u64
+pub struct GeneralConfig {
+    pub transition_duration: u64,
 }
 
 impl Default for Config {
     fn default() -> Self {
         let map = HashMap::<String, Value>::new();
-        Self { 
-            module_config: map, 
-            general_config: GeneralConfig { transition_duration:1000 } 
+        Self {
+            module_config: map,
+            general_config: GeneralConfig {
+                transition_duration: 1000,
+            },
         }
     }
 }
