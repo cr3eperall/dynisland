@@ -172,11 +172,11 @@ impl ExampleModule {
         rt.spawn(async move {
             // println!("task started");
             loop {
-                tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-                mode.lock().await.set(ActivityMode::Minimal).unwrap();
+                // tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+                // mode.lock().await.set(ActivityMode::Minimal).unwrap();
 
-                tokio::time::sleep(tokio::time::Duration::from_millis(4000)).await;
-                mode.lock().await.set(ActivityMode::Compact).unwrap();
+                // tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+                // mode.lock().await.set(ActivityMode::Compact).unwrap();
                 // let old_label_val;
                 // {
                 //     let label_val = label.lock().await;
@@ -194,11 +194,11 @@ impl ExampleModule {
 
                 // label.lock().await.set(old_label_val).unwrap();
 
-                tokio::time::sleep(tokio::time::Duration::from_millis(3000)).await;
                 mode.lock().await.set(ActivityMode::Expanded).unwrap();
-
-                tokio::time::sleep(tokio::time::Duration::from_millis(4000)).await;
-                mode.lock().await.set(ActivityMode::Compact).unwrap();
+                
+                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+                mode.lock().await.set(ActivityMode::Overlay).unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
             }
         });
     }
@@ -216,12 +216,14 @@ impl ExampleModule {
         let minimal = Self::get_minimal();
         let compact = Self::get_compact();
         let expanded = Self::get_expanded();
+        let overlay = Self::get_overlay();
 
         //load widgets in the activity widget
         activity_widget.add(&background);
         activity_widget.set_minimal_mode(&minimal);
         activity_widget.set_compact_mode(&compact);
         activity_widget.set_expanded_mode(&expanded);
+        activity_widget.set_overlay_mode(&overlay);
 
         // activity_widget.connect_mode_notify(|f| {
         //     let l = f.mode();
@@ -348,8 +350,8 @@ impl ExampleModule {
 
     fn get_expanded() -> gtk::Widget {
         let expanded = gtk::Box::builder()
-            .height_request(100)
-            .width_request(350)
+            .height_request(400)
+            .width_request(500)
             .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
             .vexpand(false)
@@ -359,6 +361,27 @@ impl ExampleModule {
         expanded.add(
             &gtk::Label::builder()
                 .label("Expanded label,\n Hello Hello")
+                .halign(gtk::Align::Center)
+                .valign(gtk::Align::Center)
+                .hexpand(true)
+                .build(),
+        );
+        expanded.upcast()
+    }
+
+    fn get_overlay() -> gtk::Widget {
+        let expanded = gtk::Box::builder()
+            .height_request(550)
+            .width_request(900)
+            .valign(gtk::Align::Center)
+            .halign(gtk::Align::Center)
+            .vexpand(false)
+            .hexpand(false)
+            .build();
+
+        expanded.add(
+            &gtk::Label::builder()
+                .label("Overlay label,\n Hello Hello \n Hello Hello")
                 .halign(gtk::Align::Center)
                 .valign(gtk::Align::Center)
                 .hexpand(true)

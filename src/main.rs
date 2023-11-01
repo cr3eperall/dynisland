@@ -1,6 +1,8 @@
 #![feature(async_closure)]
 #![feature(trait_upcasting)]
 
+mod filters;
+
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Context, Result};

@@ -10,6 +10,8 @@ use glib::{object_subclass, prelude::*, wrapper};
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*, CssProvider};
 
+use crate::filters::filter::FilterBackend;
+
 use super::transition::Transition;
 
 //Add function to set background_widget css
@@ -668,6 +670,7 @@ impl WidgetImpl for ActivityWidgetPriv {
 
                 const RAD: f32 = 4.0;
                 const N: usize = 5;
+                const FILTER_BACKEND: FilterBackend =  FilterBackend::CPU;
 
                 if let Some(widget) = &*last_widget_to_render.borrow() {
                     let mut tmp_surface = gtk::cairo::ImageSurface::create(
@@ -684,10 +687,11 @@ impl WidgetImpl for ActivityWidgetPriv {
 
                     drop(tmp_cr);
 
-                    let blurred_surface = crate::filter::apply_blur(
+                    let blurred_surface = crate::filters::filter::apply_blur(
                         &mut tmp_surface,
                         soy::Lerper::calculate(&soy::EASE_OUT, progress) * RAD,
                         N,
+                        FILTER_BACKEND
                     )
                     .with_context(|| "failed to apply blur to tmp surface")?;
 
@@ -715,10 +719,11 @@ impl WidgetImpl for ActivityWidgetPriv {
 
                     drop(tmp_cr);
 
-                    let blurred_surface = crate::filter::apply_blur(
+                    let blurred_surface = crate::filters::filter::apply_blur(
                         &mut tmp_surface,
                         soy::Lerper::calculate(&soy::EASE_IN, 1.0 - progress) * RAD,
                         N,
+                        FILTER_BACKEND
                     )
                     .with_context(|| "failed to apply blur to tmp surface")?;
 

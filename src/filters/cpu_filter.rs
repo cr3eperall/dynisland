@@ -1,70 +1,15 @@
 use std::cmp::min;
 
-use anyhow::{Context, Result};
-
-/// works with 4 byte colors (RGBA/ARGB)
-pub fn apply_blur(
-    surface: &mut gdk::cairo::ImageSurface,
-    radius: f32,
-    n: usize,
-) -> Result<gdk::cairo::ImageSurface> {
-    //TODO optimize (maybe remove some iter.collect but i'm too lazy to do it)
-    //TODO ultimate optimization: use wgpu
-    if radius <= 0.0 {
-        return Ok(surface.clone());
-    }
-
-    let (width, height) = (surface.width(), surface.height());
-
-    let mut blurred_surface = gdk::cairo::ImageSurface::create(surface.format(), width, height)
-        .with_context(|| "failed to create new blur imagesurface")?;
-    let mut blurred_surface_data = blurred_surface
-        .data()
-        .with_context(|| "failed to get raw data from tmp blur surface")?;
-    let mut blurred_surface_data2 = blurred_surface_data
-        .chunks_exact_mut(4)
-        .map(|val| val.try_into().unwrap())
-        .collect::<Vec<&mut [u8; 4]>>();
-
-    let surface_data = surface
-        .data()
-        .with_context(|| "failed to get raw data from tmp surface")?;
-    let mut surface_data = surface_data
-        .chunks_exact(4)
-        .map(|val| val.try_into().unwrap())
-        .collect::<Vec<[u8; 4]>>();
-
-    if radius < height as f32 && radius < width as f32 {
-        gaussian_blur(
-            &mut surface_data,
-            width as usize,
-            height as usize,
-            radius,
-            n,
-        );
-    }
-
-    for i in 0..surface_data.len() {
-        blurred_surface_data2[i][0] = surface_data[i][0];
-        blurred_surface_data2[i][1] = surface_data[i][1];
-        blurred_surface_data2[i][2] = surface_data[i][2];
-        blurred_surface_data2[i][3] = surface_data[i][3];
-    }
-    drop(blurred_surface_data);
-    blurred_surface.mark_dirty();
-    Ok(blurred_surface)
-}
-
 // code borrowed from https://github.com/fschutt/fastblur/blob/master/src/blur.rs
 // changed [u8; 3] to [u8; 4] and removed round() for performance
 pub fn gaussian_blur(
     data: &mut [[u8; 4]],
     width: usize,
     height: usize,
-    blur_radius: f32,
+    sigma: f32,
     n: usize,
 ) {
-    let boxes = create_box_gauss(blur_radius, n);
+    let boxes = create_box_gauss(sigma, n);
     let mut backbuf = data.to_owned();
 
     for box_size in boxes.iter() {
@@ -617,14 +562,3 @@ fn box_blur_horz_single_channel(
         }
     }
 }
-
-// #[inline]
-// /// Fast rounding for x <= 2^23.
-// /// This is orders of magnitude faster than built-in rounding intrinsic.
-// ///
-// /// Source: https://stackoverflow.com/a/42386149/585725
-// fn round(mut x: f32) -> f32 {
-//     x += 12582912.0;
-//     x -= 12582912.0;
-//     x
-// }

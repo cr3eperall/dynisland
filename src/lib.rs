@@ -4,7 +4,7 @@
 #![feature(trait_upcasting)]
 pub mod app;
 pub mod config;
-pub mod filter;
+pub mod filters;
 
 pub mod modules;
 pub mod widgets;
