@@ -30,12 +30,6 @@ pub fn apply_blur(
 
     let (width, height) = (surface.width(), surface.height());
 
-    // let mut blurred_surface = gdk::cairo::ImageSurface::create(surface.format(), width, height)
-    //     .with_context(|| "failed to create new blur imagesurface")?;
-    // let mut blurred_surface_data = blurred_surface
-    //     .data()
-    //     .with_context(|| "failed to get raw data from tmp blur surface")?;
-
     let mut surface_data = surface
         .data()
         .with_context(|| "failed to get raw data from tmp surface")?;
