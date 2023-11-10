@@ -2,7 +2,10 @@ use anyhow::{anyhow, bail, Ok, Result};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
-use crate::modules::base_module::{DynamicActivity, PropertyUpdate, ValidDynType, DynamicProperty, SubscribableProperty, ValidDynamicClosure};
+use crate::modules::base_module::{
+    DynamicActivity, DynamicProperty, PropertyUpdate, SubscribableProperty, ValidDynType,
+    ValidDynamicClosure,
+};
 
 use super::activity_widget::ActivityWidget;
 

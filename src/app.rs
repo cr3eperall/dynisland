@@ -13,7 +13,7 @@ use tokio::{
 
 use crate::{
     config::{self, Config},
-    modules::base_module::{Module, Producer, MODULES, DynamicActivity},
+    modules::base_module::{DynamicActivity, Module, Producer, MODULES},
 };
 
 pub enum UIServerCommand {
@@ -193,11 +193,11 @@ impl App {
     pub fn load_modules(&mut self) {
         println!("{}", MODULES.len());
         for module_new in MODULES.iter() {
-            let module=module_new(self.app_send.as_ref().unwrap().clone(), None);
-            
+            let module = module_new(self.app_send.as_ref().unwrap().clone(), None);
+
             self.module_map
-            .blocking_lock()
-            .insert(module.get_name().to_string(), module);
+                .blocking_lock()
+                .insert(module.get_name().to_string(), module);
         }
         // let example_mod =
         //     example::ExampleModule::new(self.app_send.as_ref().unwrap().clone(), None);

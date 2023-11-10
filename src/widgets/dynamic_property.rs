@@ -1,6 +1,8 @@
 use anyhow::{bail, Result};
 
-use crate::modules::base_module::{DynamicProperty, ValidDynamicClosure, ValidDynType, PropertyUpdate};
+use crate::modules::base_module::{
+    DynamicProperty, PropertyUpdate, ValidDynType, ValidDynamicClosure,
+};
 
 impl Clone for Box<dyn ValidDynamicClosure> {
     fn clone(&self) -> Self {

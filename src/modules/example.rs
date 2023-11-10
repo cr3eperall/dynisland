@@ -16,13 +16,17 @@ use tokio::{
 
 use crate::{
     app::UIServerCommand,
-    cast_dyn_any, widgets::activity_widget::{ActivityMode, ActivityWidget},
+    cast_dyn_any,
+    widgets::activity_widget::{ActivityMode, ActivityWidget},
 };
 
-use super::base_module::{ActivityMap, Module, ModuleConfig, Producer, MODULES, DynamicActivity, PropertyUpdate};
+use super::base_module::{
+    ActivityMap, DynamicActivity, Module, ModuleConfig, Producer, PropertyUpdate, MODULES,
+};
 
 #[distributed_slice(MODULES)]
-static EXAMPLE_MODULE: fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module> = ExampleModule::new;
+static EXAMPLE_MODULE: fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module> =
+    ExampleModule::new;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExampleConfig {
@@ -179,8 +183,7 @@ impl ExampleModule {
                 let old_label_val;
                 {
                     let label_val = label.lock().await;
-                    let str_val: &String = cast_dyn_any!(label_val.get(), String)
-                        .unwrap();
+                    let str_val: &String = cast_dyn_any!(label_val.get(), String).unwrap();
                     old_label_val = str_val.clone();
                 }
 
@@ -259,13 +262,13 @@ impl ExampleModule {
                     .downcast::<gtk::EventBox>()
                     .unwrap()
                     .children()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .clone()
                     .downcast::<gtk::Box>()
                     .unwrap()
                     .children()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .clone()
                     .downcast::<gtk::Label>()
