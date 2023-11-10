@@ -13,11 +13,7 @@ use tokio::{
 
 use crate::{
     config::{self, Config},
-    modules::{
-        base_module::{Module, Producer},
-        example::{self},
-    },
-    widgets::dynamic_activity::DynamicActivity,
+    modules::base_module::{Module, Producer, MODULES, DynamicActivity},
 };
 
 pub enum UIServerCommand {
@@ -44,7 +40,7 @@ impl App {
     pub fn initialize_server(mut self) -> Result<()> {
         //parse static scss file
         let css_content = grass::from_path(
-            "/home/david/dev/rust/dynisland/file.scss",
+            "/home/david/dev/rust/dynisland-ws/dynisland/file.scss",
             &grass::Options::default(),
         );
 
@@ -195,12 +191,19 @@ impl App {
     }
 
     pub fn load_modules(&mut self) {
-        let example_mod =
-            example::ExampleModule::new(self.app_send.as_ref().unwrap().clone(), None);
-
-        self.module_map
+        println!("{}", MODULES.len());
+        for module_new in MODULES.iter() {
+            let module=module_new(self.app_send.as_ref().unwrap().clone(), None);
+            
+            self.module_map
             .blocking_lock()
-            .insert(example_mod.get_name().to_string(), Box::new(example_mod));
+            .insert(module.get_name().to_string(), module);
+        }
+        // let example_mod =
+        //     example::ExampleModule::new(self.app_send.as_ref().unwrap().clone(), None);
+        // self.module_map
+        //     .blocking_lock()
+        //     .insert(example_mod.get_name().to_string(), example_mod);
 
         // let example_mod2 =
         //     example::ExampleModule2::new(self.app_send.as_ref().unwrap().clone(), None);

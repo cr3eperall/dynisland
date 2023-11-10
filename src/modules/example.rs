@@ -6,6 +6,7 @@ use std::{
 use anyhow::{Context, Ok, Result};
 use async_trait::async_trait;
 use gtk::prelude::*;
+use linkme::distributed_slice;
 use ron::Value;
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -15,15 +16,13 @@ use tokio::{
 
 use crate::{
     app::UIServerCommand,
-    cast_dyn_any,
-    widgets::{
-        activity_widget::{ActivityMode, ActivityWidget},
-        dynamic_activity::DynamicActivity,
-        dynamic_property::PropertyUpdate,
-    },
+    cast_dyn_any, widgets::activity_widget::{ActivityMode, ActivityWidget},
 };
 
-use super::base_module::{ActivityMap, Module, ModuleConfig, Producer};
+use super::base_module::{ActivityMap, Module, ModuleConfig, Producer, MODULES, DynamicActivity, PropertyUpdate};
+
+#[distributed_slice(MODULES)]
+static EXAMPLE_MODULE: fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module> = ExampleModule::new;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExampleConfig {
@@ -51,18 +50,18 @@ pub struct ExampleModule {
 
 #[async_trait(?Send)]
 impl Module for ExampleModule {
-    fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Self {
+    fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Box<dyn Module> {
         let conf = match config {
             Some(value) => value.into_rust().expect("failed to parse config"),
             None => ExampleConfig::default(),
         };
-        Self {
+        Box::new(Self {
             name: "ExampleModule".to_string(),
             app_send,
             registered_activities: Arc::new(Mutex::new(HashMap::new())),
             registered_producers: Arc::new(Mutex::new(HashSet::new())),
             config: conf,
-        }
+        })
     }
 
     fn get_name(&self) -> &str {
@@ -177,14 +176,13 @@ impl ExampleModule {
 
                 // tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
                 // mode.lock().await.set(ActivityMode::Compact).unwrap();
-                // let old_label_val;
-                // {
-                //     let label_val = label.lock().await;
-                //     let str_val: &String = (label_val.get() as &dyn std::any::Any)
-                //         .downcast_ref()
-                //         .unwrap();
-                //     old_label_val = str_val.clone();
-                // }
+                let old_label_val;
+                {
+                    let label_val = label.lock().await;
+                    let str_val: &String = cast_dyn_any!(label_val.get(), String)
+                        .unwrap();
+                    old_label_val = str_val.clone();
+                }
 
                 // tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
                 // label.lock().await.set("sdkjvksdv1".to_string()).unwrap();
@@ -192,7 +190,7 @@ impl ExampleModule {
                 // label.lock().await.set("fghn".to_string()).unwrap();
                 // tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
-                // label.lock().await.set(old_label_val).unwrap();
+                label.lock().await.set(old_label_val).unwrap();
 
                 mode.lock().await.set(ActivityMode::Expanded).unwrap();
 
@@ -405,18 +403,18 @@ impl ExampleModule {
 
 // #[async_trait(?Send)]
 // impl Module for ExampleModule2 {
-//     fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Self {
+//     fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Box<Self> {
 //         let conf = match config {
 //             Some(value) => value.into_rust().expect("failed to parse config"),
 //             None => ExampleConfig::default(),
 //         };
-//         Self {
+//         Box::new(Self {
 //             name: "ExampleModule2".to_string(),
 //             app_send,
 //             registered_activities: Arc::new(Mutex::new(HashMap::new())),
 //             registered_producers: Arc::new(Mutex::new(HashSet::new())),
 //             config: conf,
-//         }
+//         })
 //     }
 
 //     fn get_name(&self) -> &str {

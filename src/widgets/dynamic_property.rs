@@ -1,15 +1,6 @@
 use anyhow::{bail, Result};
-use std::any::Any;
 
-use dyn_clone::DynClone;
-
-pub struct PropertyUpdate(pub String, pub Box<dyn ValidDynType>);
-
-pub trait ValidDynType: Any + Sync + Send + DynClone {}
-impl<T: Any + Sync + Send + Clone> ValidDynType for T {}
-
-pub trait ValidDynamicClosure: Fn(&dyn ValidDynType) + DynClone {}
-impl<T: Fn(&dyn ValidDynType) + DynClone + Clone> ValidDynamicClosure for T {}
+use crate::modules::base_module::{DynamicProperty, ValidDynamicClosure, ValidDynType, PropertyUpdate};
 
 impl Clone for Box<dyn ValidDynamicClosure> {
     fn clone(&self) -> Self {
@@ -17,11 +8,6 @@ impl Clone for Box<dyn ValidDynamicClosure> {
     }
 }
 
-pub struct DynamicProperty {
-    pub backend_channel: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
-    pub name: String,
-    pub value: Box<dyn ValidDynType>,
-}
 impl Clone for DynamicProperty {
     fn clone(&self) -> Self {
         Self {

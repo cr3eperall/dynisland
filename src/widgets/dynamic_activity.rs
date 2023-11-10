@@ -2,23 +2,9 @@ use anyhow::{anyhow, bail, Ok, Result};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
-use super::{
-    activity_widget::ActivityWidget,
-    dynamic_property::{DynamicProperty, PropertyUpdate, ValidDynType, ValidDynamicClosure},
-};
+use crate::modules::base_module::{DynamicActivity, PropertyUpdate, ValidDynType, DynamicProperty, SubscribableProperty, ValidDynamicClosure};
 
-pub struct SubscribableProperty {
-    pub property: Arc<Mutex<DynamicProperty>>,
-    pub subscribers: Vec<Box<dyn ValidDynamicClosure>>,
-}
-
-pub struct DynamicActivity {
-    //TODO change to getters and setters
-    widget: ActivityWidget,
-    property_dictionary: HashMap<String, SubscribableProperty>,
-    ui_send: UnboundedSender<PropertyUpdate>,
-    identifier: String,
-}
+use super::activity_widget::ActivityWidget;
 
 impl DynamicActivity {
     pub fn new(ui_send: UnboundedSender<PropertyUpdate>, name: &str) -> Self {

@@ -7,13 +7,18 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use dyn_clone::DynClone;
+use linkme::distributed_slice;
 use ron::Value;
 use tokio::{
     runtime::Handle,
     sync::{mpsc::UnboundedSender, Mutex},
 };
 
-use crate::{app::UIServerCommand, widgets::dynamic_activity::DynamicActivity};
+use crate::{app::UIServerCommand, widgets::activity_widget::ActivityWidget};
+
+#[distributed_slice]
+pub static MODULES: [fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module>];
 
 pub type ActivityMap = Arc<Mutex<HashMap<String, Arc<Mutex<DynamicActivity>>>>>;
 pub type Producer = fn(
@@ -27,7 +32,7 @@ pub trait ModuleConfig: Any + Debug {}
 
 #[async_trait(?Send)]
 pub trait Module {
-    fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Self
+    fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Box<dyn Module>
     where
         Self: Sized;
 
@@ -44,4 +49,31 @@ pub trait Module {
 
     fn init(&self);
     fn parse_config(&mut self, config: Value) -> Result<()>;
+}
+
+pub struct SubscribableProperty {
+    pub property: Arc<Mutex<DynamicProperty>>,
+    pub subscribers: Vec<Box<dyn ValidDynamicClosure>>,
+}
+
+pub struct DynamicActivity {
+    //TODO change to getters and setters
+    pub(crate) widget: ActivityWidget,
+    pub(crate) property_dictionary: HashMap<String, SubscribableProperty>,
+    pub(crate) ui_send: UnboundedSender<PropertyUpdate>,
+    pub(crate) identifier: String,
+}
+
+pub struct PropertyUpdate(pub String, pub Box<dyn ValidDynType>);
+
+pub trait ValidDynType: Any + Sync + Send + DynClone {}
+impl<T: Any + Sync + Send + Clone> ValidDynType for T {}
+
+pub trait ValidDynamicClosure: Fn(&dyn ValidDynType) + DynClone {}
+impl<T: Fn(&dyn ValidDynType) + DynClone + Clone> ValidDynamicClosure for T {}
+
+pub struct DynamicProperty {
+    pub backend_channel: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
+    pub name: String,
+    pub value: Box<dyn ValidDynType>,
 }
