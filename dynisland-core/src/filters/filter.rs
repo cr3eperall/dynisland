@@ -40,7 +40,7 @@ pub fn apply_blur(
             FilterBackend::Gpu => {
                 // let start2=Instant::now();
 
-                super::gpu_filter::GPU_INSTANCE
+                super::gpu_filter::WGPU_INSTANCE
                     .blocking_lock()
                     .gaussian_blur(
                         &mut surface_data,

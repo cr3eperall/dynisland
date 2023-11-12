@@ -44,7 +44,7 @@ pub struct GpuContext {
     pub pipeline: ComputePipeline,
 }
 
-pub static GPU_INSTANCE: Lazy<Mutex<GpuContext>> = Lazy::new(|| Mutex::new(GpuContext::new())); //TODO move to app::initialize_server and configure with config file
+pub static WGPU_INSTANCE: Lazy<Mutex<GpuContext>> = Lazy::new(|| Mutex::new(GpuContext::new())); //TODO move to app::initialize_server and configure with config file
 impl GpuContext {
     //TODO could be furter optimized by processing 2 images at the same time
     pub fn new() -> Self {

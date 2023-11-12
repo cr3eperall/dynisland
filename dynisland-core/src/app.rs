@@ -13,15 +13,8 @@ use tokio::{
 
 use crate::{
     config::{self, Config},
-    modules::base_module::{DynamicActivity, Module, Producer, MODULES},
+    base_module::{Module, MODULES, UIServerCommand},
 };
-
-pub enum UIServerCommand {
-    //TODO change to APIServerCommand
-    AddActivity(String, Arc<Mutex<DynamicActivity>>),
-    AddProducer(String, Producer),
-    RemoveActivity(String, String), //TODO needs to be tested
-}
 
 pub enum BackendServerCommand {
     ReloadConfig(),
@@ -40,7 +33,7 @@ impl App {
     pub fn initialize_server(mut self) -> Result<()> {
         //parse static scss file
         let css_content = grass::from_path(
-            "/home/david/dev/rust/dynisland-ws/dynisland/file.scss",
+            "/home/david/dev/rust/dynisland-ws/dynisland-core/file.scss",
             &grass::Options::default(),
         );
 
@@ -60,7 +53,7 @@ impl App {
             .valign(gtk::Align::Start)
             .build();
 
-        gtk::Window::set_interactive_debugging(true);
+        // gtk::Window::set_interactive_debugging(true);
 
         self.window.add(&act_container);
 
@@ -103,6 +96,7 @@ impl App {
                             module.get_registered_activities(),
                             &rt,
                             app_send.clone(),
+                            module.get_prop_send(),
                             module.get_config(),
                         );
                         println!("registered producer {}", module.get_name());
@@ -271,6 +265,7 @@ impl App {
                     module.get_registered_activities(),
                     &self.producers_handle,
                     self.app_send.clone().unwrap(),
+                    module.get_prop_send(),
                     module.get_config(),
                 )
             }

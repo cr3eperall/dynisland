@@ -14,10 +14,14 @@ use crate::filters::filter::FilterBackend;
 
 use super::transition::Transition;
 
-//Add function to set background_widget css
+//Add function to set background_widget css ??
 
-const MINIMAL_HEIGHT: i32 = 40;
+const MINIMAL_HEIGHT: i32 = 40; //TODO move to config
 
+///
+/// 
+/// 
+///
 #[derive(Clone, glib::Boxed, Debug)]
 #[boxed_type(name = "BoxedActivityMode")]
 pub enum ActivityMode {
@@ -161,13 +165,6 @@ pub struct ActivityWidgetPriv {
     #[property(get, set, nick = "Change mode", blurb = "The Activity Mode")]
     mode: RefCell<ActivityMode>,
 
-    // #[property(
-    //     get,
-    //     set,
-    //     nick = "Change Transition Duration",
-    //     blurb = "The Duration of the Transition"
-    // )]
-    // transition_duration: RefCell<u64>, //must be smaller than the transition duration for the width/height - frame time
     #[property(get, nick = "Local CSS Provider")]
     local_css_context: RefCell<LocalCssContext>,
 

@@ -15,12 +15,12 @@ use tokio::{
 };
 
 use crate::{
-    app::UIServerCommand,
+    base_module::UIServerCommand,
     cast_dyn_any,
     widgets::activity_widget::{ActivityMode, ActivityWidget},
 };
 
-use super::base_module::{
+use crate::base_module::{
     ActivityMap, DynamicActivity, Module, ModuleConfig, Producer, PropertyUpdate, MODULES,
 };
 
@@ -47,6 +47,7 @@ impl Default for ExampleConfig {
 pub struct ExampleModule {
     name: String,
     app_send: UnboundedSender<UIServerCommand>,
+    prop_send: UnboundedSender<PropertyUpdate>,
     registered_activities: ActivityMap,
     registered_producers: Arc<Mutex<HashSet<Producer>>>,
     config: ExampleConfig,
@@ -59,10 +60,54 @@ impl Module for ExampleModule {
             Some(value) => value.into_rust().expect("failed to parse config"),
             None => ExampleConfig::default(),
         };
+        let registered_activities=Arc::new(Mutex::new(HashMap::<String, Arc<Mutex<DynamicActivity>>>::new()));
+        
+        //create ui property update channel
+        let (prop_send, mut prop_recv) = tokio::sync::mpsc::unbounded_channel::<PropertyUpdate>();
+        let activities=registered_activities.clone();
+        glib::MainContext::default().spawn_local(async move { //TODO move to its own function
+            //start data consumer
+            while let Some(res) = prop_recv.recv().await {
+                if res.activity_id=="*" {
+                    for activity in activities.lock().await.values(){
+                        match activity.lock().await.get_subscribers(&res.property_name) {
+                            core::result::Result::Ok(subs) => {
+                                for sub in subs {
+                                    sub(&*res.value);
+                                }
+                            }
+                            Err(_err) => {
+                                // eprintln!("{}", err)
+                            },
+                        }
+                    }
+                } else {
+                    match activities.lock().await.get(&res.activity_id) {
+                        Some(activity)=> {
+                            match activity.lock().await.get_subscribers(&res.property_name) {
+                                core::result::Result::Ok(subs) => {
+                                    for sub in subs {
+                                        sub(&*res.value);
+                                    }
+                                }
+                                Err(_err) => {
+                                    // eprintln!("{}", err)
+                                },
+                            }
+                        },
+                        None => {
+                            eprintln!("activity {} not found on ExampleModule", res.activity_id);
+                        }
+                    }
+                }
+            }
+        });
+        
         Box::new(Self {
             name: "ExampleModule".to_string(),
             app_send,
-            registered_activities: Arc::new(Mutex::new(HashMap::new())),
+            prop_send,
+            registered_activities,
             registered_producers: Arc::new(Mutex::new(HashSet::new())),
             config: conf,
         })
@@ -82,10 +127,14 @@ impl Module for ExampleModule {
     }
 
     async fn register_activity(&self, activity: Arc<Mutex<DynamicActivity>>) {
-        self.registered_activities
+        let mut reg=self.registered_activities
             .lock()
-            .await
-            .insert(activity.lock().await.get_identifier(), activity.clone());
+            .await;
+        let activity_id=activity.lock().await.get_identifier();
+        if reg.contains_key(&activity_id) {
+            panic!("activity {} was already registered", activity_id);
+        }
+        reg.insert(activity_id, activity.clone());
     }
     async fn unregister_activity(&self, activity: &str) {
         self.registered_activities
@@ -103,37 +152,29 @@ impl Module for ExampleModule {
         self.registered_producers.lock().await.insert(producer);
     }
 
+    fn get_prop_send(&self) -> UnboundedSender<PropertyUpdate> {
+        self.prop_send.clone()
+    }
+
     fn init(&self) {
         //TODO subdivide in phases
-
-        //create ui channel
-        let (prop_send, mut prop_recv) = tokio::sync::mpsc::unbounded_channel::<PropertyUpdate>();
-
+        
         //TODO maybe move to server
         let app_send = self.app_send.clone();
         let name = self.name.clone();
+        let prop_send=self.prop_send.clone();
         glib::MainContext::default().spawn_local(async move {
             //create activity
-            let activity = Arc::new(Mutex::new(Self::get_activity(prop_send)));
+            let activity = Arc::new(Mutex::new(Self::get_activity(prop_send, "exampleActivity1")));
 
             //register activity and data producer
             app_send
                 .send(UIServerCommand::AddActivity(name.clone(), activity.clone()))
                 .unwrap();
             app_send
-                .send(UIServerCommand::AddProducer(name, Self::producer))
+                .send(UIServerCommand::AddProducer(name, Self::producer as Producer))
                 .unwrap();
-            //start data consumer
-            while let Some(res) = prop_recv.recv().await {
-                match activity.lock().await.get_subscribers(&res.0) {
-                    core::result::Result::Ok(subs) => {
-                        for sub in subs {
-                            sub(&*res.1);
-                        }
-                    }
-                    Err(err) => eprintln!("{}", err),
-                }
-            }
+            
         });
     }
     fn parse_config(&mut self, config: Value) -> Result<()> {
@@ -150,26 +191,30 @@ impl ExampleModule {
     fn producer(
         activities: ActivityMap,
         rt: &Handle,
-        _app_send: UnboundedSender<UIServerCommand>,
+        app_send: UnboundedSender<UIServerCommand>,
+        prop_send: UnboundedSender<PropertyUpdate>,
         config: &dyn ModuleConfig,
     ) {
         //data producer
-        let _config: &ExampleConfig = cast_dyn_any!(config, ExampleConfig).unwrap();
+        let config: &ExampleConfig = cast_dyn_any!(config, ExampleConfig).unwrap();
         //TODO shouldn't be blocking locks, maybe execute async with glib::MainContext
         let act = activities.blocking_lock();
         let mode = act
-            .get("exampleActivity")
+            .get("exampleActivity1")
             .unwrap()
             .blocking_lock()
             .get_property("mode")
             .unwrap();
         let label = act
-            .get("exampleActivity")
+            .get("exampleActivity1")
             .unwrap()
             .blocking_lock()
             .get_property("comp-label")
             .unwrap();
-        label.blocking_lock().set(_config.string.clone()).unwrap();
+        label.blocking_lock().set(config.string.clone()).unwrap();
+        let activity = Arc::new(Mutex::new(Self::get_activity(prop_send.clone(), "exampleActivity2")));
+        app_send.send(UIServerCommand::AddActivity("ExampleModule".to_string(), activity)).unwrap();
+
 
         // println!("starting task");
         rt.spawn(async move {
@@ -195,9 +240,11 @@ impl ExampleModule {
 
                 label.lock().await.set(old_label_val).unwrap();
 
+                prop_send.send(PropertyUpdate{activity_id:"*".to_string(), property_name:"mode".to_string(), value:Box::new(ActivityMode::Compact)}).unwrap();
                 mode.lock().await.set(ActivityMode::Expanded).unwrap();
 
                 tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+                prop_send.send(PropertyUpdate{activity_id:"*".to_string(), property_name:"mode".to_string(), value:Box::new(ActivityMode::Expanded)}).unwrap();
                 mode.lock().await.set(ActivityMode::Overlay).unwrap();
                 tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
             }
@@ -206,8 +253,9 @@ impl ExampleModule {
 
     fn get_activity(
         prop_send: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
+        name: &str
     ) -> DynamicActivity {
-        let mut activity = DynamicActivity::new(prop_send, "exampleActivity");
+        let mut activity = DynamicActivity::new(prop_send, name);
 
         //create activity widget
         let mut activity_widget = activity.get_activity_widget();

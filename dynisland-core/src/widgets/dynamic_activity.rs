@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Ok, Result};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
-use crate::modules::base_module::{
+use crate::base_module::{
     DynamicActivity, DynamicProperty, PropertyUpdate, SubscribableProperty, ValidDynType,
     ValidDynamicClosure,
 };
@@ -11,25 +11,23 @@ use super::activity_widget::ActivityWidget;
 
 impl DynamicActivity {
     pub fn new(ui_send: UnboundedSender<PropertyUpdate>, name: &str) -> Self {
-        let mut act = Self {
+        let act = Self {
             widget: ActivityWidget::new(name),
             property_dictionary: HashMap::new(),
             ui_send,
-            identifier: name.to_string(),
         };
-        act.identifier = name.to_string();
         act
     }
 
     pub fn set_activity_widget(&mut self, widget: ActivityWidget) {
-        widget.set_name(self.identifier.clone());
+        widget.set_name(self.widget.name());
         self.widget = widget;
     }
     pub fn get_activity_widget(&self) -> ActivityWidget {
         self.widget.clone()
     }
     pub fn get_identifier(&self) -> String {
-        self.identifier.clone()
+        self.widget.name().to_string()
     }
 
     /// Returns Err if the property already exists
@@ -42,7 +40,8 @@ impl DynamicActivity {
         }
         let prop = DynamicProperty {
             backend_channel: self.ui_send.clone(),
-            name: name.to_string(),
+            activity_id: self.get_identifier(),
+            property_name: name.to_string(),
             value: Box::new(initial_value),
         };
         let subs_prop = SubscribableProperty {
