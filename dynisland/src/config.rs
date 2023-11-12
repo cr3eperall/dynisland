@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ron::Value;
 use serde::{Deserialize, Serialize};
 
-pub const CONFIG_FILE: &str = "/home/david/.config/dynisland/dynisland.ron";
+pub const CONFIG_FILE: &str = "/home/david/.config/dynisland/dynisland.ron"; //TODO add cli override
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {

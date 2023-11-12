@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "dynisland",
+    "dynisland-core", "dynisland-modules",
+]

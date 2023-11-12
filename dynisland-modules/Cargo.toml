@@ -1,0 +1,21 @@
+[package]
+name = "dynisland-modules"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dynisland-core = { path = "../dynisland-core"}
+
+anyhow = "1.0.75"
+gtk = "0.18.1"
+gdk = "0.18.0"
+glib = "0.18.1"
+tokio = { version = "1.32.0", features = ["rt", "time", "sync", "macros"] }
+glib-macros = "0.18.0"
+dyn-clone = "1.0.13"
+async-trait = "0.1.73"
+ron = "0.8.1"
+serde = { version = "1.0.188", features = ["serde_derive"] }
+linkme = "0.3.17"
