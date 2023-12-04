@@ -1,11 +1,13 @@
-
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Context, Result};
-use dynisland::{app::{App, self}, config};
+use dynisland::{
+    app::{self, App},
+    config,
+};
 use tokio::sync::Mutex;
 
-extern crate dynisland_modules;
+extern crate dynisland_modules; //need this to force the modules to be linked
 
 fn main() -> Result<()> {
     //init GTK

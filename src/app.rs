@@ -13,7 +13,7 @@ use tokio::{
 
 use crate::config::{self, Config};
 
-use dynisland_core::base_module::{Module, MODULES, UIServerCommand};
+use dynisland_core::base_module::{Module, UIServerCommand, MODULES};
 
 pub enum BackendServerCommand {
     ReloadConfig(),
@@ -32,7 +32,7 @@ impl App {
     pub fn initialize_server(mut self) -> Result<()> {
         //parse static scss file
         let css_content = grass::from_path(
-            "/home/david/dev/rust/dynisland-ws/dynisland-core/file.scss", // TODO move to config
+            "/home/david/dev/rust/dynisland/dynisland-core/file.scss", // TODO move to config
             &grass::Options::default(),
         );
 
