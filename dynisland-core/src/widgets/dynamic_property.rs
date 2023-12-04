@@ -1,8 +1,6 @@
 use anyhow::{bail, Result};
 
-use crate::base_module::{
-    DynamicProperty, PropertyUpdate, ValidDynType, ValidDynamicClosure,
-};
+use crate::base_module::{DynamicProperty, PropertyUpdate, ValidDynType, ValidDynamicClosure};
 
 impl Clone for Box<dyn ValidDynamicClosure> {
     fn clone(&self) -> Self {
@@ -40,10 +38,10 @@ impl DynamicProperty {
             bail!("tried to set wrong type")
         }
         self.value = Box::new(value);
-        match self.backend_channel.send(PropertyUpdate{
+        match self.backend_channel.send(PropertyUpdate {
             activity_id: self.activity_id.clone(),
-            property_name:self.property_name.clone(),
-            value:dyn_clone::clone_box(&*self.value),
+            property_name: self.property_name.clone(),
+            value: dyn_clone::clone_box(&*self.value),
         }) {
             Ok(_) => Ok(()),
             Err(err) => bail!("error sending update request to ui: {:?}", err),

@@ -2,5 +2,6 @@
 
 members = [
     "dynisland",
-    "dynisland-core", "dynisland-modules",
+    "dynisland-core",
+    "dynisland-modules",
 ]
