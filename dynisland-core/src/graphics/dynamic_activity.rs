@@ -11,12 +11,11 @@ use super::activity_widget::ActivityWidget;
 
 impl DynamicActivity {
     pub fn new(ui_send: UnboundedSender<PropertyUpdate>, name: &str) -> Self {
-        let act = Self {
+        Self {
             widget: ActivityWidget::new(name),
             property_dictionary: HashMap::new(),
             ui_send,
-        };
-        act
+        }
     }
 
     pub fn set_activity_widget(&mut self, widget: ActivityWidget) {

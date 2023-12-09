@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, rc::Rc};
 
 use anyhow::{Context, Result};
 use dynisland::{
@@ -15,7 +15,7 @@ fn main() -> Result<()> {
     let (hdl, shutdown) = app::get_new_tokio_rt(); //TODO it's ugly, should change it
     let app = App {
         window: app::get_window(),
-        module_map: Arc::new(Mutex::new(HashMap::new())),
+        module_map: Rc::new(Mutex::new(HashMap::new())), //TODO remove some unnecessary arc and mutexes
         producers_handle: hdl,
         producers_shutdown: shutdown,
         app_send: None,

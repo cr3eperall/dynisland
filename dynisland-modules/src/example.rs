@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    rc::Rc,
     sync::Arc,
 };
 
@@ -20,7 +21,10 @@ use dynisland_core::{
         UIServerCommand, MODULES,
     },
     cast_dyn_any,
-    widgets::activity_widget::{ActivityMode, ActivityWidget},
+    graphics::{
+        activity_widget::{ActivityMode, ActivityWidget},
+        widgets::scrolling_label::{Orientation, ScrollingLabel},
+    },
 };
 
 #[distributed_slice(MODULES)]
@@ -59,9 +63,9 @@ impl Module for ExampleModule {
             Some(value) => value.into_rust().expect("failed to parse config"),
             None => ExampleConfig::default(),
         };
-        let registered_activities = Arc::new(Mutex::new(HashMap::<
+        let registered_activities = Rc::new(Mutex::new(HashMap::<
             String,
-            Arc<Mutex<DynamicActivity>>,
+            Rc<Mutex<DynamicActivity>>,
         >::new()));
 
         let prop_send = ExampleModule::spawn_property_update_loop(&registered_activities);
@@ -127,13 +131,11 @@ impl Module for ExampleModule {
         &self.config
     }
 
-    fn get_registered_activities(
-        &self,
-    ) -> Arc<Mutex<HashMap<String, Arc<Mutex<DynamicActivity>>>>> {
+    fn get_registered_activities(&self) -> ActivityMap {
         self.registered_activities.clone()
     }
 
-    async fn register_activity(&self, activity: Arc<Mutex<DynamicActivity>>) {
+    async fn register_activity(&self, activity: Rc<Mutex<DynamicActivity>>) {
         let mut reg = self.registered_activities.lock().await;
         let activity_id = activity.lock().await.get_identifier();
         if reg.contains_key(&activity_id) {
@@ -170,7 +172,7 @@ impl Module for ExampleModule {
         let prop_send = self.prop_send.clone();
         glib::MainContext::default().spawn_local(async move {
             //create activity
-            let activity = Arc::new(Mutex::new(Self::get_activity(
+            let activity = Rc::new(Mutex::new(Self::get_activity(
                 prop_send,
                 "exampleActivity1",
             )));
@@ -209,7 +211,7 @@ impl ExampleModule {
         let config: &ExampleConfig = cast_dyn_any!(config, ExampleConfig).unwrap();
         //TODO shouldn't be blocking locks, maybe execute async with glib::MainContext
         let act = activities.blocking_lock();
-        let _mode = act
+        let mode = act
             .get("exampleActivity1")
             .unwrap()
             .blocking_lock()
@@ -220,6 +222,18 @@ impl ExampleModule {
             .unwrap()
             .blocking_lock()
             .get_property("comp-label")
+            .unwrap();
+        let scrolling_enabled = act
+            .get("exampleActivity1")
+            .unwrap()
+            .blocking_lock()
+            .get_property("scrolling-transition-enabled")
+            .unwrap();
+        let scrolling_text = act
+            .get("exampleActivity1")
+            .unwrap()
+            .blocking_lock()
+            .get_property("scrolling-label-text")
             .unwrap();
         label.blocking_lock().set(config.string.clone()).unwrap();
         // let activity = Arc::new(Mutex::new(Self::get_activity(
@@ -237,10 +251,23 @@ impl ExampleModule {
         rt.spawn(async move {
             // println!("task started");
             // mode.lock().await.set(ActivityMode::Minimal).unwrap();
-            // loop {
+            loop {
+                // scrolling_enabled.lock().await.set(false).unwrap();
+                // scrolling_text
+                //     .lock()
+                //     .await
+                //     .set("Hello long text, very long text. Hello long text, very long text.    end".to_string())
+                //     .unwrap();
+                // tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
+                // scrolling_enabled.lock().await.set(true).unwrap();
+                scrolling_text
+                    .lock()
+                    .await
+                    .set("Hello shorterer e e e e text e.    end".to_string())
+                    .unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
                 // mode.lock().await.set(ActivityMode::Minimal).unwrap();
                 // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                // println!("mode updated");
 
                 // mode.lock().await.set(ActivityMode::Compact).unwrap();
                 // tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
@@ -277,11 +304,15 @@ impl ExampleModule {
                 //         value: Box::new(ActivityMode::Expanded),
                 //     })
                 //     .unwrap();
-                // mode.lock().await.set(ActivityMode::Expanded).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(3000)).await;
                 // mode.lock().await.set(ActivityMode::Compact).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
-            // }
+                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+                // mode.lock().await.set(ActivityMode::Expanded).unwrap();
+                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+                // mode.lock().await.set(ActivityMode::Overlay).unwrap();
+                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+                // mode.lock().await.set(ActivityMode::Expanded).unwrap();
+                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            }
         });
     }
 
@@ -320,6 +351,12 @@ impl ExampleModule {
         activity
             .add_dynamic_property("comp-label", "compact".to_string())
             .unwrap();
+        activity
+            .add_dynamic_property("scrolling-transition-enabled", true)
+            .unwrap();
+        activity
+            .add_dynamic_property("scrolling-label-text", "Hello, World".to_string())
+            .unwrap();
 
         let mode = activity.get_property("mode").unwrap();
 
@@ -335,6 +372,56 @@ impl ExampleModule {
             glib::Propagation::Proceed
         });
 
+        let minimal_cl = minimal.clone();
+        activity
+            .subscribe_to_property("scrolling-transition-enabled", move |new_value| {
+                let real_value = cast_dyn_any!(new_value, bool).unwrap();
+                // println!("enabled changed:{real_value}");
+                minimal_cl
+                    .clone()
+                    .downcast::<gtk::EventBox>()
+                    .unwrap()
+                    .children()
+                    .first()
+                    .unwrap()
+                    .clone()
+                    .downcast::<gtk::Box>()
+                    .unwrap()
+                    .children()
+                    .first()
+                    .unwrap()
+                    .clone()
+                    .downcast::<ScrollingLabel>()
+                    .unwrap()
+                    .set_transition_enabled(real_value);
+            })
+            .unwrap();
+
+        let minimal_cl = minimal.clone();
+        activity
+            .subscribe_to_property("scrolling-label-text", move |new_value| {
+                let real_value = cast_dyn_any!(new_value, String).unwrap();
+                // println!("text changed:{real_value}");
+                minimal_cl
+                    .clone()
+                    .downcast::<gtk::EventBox>()
+                    .unwrap()
+                    .children()
+                    .first()
+                    .unwrap()
+                    .clone()
+                    .downcast::<gtk::Box>()
+                    .unwrap()
+                    .children()
+                    .first()
+                    .unwrap()
+                    .clone()
+                    .downcast::<ScrollingLabel>()
+                    .unwrap()
+                    .set_text(real_value.as_str());
+            })
+            .unwrap();
+
         compact.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
         let m1 = mode.clone();
         compact.connect_button_release_event(move |_wid, ev| {
@@ -347,12 +434,6 @@ impl ExampleModule {
             glib::Propagation::Proceed
         });
 
-        // let prop=activity.get_property("comp-label").unwrap();
-        // compact.connect_enter_notify_event(move |m1, m2|{
-        //     println!("{m2:?}");
-        //     prop.blocking_lock().set(format!("{:?}",m2.coords().unwrap())).unwrap();
-        //     glib::Propagation::Proceed
-        // });
         //set mode when updated
         activity
             .subscribe_to_property("mode", move |new_value| {
@@ -365,7 +446,7 @@ impl ExampleModule {
         activity
             .subscribe_to_property("comp-label", move |new_value| {
                 let real_value = cast_dyn_any!(new_value, String).unwrap();
-                compact
+                compact //FIXME WTF is this, i need to change it
                     .clone()
                     .downcast::<gtk::EventBox>()
                     .unwrap()
@@ -394,7 +475,7 @@ impl ExampleModule {
         activity_widget.set_valign(gtk::Align::Start);
         activity_widget.set_halign(gtk::Align::Center);
         // activity_widget.set_transition_duration(2000, true).unwrap();
-        activity_widget.style_context().add_class("overlay");
+        // activity_widget.style_context().add_class("overlay");
     }
 
     fn get_bg() -> gtk::Widget {
@@ -408,25 +489,41 @@ impl ExampleModule {
 
     fn get_minimal() -> gtk::Widget {
         let minimal = gtk::Box::builder()
-            .height_request(40)
-            .width_request(50)
+            // .height_request(40)
+            .width_request(140)
             .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
             .vexpand(false)
             .hexpand(false)
             .build();
+        minimal.set_margin_start(20);
+        minimal.set_margin_end(20);
 
-        let btn = gtk::Label::builder()
-            .label("m")
-            .halign(gtk::Align::Center)
-            .valign(gtk::Align::Center)
-            .hexpand(true)
-            .build();
+        // let btn = gtk::Label::builder()
+        //     .label("m")
+        //     .halign(gtk::Align::Center)
+        //     .valign(gtk::Align::Center)
+        //     .hexpand(true)
+        //     .build();
+        // minimal.add(&btn);
 
-        minimal.add(&btn);
+        let scroll_label = ScrollingLabel::new();
+        scroll_label.set_max_height(40);
+        scroll_label.set_max_width(140); // should be width+internal margins for vertical
+        scroll_label.set_orientation(Orientation::Horizontal);
+        scroll_label.set_transition_roll(true);
+        scroll_label.set_text("valueasdfvasdfasdfasdfasfd");
+        scroll_label.set_transition_speed(30, true).unwrap();
+        scroll_label.set_timeout_duration(2000, true).unwrap();
+
+        scroll_label.inner_label().set_margin_start(10);
+        scroll_label.inner_label().set_margin_end(30);
+
+        minimal.add(&scroll_label);
+
         let minimal = gtk::EventBox::builder()
             .height_request(40)
-            .width_request(50)
+            // .width_request(100)
             .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
             .vexpand(false)

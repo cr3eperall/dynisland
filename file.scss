@@ -1,23 +1,23 @@
 activity-widget {
-    background-color: palevioletred;
-    border: 10px solid gray;
+    background-color: transparent;
+    border: 10px solid rgb(0, 204, 139);
     border-radius: 50px;
 }
 
 .mode-compact{
-    background-color: gray;
+    background-color: rgba(128, 128, 128, 1);
 }
 
 .mode-minimal{
-    background-color: pink;
+    background-color: rgba(255, 192, 203, 1);
 }
 
 .mode-expanded{
-    background-color: violet;
+    background-color: rgba(238, 130, 238, 1);
 }
 
 .mode-overlay{
-    background-color: crimson;
+    background-color: rgba(220, 20, 60, 1);
 }
 
 .activity-background{

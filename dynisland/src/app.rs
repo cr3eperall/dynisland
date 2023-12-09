@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path, rc::Rc};
 
 use anyhow::Result;
 use gtk::prelude::*;
@@ -21,7 +21,7 @@ pub enum BackendServerCommand {
 
 pub struct App {
     pub window: gtk::Window,
-    pub module_map: Arc<Mutex<HashMap<String, Box<dyn Module>>>>,
+    pub module_map: Rc<Mutex<HashMap<String, Box<dyn Module>>>>,
     pub producers_handle: Handle,
     pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
     pub app_send: Option<UnboundedSender<UIServerCommand>>,
@@ -32,7 +32,7 @@ impl App {
     pub fn initialize_server(mut self) -> Result<()> {
         //parse static scss file
         let css_content = grass::from_path(
-            "/home/david/dev/rust/dynisland/dynisland-core/file.scss", // TODO move to config
+            "/home/david/dev/rust/dynisland/dynisland-core/file.scss", // TODO move to config //FIXME add reloading css on file change
             &grass::Options::default(),
         );
 

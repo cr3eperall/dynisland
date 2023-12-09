@@ -34,8 +34,9 @@ impl DynamicProperty {
         T: ValidDynType,
     {
         if (*self.value).type_id() != value.type_id() {
+            let tried_type = std::any::type_name_of_val(&value);
             //checks if it's the same type, doesn't check enum subtype
-            bail!("tried to set wrong type")
+            bail!("tried to set wrong type:(tried to set type: {tried_type})")
         }
         self.value = Box::new(value);
         match self.backend_channel.send(PropertyUpdate {

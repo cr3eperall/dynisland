@@ -23,6 +23,7 @@ impl Default for Config {
             module_config: map,
             general_config: GeneralConfig {
                 transition_duration: 1000,
+                //TODO find a way to add scrolling label defaults
             },
         }
     }

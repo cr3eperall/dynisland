@@ -2,6 +2,7 @@ use std::{
     any::Any,
     collections::{HashMap, HashSet},
     fmt::Debug,
+    rc::Rc,
     sync::Arc,
 };
 
@@ -15,7 +16,7 @@ use tokio::{
     sync::{mpsc::UnboundedSender, Mutex},
 };
 
-use crate::widgets::activity_widget::ActivityWidget;
+use crate::graphics::activity_widget::ActivityWidget;
 
 /// Slice of loaded modules
 #[distributed_slice]
@@ -23,13 +24,13 @@ pub static MODULES: [fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<
 
 pub enum UIServerCommand {
     //TODO change to APIServerCommand
-    AddActivity(String, Arc<Mutex<DynamicActivity>>),
+    AddActivity(String, Rc<Mutex<DynamicActivity>>),
     AddProducer(String, Producer),
     RemoveActivity(String, String), //TODO needs to be tested
 }
 
 /// This type stores all the registered activities for a module with their name
-pub type ActivityMap = Arc<Mutex<HashMap<String, Arc<Mutex<DynamicActivity>>>>>;
+pub type ActivityMap = Rc<Mutex<HashMap<String, Rc<Mutex<DynamicActivity>>>>>;
 
 /// This is a function that can be registered by the module on the backend.
 ///
@@ -84,6 +85,7 @@ pub trait Module {
     ///
     /// if `config` is [None], a default value should be used
     /// it should also spawn the dynymic property update loop
+    #[allow(clippy::new_ret_no_self)]
     fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Box<dyn Module>
     where
         Self: Sized;
@@ -152,7 +154,7 @@ pub trait Module {
     /// This is called after `UIServerCommand::AddActivity` if the activity was registered successfully
     ///
     /// It should put `activity` inside `self.registered_activities`
-    async fn register_activity(&self, activity: Arc<Mutex<DynamicActivity>>);
+    async fn register_activity(&self, activity: Rc<Mutex<DynamicActivity>>);
 
     /// This is called after `UIServerCommand::RemoveActivity` if the activity was removed successfully
     ///
