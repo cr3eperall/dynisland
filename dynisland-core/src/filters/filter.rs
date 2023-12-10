@@ -208,6 +208,8 @@ pub fn apply_blur(
     Ok(())
 }
 
+const SIGMA_MULT: f32 = 3.0;
+
 pub fn kernel_size_for_sigma(sigma: f32) -> u32 {
-    2 * (sigma * 3.0).ceil() as u32 + 1
+    2 * (sigma * SIGMA_MULT).ceil() as u32 + 1
 }

@@ -101,12 +101,14 @@ impl ActivityWidgetLocalCssContext {
         let name = self.name.as_str();
         let transition_duration = self.transition_duration;
         let css = if self.stretch_on_resize {
+            // TODO replace timing function with custom bezier from code, move into activity_widget::timing_function
             format!(
                 r".{name} .activity-background{{ 
                     min-width: {w}px; 
                     min-height: {h}px; 
                     transition-property: min-width, min-height;
                     transition-duration: {transition_duration}ms;
+                    transition-timing-function: linear;
                 }}" // .{name} .mode-compact{{
                     //     border-radius: {border_radius}px;
                     // }}
@@ -127,6 +129,7 @@ impl ActivityWidgetLocalCssContext {
                     min-height: {h}px; 
                     transition-property: min-width, min-height;
                     transition-duration: {transition_duration}ms;
+                    transition-timing-function: linear;
                 }}
                 .{name} .mode-compact{{
                     border-radius: {border_radius}px;

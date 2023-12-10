@@ -48,7 +48,6 @@ pub struct GpuContext {
 
 pub static WGPU_INSTANCE: Lazy<Mutex<GpuContext>> = Lazy::new(|| Mutex::new(GpuContext::new())); //TODO move to app::initialize_server and configure with config file
 impl GpuContext {
-    //TODO could be furter optimized by processing 2 images at the same time
     pub fn new() -> Self {
         let name = "gaussian blur";
         let name_merge = "merge alpha";
@@ -613,13 +612,13 @@ impl GpuContext {
             let (dispatch_with, dispatch_height) = compute_work_group_count(
                 (texture_2.size().width, texture_2.size().height),
                 (128, 1),
-            ); //TODO cloud be computed only once
+            ); //TODO could be computed only once
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
             compute_pass.set_bind_group(1, &horizontal_bind_group_2, &[]);
             let (dispatch_height, dispatch_with) = compute_work_group_count(
                 (texture_2.size().width, texture_2.size().height),
                 (1, 128),
-            ); //TODO cloud be computed only once
+            ); //TODO could be computed only once
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
 
             //texture merge
@@ -629,7 +628,7 @@ impl GpuContext {
             let (dispatch_with, dispatch_height) = compute_work_group_count(
                 (texture_1.size().width, texture_1.size().height),
                 (16, 16),
-            ); //TODO cloud be computed only once
+            ); //TODO could be computed only once
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
         }
 

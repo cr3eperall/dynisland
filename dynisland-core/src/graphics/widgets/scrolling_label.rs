@@ -1,4 +1,3 @@
-use rand::{distributions::Alphanumeric, Rng};
 use std::{
     cell::RefCell,
     time::{Duration, Instant},
@@ -106,7 +105,7 @@ pub struct ScrollingLabelLocalTransitionContext {
 }
 
 impl ScrollingLabelLocalTransitionContext {
-    pub fn new(name: &str) -> Self {
+    pub fn new() -> Self {
         Self {
             transition_timeout: 0,
             transition_timeout_set_by_module: false,
@@ -165,12 +164,12 @@ impl ScrollingLabelLocalTransitionContext {
 impl Default for ScrollingLabelLocalTransitionContext {
     fn default() -> Self {
         Self::new(
-            rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(6)
-                .map(char::from)
-                .collect::<String>()
-                .as_str(),
+            // rand::thread_rng()
+            //     .sample_iter(&Alphanumeric)
+            //     .take(6)
+            //     .map(char::from)
+            //     .collect::<String>()
+            //     .as_str(),
         )
     }
 }
@@ -225,16 +224,6 @@ pub struct ScrollingLabelPriv {
 //set properties
 #[glib::derived_properties]
 impl ObjectImpl for ScrollingLabelPriv {
-    // fn signals() -> &'static [glib::subclass::Signal] { //TODO check if it's really necessary
-    //     static SIGNALS: LazyLock<Vec<Signal>> = LazyLock::new(|| {
-    //         vec![Signal::builder("scheduled-clock")
-    //         .param_types([i32::static_type()])
-    //         .run_first()
-    //         .build()]
-    //     });
-    //     SIGNALS.as_ref()
-    // }
-
     fn properties() -> &'static [glib::ParamSpec] {
         Self::derived_properties()
     }
@@ -322,11 +311,11 @@ impl ObjectImpl for ScrollingLabelPriv {
 //default data
 impl Default for ScrollingLabelPriv {
     fn default() -> Self {
-        let name: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(6)
-            .map(char::from)
-            .collect();
+        // let name: String = rand::thread_rng()
+        //     .sample_iter(&Alphanumeric)
+        //     .take(6)
+        //     .map(char::from)
+        //     .collect();
         let inner_label = gtk::Label::new(None);
         inner_label.set_halign(gtk::Align::Start);
         inner_label.set_valign(gtk::Align::Center);
@@ -340,7 +329,7 @@ impl Default for ScrollingLabelPriv {
             // mode: RefCell::new(ActivityMode::Minimal),
             // // transition_duration: RefCell::new(0),
             local_transition_context: RefCell::new(ScrollingLabelLocalTransitionContext::new(
-                &name,
+                // &name,
             )),
             // last_mode: RefCell::new(ActivityMode::Minimal),
             orientation: RefCell::new(Orientation::Horizontal),
@@ -658,7 +647,6 @@ impl WidgetImpl for ScrollingLabelPriv {
             } else {
                 self.obj().allocation().height()
             } as f64;
-            
 
             cr.move_to(0.0, 0.0);
             cr.line_to(self_w, 0.0);
@@ -824,10 +812,10 @@ impl WidgetImpl for ScrollingLabelPriv {
             eprintln!("{err}");
         }
 
-        // logs.push(format!("total: {:?}", start.elapsed()));
-        for log in &logs {
-            println!("{log}"); //TODO maybe create a utility library
-        }
+        logs.push(format!("total: {:?}", start.elapsed()));
+        // for log in &logs {
+        //     println!("{log}"); //TODO maybe create a utility library
+        // }
         if !logs.is_empty() {
             println!();
         }

@@ -59,7 +59,7 @@ pub trait StateStruct: Clone + Default + Debug {
     type StateEnum: Copy + Clone;
     fn timer_ended_callback(state_transition: &mut StateTransition<Self>);
     ///called during StateTransition initialization
-    fn init_callback(state_transition: &mut StateTransition<Self>) {}
+    fn init_callback(_state_transition: &mut StateTransition<Self>) {}
     fn get_idle_state() -> Self::StateEnum;
     fn get_state(&self) -> Self::StateEnum;
     fn set_state(&mut self, state: Self::StateEnum);

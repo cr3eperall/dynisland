@@ -195,7 +195,8 @@ impl ActivityWidgetPriv {
                 x = parent_allocation.x() + (parent_allocation.width() - width);
             }
             gtk::Align::Center => {
-                x = parent_allocation.x() + (parent_allocation.width() - width) / 2;
+                x = parent_allocation.x()
+                    + ((parent_allocation.width() - width) as f32 / 2.0).ceil() as i32;
             }
             _ => {
                 glib::g_warning!(
@@ -214,7 +215,8 @@ impl ActivityWidgetPriv {
                 y = parent_allocation.y() + (parent_allocation.height() - height);
             }
             gtk::Align::Center => {
-                y = parent_allocation.y() + (parent_allocation.height() - height) / 2;
+                y = parent_allocation.y()
+                    + ((parent_allocation.height() - height) as f32 / 2.0).ceil() as i32;
             }
             _ => {
                 glib::g_warning!(
@@ -229,7 +231,9 @@ impl ActivityWidgetPriv {
     }
     fn timing_functions(progress: f32, timing_for: TimingFunction) -> f32 {
         // TODO add information on bigger or smaller prev and next
+
         //FIXME fix difference of values when changing while transition is running, maybe the problem is not here
+        // ^ probably fixed ^
         match timing_for {
             TimingFunction::PrevBlur => {
                 f32::clamp(soy::Lerper::calculate(&soy::EASE_IN, progress), 0.0, 1.0)
@@ -711,8 +715,9 @@ impl WidgetImpl for ActivityWidgetPriv {
                 // println!("{}, start: {:?}, dur: {:?}",progress, self.transition.borrow().start_time.elapsed(), self.transition.borrow().duration);
                 let last_widget_to_render = self.get_mode_widget(self.last_mode.borrow().clone());
 
-                const RAD: f32 = 4.0;
+                const RAD: f32 = 6.0;
                 const FILTER_BACKEND: FilterBackend = FilterBackend::Gpu; //TODO move to config file
+
                 let mut tmp_surface_1 = gtk::cairo::ImageSurface::create(
                     gdk::cairo::Format::ARgb32,
                     self.obj().allocation().width(),
@@ -720,6 +725,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                 )
                 .with_context(|| "failed to create new imagesurface")?;
                 if let Some(widget) = &*last_widget_to_render.borrow() {
+                    // println!("widget pos: ({}, {}), parent size: ({}, {})",widget.allocation().x(),widget.allocation().y(), self_w, self_h);
                     let wid_w = widget.allocation().width() as f64;
                     let wid_h = widget.allocation().height() as f64;
 
@@ -997,11 +1003,13 @@ impl WidgetImpl for ActivityWidgetPriv {
             eprintln!("{err}");
         }
 
-        logs.push(format!("total: {:?}\n\n", start.elapsed()));
+        logs.push(format!("total: {:?}\n", start.elapsed()));
 
-        for log in logs {
-            // println!("{log}"); //TODO maybe create a utility library
-        }
+        // if start.elapsed()>Duration::from_millis(16){
+        //     for log in logs {
+        //         println!("{log}"); //TODO maybe create a utility library
+        //     }
+        // }
         glib::Propagation::Proceed
     }
 }

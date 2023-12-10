@@ -166,7 +166,6 @@ impl Module for ExampleModule {
     fn init(&self) {
         //TODO subdivide in phases
 
-        //TODO maybe move to server
         let app_send = self.app_send.clone();
         let name = self.name.clone();
         let prop_send = self.prop_send.clone();
@@ -199,7 +198,7 @@ impl Module for ExampleModule {
 }
 
 impl ExampleModule {
-    //TODO replace 'activities' with module context
+    //TODO add reference to module
     fn producer(
         activities: ActivityMap,
         rt: &Handle,
@@ -260,17 +259,17 @@ impl ExampleModule {
                 //     .unwrap();
                 // tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
                 // scrolling_enabled.lock().await.set(true).unwrap();
-                scrolling_text
-                    .lock()
-                    .await
-                    .set("Hello shorterer e e e e text e.    end".to_string())
-                    .unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
-                // mode.lock().await.set(ActivityMode::Minimal).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+                // scrolling_text
+                //     .lock()
+                //     .await
+                //     .set("Hello shorterer e e e e text e.    end".to_string())
+                //     .unwrap();
+                // tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
+                mode.lock().await.set(ActivityMode::Minimal).unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
 
-                // mode.lock().await.set(ActivityMode::Compact).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
+                mode.lock().await.set(ActivityMode::Compact).unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
                 // let old_label_val;
                 // {
                 //     let label_val = label.lock().await;
@@ -306,12 +305,12 @@ impl ExampleModule {
                 //     .unwrap();
                 // mode.lock().await.set(ActivityMode::Compact).unwrap();
                 // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                // mode.lock().await.set(ActivityMode::Expanded).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                // mode.lock().await.set(ActivityMode::Overlay).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                // mode.lock().await.set(ActivityMode::Expanded).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+                mode.lock().await.set(ActivityMode::Expanded).unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+                mode.lock().await.set(ActivityMode::Overlay).unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+                mode.lock().await.set(ActivityMode::Expanded).unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
             }
         });
     }
