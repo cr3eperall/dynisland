@@ -816,9 +816,9 @@ impl WidgetImpl for ScrollingLabelPriv {
         // for log in &logs {
         //     println!("{log}"); //TODO maybe create a utility library
         // }
-        if !logs.is_empty() {
-            println!();
-        }
+        // if !logs.is_empty() {
+        //     println!();
+        // }
         // todo!();
         glib::Propagation::Proceed
     }

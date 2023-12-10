@@ -621,7 +621,7 @@ impl WidgetImpl for ActivityWidgetPriv {
             let bg_color: gdk::RGBA = self //TODO keep only bg_widget as background, this is only for testing purposes
                 .obj()
                 .style_context()
-                .style_property_for_state("background-color", gtk::StateFlags::NORMAL)
+                .style_property_for_state("background-color", self.obj().state_flags())
                 .get()?;
             cr.save()?;
 
@@ -633,7 +633,7 @@ impl WidgetImpl for ActivityWidgetPriv {
             let border_radius: i32 = self
                 .obj()
                 .style_context()
-                .style_property_for_state("border-radius", gtk::StateFlags::NORMAL)
+                .style_property_for_state("border-radius", self.obj().state_flags())
                 .get()?;
             let border_radius = border_radius as f64;
             let radius = f64::min(
@@ -708,9 +708,9 @@ impl WidgetImpl for ActivityWidgetPriv {
             let widget_to_render = self.get_mode_widget(self.mode.borrow().clone());
 
             //animate blur and opacity if during transition
+            let self_w = self.obj().allocation().width() as f64;
+            let self_h = self.obj().allocation().height() as f64;
             if self.transition.borrow().is_active() {
-                let self_w = self.obj().allocation().width() as f64;
-                let self_h = self.obj().allocation().height() as f64;
                 let progress = self.transition.borrow().get_progress();
                 // println!("{}, start: {:?}, dur: {:?}",progress, self.transition.borrow().start_time.elapsed(), self.transition.borrow().duration);
                 let last_widget_to_render = self.get_mode_widget(self.last_mode.borrow().clone());
@@ -972,29 +972,83 @@ impl WidgetImpl for ActivityWidgetPriv {
                 // time = Instant::now();
             }
 
-            //TODO implement later
-            // let border_color: gdk::RGBA =self.obj().style_context().style_property_for_state("border-color",gtk::StateFlags::NORMAL).get()?;
-            // // let border_width: i32 =self.obj().style_context().style_property_for_state("border-width",gtk::StateFlags::NORMAL).get()?;
+            //reset
+            cr.reset_clip();
 
-            // cr.arc(radius, radius, radius, PI*1.0, PI*1.5); //top left //WHY are the angles rotated by 90 degrees
-            // cr.line_to(self.obj().allocated_width() as f64-radius,0.0);
-            // cr.arc(self.obj().allocated_width()as f64-radius, radius, radius, PI*1.5, PI*0.0); //top right
-            // cr.line_to(self.obj().allocated_width()as f64, self.obj().allocated_height() as f64-radius);
-            // cr.arc(self.obj().allocated_width()as f64-radius, self.obj().allocated_height() as f64-radius, radius, PI*0.0, PI*0.5); //bottom right
-            // cr.line_to(radius,self.obj().allocated_height()as f64);
-            // cr.arc(radius, self.obj().allocated_height() as f64-radius, radius, PI*0.5, PI*1.0); //bottom left
-            // cr.line_to(0.0, radius);
-            // cr.line_cap();
-            // cr.set_source_rgba(border_color.red(), border_color.green(), border_color.blue(), border_color.alpha());
-            // cr.set_line_width(10 as f64);
-            // cr.stroke()?;
+            let border_color_top: gdk::RGBA =self.obj().style_context().style_property_for_state("border-top-color",self.obj().state_flags()).get()?;
+            let border_color_bottom: gdk::RGBA =self.obj().style_context().style_property_for_state("border-bottom-color",self.obj().state_flags()).get()?;
+            let border_color_left: gdk::RGBA =self.obj().style_context().style_property_for_state("border-left-color",self.obj().state_flags()).get()?;
+            let border_color_right: gdk::RGBA =self.obj().style_context().style_property_for_state("border-right-color",self.obj().state_flags()).get()?;
 
+            let border_width_top: i32 =self.obj().style_context().style_property_for_state("border-top-width",self.obj().state_flags()).get()?;
+            let border_width_bottom: i32 =self.obj().style_context().style_property_for_state("border-bottom-width",self.obj().state_flags()).get()?;
+            let border_width_left: i32 =self.obj().style_context().style_property_for_state("border-left-width",self.obj().state_flags()).get()?;
+            let border_width_right: i32 =self.obj().style_context().style_property_for_state("border-right-width",self.obj().state_flags()).get()?;
+                        
+            let border_style: gtk::BorderStyle =self.obj().style_context().style_property_for_state("border-style",self.obj().state_flags()).get()?;
+
+            let draw_border: bool;
+            let (mut offset_top, mut offset_bottom, mut offset_left, mut offset_right)=(0.0,0.0,0.0,0.0);
+            match border_style {
+                gtk::BorderStyle::Solid => { //FIXME doesn't work well, it's clipped on the edges
+                    draw_border=true;
+                },
+                gtk::BorderStyle::Inset => { 
+                    draw_border=true;
+                    offset_top=border_width_top as f64/2.0;
+                    offset_bottom=border_width_bottom as f64/2.0;
+                    offset_left=border_width_left as f64/2.0;
+                    offset_right=border_width_right as f64/2.0;
+                },
+                _ => {
+                    draw_border=false;
+                    //border type not supported
+                },
+            }
+            if draw_border {
+                cr.move_to(radius-f64::cos(PI*1.75)*(radius-offset_top), radius+f64::sin(PI*1.75)*(radius-offset_top));
+                cr.arc(radius, radius, radius-offset_top, PI*1.25, PI*1.5); //top
+                cr.line_to(self_w-radius,offset_top);
+                cr.arc(self_w-radius, radius, radius-offset_top, PI*1.5, PI*1.75); 
+
+                cr.set_source_rgba(border_color_top.red(), border_color_top.green(), border_color_top.blue(), border_color_top.alpha());
+                cr.set_line_width(border_width_top as f64);
+                cr.stroke()?;
+
+
+                cr.arc(self_w-radius, radius, radius-offset_right, PI*1.75, PI*0.0); //right
+                cr.line_to(self_w-offset_right, self_h-radius);
+                cr.arc(self_w-radius, self_h-radius, radius-offset_right, PI*0.0, PI*0.25);
+
+                cr.set_source_rgba(border_color_right.red(), border_color_right.green(), border_color_right.blue(), border_color_right.alpha());
+                cr.set_line_width(border_width_right as f64);
+                cr.stroke()?;
+
+
+                cr.arc(self_w-radius, self_h-radius, radius-offset_bottom, PI*0.25, PI*0.5); //bottom
+                cr.line_to(radius,self_h-offset_bottom);
+                cr.arc(radius, self_h-radius, radius-offset_bottom, PI*0.5, PI*0.75);
+
+                cr.set_source_rgba(border_color_bottom.red(), border_color_bottom.green(), border_color_bottom.blue(), border_color_bottom.alpha());
+                cr.set_line_width(border_width_bottom as f64);
+                cr.stroke()?;
+
+
+                cr.arc(radius, self_h-radius, radius-offset_left, PI*0.75, PI*1.0); //left
+                cr.line_to(offset_left, radius);
+                cr.arc(radius, radius, radius-offset_left, PI*1.0, PI*1.25);
+                // cr.move_to(offset_left+30.0, radius-30.0);
+
+                cr.set_source_rgba(border_color_left.red(), border_color_left.green(), border_color_left.blue(), border_color_left.alpha());
+                cr.set_line_width(border_width_left as f64);
+                cr.stroke()?;
+                
+            }
+                
             self.transition.borrow_mut().update_active();
             if self.transition.borrow().is_active() {
                 self.obj().queue_draw();
             }
-            //reset
-            cr.reset_clip();
 
             cr.restore()?;
         };

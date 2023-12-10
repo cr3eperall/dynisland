@@ -1,6 +1,11 @@
 activity-widget {
     background-color: transparent;
-    border: 10px solid rgb(0, 204, 139);
+    // border-top: 10px inset rgba(0, 160, 204, 0.5);
+    // border-right: 6px inset rgba(184, 204, 0, 0.5);
+    // border-bottom: 10px inset rgba(204, 0, 0, 0.5);
+    // border-left: 6px inset rgba(204, 0, 177, 0.5);
+    border: 2px inset rgba(0, 160, 204, 1);
+
     border-radius: 50px;
 }
 
