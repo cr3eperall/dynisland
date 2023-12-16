@@ -103,7 +103,7 @@ impl ActivityWidgetLocalCssContext {
         let css = if self.stretch_on_resize {
             // TODO replace timing function with custom bezier from code, move into activity_widget::timing_function
             format!(
-                r".{name} .activity-background{{ 
+                r".{name} .activity-background ** {{ 
                     min-width: {w}px; 
                     min-height: {h}px; 
                     transition-property: min-width, min-height;
@@ -124,7 +124,7 @@ impl ActivityWidgetLocalCssContext {
             )
         } else {
             format!(
-                r".{name} .activity-background{{ 
+                r".{name} .activity-background ** {{ 
                     min-width: {w}px; 
                     min-height: {h}px; 
                     transition-property: min-width, min-height;

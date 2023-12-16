@@ -94,6 +94,24 @@ impl ObjectImpl for ActivityWidgetPriv {
                 self.transition.replace(Transition::new(start, duration));
 
                 if let Some(widget) = &*self.get_mode_widget(self.mode.borrow().clone()).borrow() {
+                    if let Some(widget) = &*self.get_mode_widget(self.last_mode.borrow().clone()).borrow() {
+                        match widget.window() {
+                            //lower previous window associated to widget if it has one, this disables events on the last mode widget
+                            Some(window) => window.lower(),
+                            None => {
+                                // println!("no window");
+                            }
+                        }
+                    }
+                    if let Some(widget) = &*self.background_widget.borrow() {
+                        match widget.window() {
+                            //lower previous window associated to widget if it has one, this disables events on the last mode widget
+                            Some(window) => window.raise(),
+                            None => {
+                                println!("no window");
+                            }
+                        }
+                    }
                     match widget.window() {
                         //raise window associated to widget if it has one, this enables events on the active mode widget
                         Some(window) => window.raise(),
@@ -232,31 +250,27 @@ impl ActivityWidgetPriv {
     fn timing_functions(progress: f32, timing_for: TimingFunction) -> f32 {
         // TODO add information on bigger or smaller prev and next
 
-        //FIXME fix difference of values when changing while transition is running, maybe the problem is not here
-        // ^ probably fixed ^
         match timing_for {
-            TimingFunction::PrevBlur => {
+            TimingFunction::BiggerBlur => {
                 f32::clamp(soy::Lerper::calculate(&soy::EASE_IN, progress), 0.0, 1.0)
             }
-            TimingFunction::PrevStretch => {
+            TimingFunction::BiggerStretch => {
                 f32::clamp(soy::Lerper::calculate(&soy::EASE_OUT, progress), 0.0, 1.0)
+                // soy::Lerper::calculate(&soy::Linear, progress)
             }
-            TimingFunction::PrevOpacity => f32::clamp(
-                soy::Lerper::calculate(&soy::cubic_bezier(0.2, 0.55, 0.15, 1.0), 1.0 - progress), /* *(1.0+0.1)-0.1 */
+            TimingFunction::BiggerOpacity => f32::clamp(
+                soy::Lerper::calculate(&soy::cubic_bezier(0.2, 0.55, 0.15, 1.0), progress), /* *(1.0+0.1)-0.1 */
                 0.0,
                 1.0,
             ),
-            TimingFunction::NextBlur => f32::clamp(
-                soy::Lerper::calculate(&soy::EASE_IN, 1.0 - progress),
-                0.0,
-                1.0,
-            ),
-            TimingFunction::NextStretch => f32::clamp(
-                soy::Lerper::calculate(&soy::EASE_OUT, 1.0 - progress),
-                0.0,
-                1.0,
-            ),
-            TimingFunction::NextOpacity => f32::clamp(
+            TimingFunction::SmallerBlur => {
+                f32::clamp(soy::Lerper::calculate(&soy::EASE_IN, progress), 0.0, 1.0)
+            }
+            TimingFunction::SmallerStretch => {
+                f32::clamp(soy::Lerper::calculate(&soy::EASE_OUT, progress), 0.0, 1.0)
+                // soy::Lerper::calculate(&soy::Linear, progress)
+            }
+            TimingFunction::SmallerOpacity => f32::clamp(
                 soy::Lerper::calculate(&soy::cubic_bezier(0.2, 0.55, 0.15, 1.0), progress),
                 0.0,
                 1.0,
@@ -266,12 +280,12 @@ impl ActivityWidgetPriv {
 }
 
 enum TimingFunction {
-    PrevBlur,
-    PrevStretch,
-    PrevOpacity,
-    NextBlur,
-    NextStretch,
-    NextOpacity,
+    BiggerBlur,
+    BiggerStretch,
+    BiggerOpacity,
+    SmallerBlur,
+    SmallerStretch,
+    SmallerOpacity,
 }
 
 //init widget info
@@ -715,6 +729,19 @@ impl WidgetImpl for ActivityWidgetPriv {
                 // println!("{}, start: {:?}, dur: {:?}",progress, self.transition.borrow().start_time.elapsed(), self.transition.borrow().duration);
                 let last_widget_to_render = self.get_mode_widget(self.last_mode.borrow().clone());
 
+                let prev_size = if let Some(widget) = &*last_widget_to_render.borrow() {
+                    widget.size_request()
+                } else {
+                    (0, 0)
+                };
+                let next_size = if let Some(widget) = &*widget_to_render.borrow() {
+                    widget.size_request()
+                } else {
+                    (0, 0)
+                };
+
+                let bigger = next_size.0 > prev_size.0 || next_size.1 > prev_size.1;
+
                 const RAD: f32 = 6.0;
                 const FILTER_BACKEND: FilterBackend = FilterBackend::Gpu; //TODO move to config file
 
@@ -733,9 +760,15 @@ impl WidgetImpl for ActivityWidgetPriv {
                         .with_context(|| "failed to retrieve context from tmp surface")?;
 
                     let (mut sx, mut sy) = (self_w / wid_w, self_h / wid_h);
-                    let scale_prog =
-                        ActivityWidgetPriv::timing_functions(progress, TimingFunction::PrevStretch)
-                            as f64;
+                    let scale_prog = ActivityWidgetPriv::timing_functions(
+                        progress,
+                        if bigger {
+                            TimingFunction::BiggerStretch
+                        } else {
+                            TimingFunction::SmallerStretch
+                        },
+                    ) as f64;
+                    // println!("scale_prev: {scale_prog}");
                     sx = (1.0 - scale_prog) + sx * scale_prog; // 0->1 | 1-> +sx >1 | 0.5-> 0.5+sx/2=(1+sx)/2 >1
                     sy = (1.0 - scale_prog) + sy * scale_prog;
 
@@ -844,9 +877,15 @@ impl WidgetImpl for ActivityWidgetPriv {
                         .with_context(|| "failed to retrieve context from tmp surface")?;
 
                     let (mut sx, mut sy) = (self_w / wid_w, self_h / wid_h);
-                    let scale_prog =
-                        ActivityWidgetPriv::timing_functions(progress, TimingFunction::NextStretch)
-                            as f64;
+                    let scale_prog = ActivityWidgetPriv::timing_functions(
+                        1.0-progress,
+                        if bigger {
+                            TimingFunction::SmallerStretch
+                        } else {
+                            TimingFunction::BiggerStretch
+                        },
+                    ) as f64;
+                    // println!("scale_next: {scale_prog}");
                     sx = (1.0 - scale_prog) + sx * scale_prog; // 0->1 | 1-> +sx >1 | 0.5-> 0.5+sx/2=(1+sx)/2 >1
                     sy = (1.0 - scale_prog) + sy * scale_prog;
 
@@ -944,10 +983,38 @@ impl WidgetImpl for ActivityWidgetPriv {
                 crate::filters::filter::apply_blur_and_merge_opacity_dual(
                     &mut tmp_surface_1,
                     &mut tmp_surface_2,
-                    ActivityWidgetPriv::timing_functions(progress, TimingFunction::PrevBlur) * RAD,
-                    ActivityWidgetPriv::timing_functions(progress, TimingFunction::NextBlur) * RAD,
-                    ActivityWidgetPriv::timing_functions(progress, TimingFunction::PrevOpacity),
-                    ActivityWidgetPriv::timing_functions(progress, TimingFunction::NextOpacity),
+                    ActivityWidgetPriv::timing_functions(
+                        progress,
+                        if bigger {
+                            TimingFunction::BiggerBlur
+                        } else {
+                            TimingFunction::SmallerBlur
+                        },
+                    ) * RAD,
+                    ActivityWidgetPriv::timing_functions(
+                        1.0 - progress,
+                        if bigger {
+                            TimingFunction::SmallerBlur
+                        } else {
+                            TimingFunction::BiggerBlur
+                        },
+                    ) * RAD,
+                    ActivityWidgetPriv::timing_functions(
+                        1.0 - progress,
+                        if bigger {
+                            TimingFunction::BiggerOpacity
+                        } else {
+                            TimingFunction::SmallerOpacity
+                        },
+                    ),
+                    ActivityWidgetPriv::timing_functions(
+                        progress,
+                        if bigger {
+                            TimingFunction::SmallerOpacity
+                        } else {
+                            TimingFunction::BiggerOpacity
+                        },
+                    ),
                     FILTER_BACKEND,
                 )
                 .with_context(|| "failed to apply double blur + merge to tmp surface")?;
@@ -975,76 +1042,169 @@ impl WidgetImpl for ActivityWidgetPriv {
             //reset
             cr.reset_clip();
 
-            let border_color_top: gdk::RGBA =self.obj().style_context().style_property_for_state("border-top-color",self.obj().state_flags()).get()?;
-            let border_color_bottom: gdk::RGBA =self.obj().style_context().style_property_for_state("border-bottom-color",self.obj().state_flags()).get()?;
-            let border_color_left: gdk::RGBA =self.obj().style_context().style_property_for_state("border-left-color",self.obj().state_flags()).get()?;
-            let border_color_right: gdk::RGBA =self.obj().style_context().style_property_for_state("border-right-color",self.obj().state_flags()).get()?;
+            let border_color_top: gdk::RGBA = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-top-color", self.obj().state_flags())
+                .get()?;
+            let border_color_bottom: gdk::RGBA = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-bottom-color", self.obj().state_flags())
+                .get()?;
+            let border_color_left: gdk::RGBA = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-left-color", self.obj().state_flags())
+                .get()?;
+            let border_color_right: gdk::RGBA = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-right-color", self.obj().state_flags())
+                .get()?;
 
-            let border_width_top: i32 =self.obj().style_context().style_property_for_state("border-top-width",self.obj().state_flags()).get()?;
-            let border_width_bottom: i32 =self.obj().style_context().style_property_for_state("border-bottom-width",self.obj().state_flags()).get()?;
-            let border_width_left: i32 =self.obj().style_context().style_property_for_state("border-left-width",self.obj().state_flags()).get()?;
-            let border_width_right: i32 =self.obj().style_context().style_property_for_state("border-right-width",self.obj().state_flags()).get()?;
-                        
-            let border_style: gtk::BorderStyle =self.obj().style_context().style_property_for_state("border-style",self.obj().state_flags()).get()?;
+            let border_width_top: i32 = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-top-width", self.obj().state_flags())
+                .get()?;
+            let border_width_bottom: i32 = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-bottom-width", self.obj().state_flags())
+                .get()?;
+            let border_width_left: i32 = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-left-width", self.obj().state_flags())
+                .get()?;
+            let border_width_right: i32 = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-right-width", self.obj().state_flags())
+                .get()?;
+
+            let border_style: gtk::BorderStyle = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-style", self.obj().state_flags())
+                .get()?;
 
             let draw_border: bool;
-            let (mut offset_top, mut offset_bottom, mut offset_left, mut offset_right)=(0.0,0.0,0.0,0.0);
+            let (mut offset_top, mut offset_bottom, mut offset_left, mut offset_right) =
+                (0.0, 0.0, 0.0, 0.0);
             match border_style {
-                gtk::BorderStyle::Solid => { //FIXME doesn't work well, it's clipped on the edges
-                    draw_border=true;
-                },
-                gtk::BorderStyle::Inset => { 
-                    draw_border=true;
-                    offset_top=border_width_top as f64/2.0;
-                    offset_bottom=border_width_bottom as f64/2.0;
-                    offset_left=border_width_left as f64/2.0;
-                    offset_right=border_width_right as f64/2.0;
-                },
+                gtk::BorderStyle::Solid => {
+                    //FIXME doesn't work well, it's clipped on the edges
+                    draw_border = true;
+                }
+                gtk::BorderStyle::Inset => {
+                    draw_border = true;
+                    offset_top = border_width_top as f64 / 2.0;
+                    offset_bottom = border_width_bottom as f64 / 2.0;
+                    offset_left = border_width_left as f64 / 2.0;
+                    offset_right = border_width_right as f64 / 2.0;
+                }
                 _ => {
-                    draw_border=false;
+                    draw_border = false;
                     //border type not supported
-                },
+                }
             }
             if draw_border {
-                cr.move_to(radius-f64::cos(PI*1.75)*(radius-offset_top), radius+f64::sin(PI*1.75)*(radius-offset_top));
-                cr.arc(radius, radius, radius-offset_top, PI*1.25, PI*1.5); //top
-                cr.line_to(self_w-radius,offset_top);
-                cr.arc(self_w-radius, radius, radius-offset_top, PI*1.5, PI*1.75); 
+                cr.move_to(
+                    radius - f64::cos(PI * 1.75) * (radius - offset_top),
+                    radius + f64::sin(PI * 1.75) * (radius - offset_top),
+                );
+                cr.arc(radius, radius, radius - offset_top, PI * 1.25, PI * 1.5); //top
+                cr.line_to(self_w - radius, offset_top);
+                cr.arc(
+                    self_w - radius,
+                    radius,
+                    radius - offset_top,
+                    PI * 1.5,
+                    PI * 1.75,
+                );
 
-                cr.set_source_rgba(border_color_top.red(), border_color_top.green(), border_color_top.blue(), border_color_top.alpha());
+                cr.set_source_rgba(
+                    border_color_top.red(),
+                    border_color_top.green(),
+                    border_color_top.blue(),
+                    border_color_top.alpha(),
+                );
                 cr.set_line_width(border_width_top as f64);
                 cr.stroke()?;
 
+                cr.arc(
+                    self_w - radius,
+                    radius,
+                    radius - offset_right,
+                    PI * 1.75,
+                    PI * 0.0,
+                ); //right
+                cr.line_to(self_w - offset_right, self_h - radius);
+                cr.arc(
+                    self_w - radius,
+                    self_h - radius,
+                    radius - offset_right,
+                    PI * 0.0,
+                    PI * 0.25,
+                );
 
-                cr.arc(self_w-radius, radius, radius-offset_right, PI*1.75, PI*0.0); //right
-                cr.line_to(self_w-offset_right, self_h-radius);
-                cr.arc(self_w-radius, self_h-radius, radius-offset_right, PI*0.0, PI*0.25);
-
-                cr.set_source_rgba(border_color_right.red(), border_color_right.green(), border_color_right.blue(), border_color_right.alpha());
+                cr.set_source_rgba(
+                    border_color_right.red(),
+                    border_color_right.green(),
+                    border_color_right.blue(),
+                    border_color_right.alpha(),
+                );
                 cr.set_line_width(border_width_right as f64);
                 cr.stroke()?;
 
+                cr.arc(
+                    self_w - radius,
+                    self_h - radius,
+                    radius - offset_bottom,
+                    PI * 0.25,
+                    PI * 0.5,
+                ); //bottom
+                cr.line_to(radius, self_h - offset_bottom);
+                cr.arc(
+                    radius,
+                    self_h - radius,
+                    radius - offset_bottom,
+                    PI * 0.5,
+                    PI * 0.75,
+                );
 
-                cr.arc(self_w-radius, self_h-radius, radius-offset_bottom, PI*0.25, PI*0.5); //bottom
-                cr.line_to(radius,self_h-offset_bottom);
-                cr.arc(radius, self_h-radius, radius-offset_bottom, PI*0.5, PI*0.75);
-
-                cr.set_source_rgba(border_color_bottom.red(), border_color_bottom.green(), border_color_bottom.blue(), border_color_bottom.alpha());
+                cr.set_source_rgba(
+                    border_color_bottom.red(),
+                    border_color_bottom.green(),
+                    border_color_bottom.blue(),
+                    border_color_bottom.alpha(),
+                );
                 cr.set_line_width(border_width_bottom as f64);
                 cr.stroke()?;
 
-
-                cr.arc(radius, self_h-radius, radius-offset_left, PI*0.75, PI*1.0); //left
+                cr.arc(
+                    radius,
+                    self_h - radius,
+                    radius - offset_left,
+                    PI * 0.75,
+                    PI * 1.0,
+                ); //left
                 cr.line_to(offset_left, radius);
-                cr.arc(radius, radius, radius-offset_left, PI*1.0, PI*1.25);
+                cr.arc(radius, radius, radius - offset_left, PI * 1.0, PI * 1.25);
                 // cr.move_to(offset_left+30.0, radius-30.0);
 
-                cr.set_source_rgba(border_color_left.red(), border_color_left.green(), border_color_left.blue(), border_color_left.alpha());
+                cr.set_source_rgba(
+                    border_color_left.red(),
+                    border_color_left.green(),
+                    border_color_left.blue(),
+                    border_color_left.alpha(),
+                );
                 cr.set_line_width(border_width_left as f64);
                 cr.stroke()?;
-                
             }
-                
+
             self.transition.borrow_mut().update_active();
             if self.transition.borrow().is_active() {
                 self.obj().queue_draw();

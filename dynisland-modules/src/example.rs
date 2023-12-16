@@ -250,68 +250,68 @@ impl ExampleModule {
         rt.spawn(async move {
             // println!("task started");
             // mode.lock().await.set(ActivityMode::Minimal).unwrap();
-            loop {
-                // scrolling_enabled.lock().await.set(false).unwrap();
-                // scrolling_text
-                //     .lock()
-                //     .await
-                //     .set("Hello long text, very long text. Hello long text, very long text.    end".to_string())
-                //     .unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
-                // scrolling_enabled.lock().await.set(true).unwrap();
-                // scrolling_text
-                //     .lock()
-                //     .await
-                //     .set("Hello shorterer e e e e text e.    end".to_string())
-                //     .unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
-                mode.lock().await.set(ActivityMode::Minimal).unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            // loop {
+            //     // scrolling_enabled.lock().await.set(false).unwrap();
+            //     // scrolling_text
+            //     //     .lock()
+            //     //     .await
+            //     //     .set("Hello long text, very long text. Hello long text, very long text.    end".to_string())
+            //     //     .unwrap();
+            //     // tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
+            //     // scrolling_enabled.lock().await.set(true).unwrap();
+            //     // scrolling_text
+            //     //     .lock()
+            //     //     .await
+            //     //     .set("Hello shorterer e e e e text e.    end".to_string())
+            //     //     .unwrap();
+            //     // tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
+            //     mode.lock().await.set(ActivityMode::Minimal).unwrap();
+            //     tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
 
-                mode.lock().await.set(ActivityMode::Compact).unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
-                // let old_label_val;
-                // {
-                //     let label_val = label.lock().await;
-                //     let str_val: &String = cast_dyn_any!(label_val.get(), String).unwrap();
-                //     old_label_val = str_val.clone();
-                // }
+            //     mode.lock().await.set(ActivityMode::Compact).unwrap();
+            //     tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
+            //     // let old_label_val;
+            //     // {
+            //     //     let label_val = label.lock().await;
+            //     //     let str_val: &String = cast_dyn_any!(label_val.get(), String).unwrap();
+            //     //     old_label_val = str_val.clone();
+            //     // }
 
-                // tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-                // label.lock().await.set("sdkjvksdv1 tryt etvcbssrfh".to_string()).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
-                // label.lock().await.set("fghn".to_string()).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+            //     // tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+            //     // label.lock().await.set("sdkjvksdv1 tryt etvcbssrfh".to_string()).unwrap();
+            //     // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+            //     // label.lock().await.set("fghn".to_string()).unwrap();
+            //     // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
 
-                // label.lock().await.set(old_label_val).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+            //     // label.lock().await.set(old_label_val).unwrap();
+            //     // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
 
-                // prop_send
-                //     .send(PropertyUpdate {
-                //         activity_id: "*".to_string(),
-                //         property_name: "mode".to_string(),
-                //         value: Box::new(ActivityMode::Compact),
-                //     })
-                //     .unwrap();
-                // mode.lock().await.set(ActivityMode::Expanded).unwrap();
+            //     // prop_send
+            //     //     .send(PropertyUpdate {
+            //     //         activity_id: "*".to_string(),
+            //     //         property_name: "mode".to_string(),
+            //     //         value: Box::new(ActivityMode::Compact),
+            //     //     })
+            //     //     .unwrap();
+            //     // mode.lock().await.set(ActivityMode::Expanded).unwrap();
 
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                // prop_send
-                //     .send(PropertyUpdate {
-                //         activity_id: "*".to_string(),
-                //         property_name: "mode".to_string(),
-                //         value: Box::new(ActivityMode::Expanded),
-                //     })
-                //     .unwrap();
-                // mode.lock().await.set(ActivityMode::Compact).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                mode.lock().await.set(ActivityMode::Expanded).unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                mode.lock().await.set(ActivityMode::Overlay).unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                mode.lock().await.set(ActivityMode::Expanded).unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-            }
+            //     // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            //     // prop_send
+            //     //     .send(PropertyUpdate {
+            //     //         activity_id: "*".to_string(),
+            //     //         property_name: "mode".to_string(),
+            //     //         value: Box::new(ActivityMode::Expanded),
+            //     //     })
+            //     //     .unwrap();
+            //     // mode.lock().await.set(ActivityMode::Compact).unwrap();
+            //     // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            //     mode.lock().await.set(ActivityMode::Expanded).unwrap();
+            //     tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            //     mode.lock().await.set(ActivityMode::Overlay).unwrap();
+            //     tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            //     mode.lock().await.set(ActivityMode::Expanded).unwrap();
+            //     tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            // }
         });
     }
 
@@ -338,10 +338,10 @@ impl ExampleModule {
         activity_widget.set_expanded_mode(&expanded);
         activity_widget.set_overlay_mode(&overlay);
 
-        // activity_widget.connect_mode_notify(|f| {
-        //     let l = f.mode();
-        //     println!("Changed mode: {:?}", l);
-        // });
+        activity_widget.connect_mode_notify(|f| {
+            let l = f.mode();
+            println!("Changed mode: {:?}", l);
+        });
         activity.set_activity_widget(activity_widget.clone());
 
         activity
@@ -359,17 +359,6 @@ impl ExampleModule {
 
         let mode = activity.get_property("mode").unwrap();
 
-        minimal.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
-        let m1 = mode.clone();
-        minimal.connect_button_release_event(move |_wid, ev| {
-            if let gdk::EventType::ButtonRelease = ev.event_type() {
-                let m1 = m1.clone();
-                glib::MainContext::default().spawn_local(async move {
-                    m1.lock().await.set(ActivityMode::Compact).unwrap();
-                });
-            }
-            glib::Propagation::Proceed
-        });
 
         let minimal_cl = minimal.clone();
         activity
@@ -421,13 +410,70 @@ impl ExampleModule {
             })
             .unwrap();
 
+        minimal.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        let m1 = mode.clone();
+        minimal.connect_button_release_event(move |_wid, ev| {
+            if let gdk::EventType::ButtonRelease = ev.event_type() {
+                println!("min");
+                let m1 = m1.clone();
+                glib::MainContext::default().spawn_local(async move {
+                    m1.lock().await.set(ActivityMode::Compact).unwrap();
+                });
+            }
+            glib::Propagation::Proceed
+        });
+
         compact.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
         let m1 = mode.clone();
         compact.connect_button_release_event(move |_wid, ev| {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
+                println!("comp");
                 let m1 = m1.clone();
                 glib::MainContext::default().spawn_local(async move {
-                    m1.lock().await.set(ActivityMode::Minimal).unwrap();
+                    m1.lock().await.set(ActivityMode::Expanded).unwrap();
+                });
+            }
+            glib::Propagation::Proceed
+        });
+
+        expanded.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        let m1 = mode.clone();
+        expanded.connect_button_release_event(move |_wid, ev| {
+            if let gdk::EventType::ButtonRelease = ev.event_type() {
+                println!("exp");
+                let m1 = m1.clone();
+                glib::MainContext::default().spawn_local(async move {
+                    m1.lock().await.set(ActivityMode::Compact).unwrap();
+                });
+            }
+            glib::Propagation::Proceed
+        });
+
+        background.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        let m1 = mode.clone();
+        background.connect_button_release_event(move |_wid, ev| {
+            if let gdk::EventType::ButtonRelease = ev.event_type() {
+                println!("bg");
+                let m1 = m1.clone();
+                glib::MainContext::default().spawn_local(async move {
+                    let mode_g=m1.lock().await;
+                    let mode= cast_dyn_any!(mode_g.get(), ActivityMode).unwrap().clone();
+                    drop(mode_g);
+                    match mode{
+                        ActivityMode::Minimal => {
+                            m1.lock().await.set(ActivityMode::Compact).unwrap();
+                        },
+                        ActivityMode::Compact => {
+                            m1.lock().await.set(ActivityMode::Expanded).unwrap();
+                        },
+                        ActivityMode::Expanded => {
+                            m1.lock().await.set(ActivityMode::Compact).unwrap();
+                        },
+                        ActivityMode::Overlay => {
+                            
+                        },
+                    }
+                    
                 });
             }
             glib::Propagation::Proceed
@@ -483,6 +529,28 @@ impl ExampleModule {
             .halign(gtk::Align::Start)
             .valign(gtk::Align::Start)
             .build();
+        let background=gtk::Box::builder()
+        // .height_request(40)
+        // .width_request(100)
+        .valign(gtk::Align::Start)
+        .halign(gtk::Align::Center)
+        .vexpand(true)
+        .hexpand(true)
+        // .above_child(false) //Allows events on children (like buttons)
+        .child(&background)
+        .build();
+
+        let background=gtk::EventBox::builder()
+        // .height_request(40)
+        // .width_request(100)
+        .valign(gtk::Align::Start)
+        .halign(gtk::Align::Center)
+        .vexpand(false)
+        .hexpand(false)
+        .above_child(false) //Allows events on children (like buttons)
+        .child(&background)
+        .build();
+    
         background.upcast()
     }
 
@@ -537,7 +605,7 @@ impl ExampleModule {
     fn get_compact() -> gtk::Widget {
         let compact = gtk::Box::builder()
             .height_request(40)
-            .width_request(180)
+            .width_request(280)
             .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
             .vexpand(false)
@@ -554,7 +622,7 @@ impl ExampleModule {
         );
         let compact = gtk::EventBox::builder()
             .height_request(40)
-            .width_request(180)
+            .width_request(280)
             .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
             .vexpand(false)
@@ -582,6 +650,15 @@ impl ExampleModule {
                 .hexpand(true)
                 .build(),
         );
+        let expanded = gtk::EventBox::builder()
+            .height_request(400)
+            .width_request(500)
+            .valign(gtk::Align::Center)
+            .halign(gtk::Align::Center)
+            .vexpand(false)
+            .hexpand(false)
+            .child(&expanded)
+            .build();
         expanded.upcast()
     }
 
