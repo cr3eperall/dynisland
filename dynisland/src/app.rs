@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path, rc::Rc};
+use std::{borrow::BorrowMut, collections::HashMap, path::Path, rc::Rc};
 
 use anyhow::Result;
 use gtk::prelude::*;
@@ -11,9 +11,9 @@ use tokio::{
     },
 };
 
-use crate::config::{self, Config};
+use crate::config::{self, Config, GeneralConfig};
 
-use dynisland_core::base_module::{Module, UIServerCommand, MODULES};
+use dynisland_core::base_module::{DynamicActivity, Module, UIServerCommand, MODULES};
 
 pub enum BackendServerCommand {
     ReloadConfig(),
@@ -103,21 +103,16 @@ impl App {
                     UIServerCommand::AddActivity(module_identifier, activity) => {
                         act_container.add(&activity.lock().await.get_activity_widget()); //add to window
                         act_container.show_all();
-                        activity
-                            .lock()
-                            .await
-                            .get_activity_widget()
-                            .set_transition_duration(
-                                self.config.general_config.transition_duration,
-                                false,
-                            )
-                            .expect("failed to set transition-duration");
+                        Self::update_general_configs_on_activity(
+                            &self.config.general_config,
+                            &activity,
+                        ).await;
                         let map = map.lock().await;
                         let module = map
                             .get(&module_identifier)
                             .unwrap_or_else(|| panic!("module {} not found", module_identifier));
                         module.register_activity(activity).await; //add inside its module
-                        println!("registered activity {}", module.get_name());
+                        println!("registered activity on {}", module.get_name());
                     }
                     UIServerCommand::RemoveActivity(module_identifier, name) => {
                         let map = map.lock().await;
@@ -210,7 +205,8 @@ impl App {
     }
 
     fn load_configs(&mut self) {
-        self.config = config::get_config();
+        self.config = config::get_config(); //FIXME log error instead of crashing
+        println!("general_config: {:?}", self.config.general_config);
         for module in self.module_map.blocking_lock().values_mut() {
             let config_parsed = match self.config.module_config.get(module.get_name()) {
                 Some(conf) => module.parse_config(conf.clone()),
@@ -233,14 +229,50 @@ impl App {
     async fn update_general_configs(&mut self) {
         for module in self.module_map.blocking_lock().values_mut() {
             for activity in module.get_registered_activities().lock().await.values() {
-                activity
-                    .lock()
-                    .await
-                    .get_activity_widget()
-                    .set_transition_duration(self.config.general_config.transition_duration, false)
-                    .expect("failed to set transition-duration");
+                Self::update_general_configs_on_activity(
+                    &self.config.general_config,
+                    activity,
+                ).await;
             }
         }
+    }
+
+    async fn update_general_configs_on_activity(
+        config: &GeneralConfig,
+        activity: &Mutex<dynisland_core::base_module::DynamicActivity>,
+    ) {
+        let activity=activity.lock().await;
+        activity.get_activity_widget()        
+            .set_transition_duration(config.transition_duration, false)
+            .expect("failed to set transition-duration");
+        activity
+            .get_activity_widget()
+            .set_transition_size(config.transition_size, false)
+            .expect("failed to set transition-size");
+        activity
+            .get_activity_widget()
+            .set_transition_bigger_blur(config.transition_bigger_blur, false)
+            .expect("failed to set transition-bigger-blur");
+        activity
+            .get_activity_widget()
+            .set_transition_bigger_stretch(config.transition_bigger_stretch, false)
+            .expect("failed to set transition-bigger-stretch");
+        activity
+            .get_activity_widget()
+            .set_transition_bigger_opacity(config.transition_bigger_opacity, false)
+            .expect("failed to set transition-bigger-opacity");
+        activity
+            .get_activity_widget()
+            .set_transition_smaller_blur(config.transition_smaller_blur, false)
+            .expect("failed to set transition-smaller-blur");
+        activity
+            .get_activity_widget()
+            .set_transition_smaller_stretch(config.transition_smaller_stretch, false)
+            .expect("failed to set transition-smaller-stretch");
+        activity
+            .get_activity_widget()
+            .set_transition_smaller_opacity(config.transition_smaller_opacity, false)
+            .expect("failed to set transition-smaller-opacity");
     }
 
     fn init_loaded_modules(&self) {

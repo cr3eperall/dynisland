@@ -2,6 +2,7 @@
 name = "dynisland"
 version = "0.1.0"
 edition = "2021"
+license = "mit"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,3 +20,4 @@ notify = { version = "6.1.1", features = ["fsevent-sys"] }
 grass = {version = "0.13.1", default-features = false} #scss parsing
 ron = "0.8.1"
 serde = { version = "1.0.188", features = ["serde_derive"] }
+colored="2.1.0"

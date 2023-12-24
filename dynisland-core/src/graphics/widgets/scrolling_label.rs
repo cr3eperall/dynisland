@@ -8,7 +8,7 @@ use glib::{object_subclass, prelude::*, wrapper};
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
 
-use crate::graphics::transition::{StateStruct, StateTransition};
+use crate::graphics::animations::{transition::{StateStruct, StateTransition}, soy::{self, Lerper}};
 
 #[derive(Copy, Clone, Debug)]
 pub enum ScrollingLabelTransitionStateEnum {
@@ -554,7 +554,7 @@ impl ScrollingLabelPriv {
     fn timing_functions(progress: f32, timing_for: TimingFunction) -> f32 {
         match timing_for {
             TimingFunction::Translate => {
-                f32::clamp(soy::Lerper::calculate(&soy::Linear, progress), 0.0, 1.0)
+                soy::LINEAR.calculate(progress)
             }
         }
     }

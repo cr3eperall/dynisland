@@ -8,12 +8,12 @@ use std::{
 use anyhow::{Context, Result};
 use glib::{object_subclass, prelude::*, wrapper};
 use glib_macros::Properties;
-use gtk::{prelude::*, subclass::prelude::*};
+use gtk::{prelude::*, subclass::prelude::*, StyleProperties};
 
 use crate::filters::filter::FilterBackend;
 
 use super::{
-    activity_widget_local_css_context::ActivityWidgetLocalCssContext, transition::Transition,
+    activity_widget_local_css_context::ActivityWidgetLocalCssContext, animations::{transition::Transition, soy::{Bezier, Lerper}},
 };
 
 pub const MINIMAL_HEIGHT: i32 = 40; //TODO move to config
@@ -108,7 +108,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                             //lower previous window associated to widget if it has one, this disables events on the last mode widget
                             Some(window) => window.raise(),
                             None => {
-                                println!("no window");
+                                // println!("no window");
                             }
                         }
                     }
@@ -247,34 +247,34 @@ impl ActivityWidgetPriv {
         }
         gtk::Allocation::new(x, y, width, height)
     }
-    fn timing_functions(progress: f32, timing_for: TimingFunction) -> f32 {
+    fn timing_functions(&self, progress: f32, timing_for: TimingFunction) -> f32 {
         // TODO add information on bigger or smaller prev and next
 
         match timing_for {
             TimingFunction::BiggerBlur => {
-                f32::clamp(soy::Lerper::calculate(&soy::EASE_IN, progress), 0.0, 1.0)
+                self.local_css_context.borrow().get_transition_bigger_blur().calculate(progress)
+                // soy::EASE_IN.calculate(progress)
             }
             TimingFunction::BiggerStretch => {
-                f32::clamp(soy::Lerper::calculate(&soy::EASE_OUT, progress), 0.0, 1.0)
-                // soy::Lerper::calculate(&soy::Linear, progress)
+                self.local_css_context.borrow().get_transition_bigger_stretch().calculate(progress)
+                // soy::EASE_OUT.calculate(progress)
             }
-            TimingFunction::BiggerOpacity => f32::clamp(
-                soy::Lerper::calculate(&soy::cubic_bezier(0.2, 0.55, 0.15, 1.0), progress), /* *(1.0+0.1)-0.1 */
-                0.0,
-                1.0,
-            ),
+            TimingFunction::BiggerOpacity => {
+                self.local_css_context.borrow().get_transition_bigger_opacity().calculate(progress)
+                // soy::cubic_bezier(0.2, 0.55, 0.15, 1.0).calculate(progress)
+            }
             TimingFunction::SmallerBlur => {
-                f32::clamp(soy::Lerper::calculate(&soy::EASE_IN, progress), 0.0, 1.0)
+                self.local_css_context.borrow().get_transition_smaller_blur().calculate(progress)
+                // soy::EASE_IN.calculate(progress)
             }
             TimingFunction::SmallerStretch => {
-                f32::clamp(soy::Lerper::calculate(&soy::EASE_OUT, progress), 0.0, 1.0)
-                // soy::Lerper::calculate(&soy::Linear, progress)
+                self.local_css_context.borrow().get_transition_smaller_stretch().calculate(progress)
+                // soy::EASE_OUT.calculate(progress)
             }
-            TimingFunction::SmallerOpacity => f32::clamp(
-                soy::Lerper::calculate(&soy::cubic_bezier(0.2, 0.55, 0.15, 1.0), progress),
-                0.0,
-                1.0,
-            ),
+            TimingFunction::SmallerOpacity => {
+                self.local_css_context.borrow().get_transition_smaller_opacity().calculate(progress)
+                // soy::cubic_bezier(0.2, 0.55, 0.15, 1.0).calculate(progress)
+            }
         }
     }
 }
@@ -479,12 +479,53 @@ impl ActivityWidget {
         self.imp().overlay_mode_widget.borrow().clone()
     }
 
+    pub fn get_widget_for_mode(&self, mode: ActivityMode) -> Option<gtk::Widget> {
+        match mode {
+            ActivityMode::Minimal => self.minimal_mode().clone(),
+            ActivityMode::Compact => self.compact_mode().clone(),
+            ActivityMode::Expanded => self.expanded_mode().clone(),
+            ActivityMode::Overlay => self.overlay_mode().clone(),
+        }
+    }
+    pub fn current_widget(&self) -> Option<gtk::Widget> {
+        match self.mode() {
+            ActivityMode::Minimal => self.minimal_mode().clone(),
+            ActivityMode::Compact => self.compact_mode().clone(),
+            ActivityMode::Expanded => self.expanded_mode().clone(),
+            ActivityMode::Overlay => self.overlay_mode().clone(),
+        }
+    }
+
     pub fn set_transition_duration(&self, duration_millis: u64, module: bool) -> Result<()> {
         self.imp()
             .local_css_context
             .borrow_mut()
             .set_transition_duration(duration_millis, module)
     }
+
+    crate::implement_set_transition!(pub, transition_size);
+    crate::implement_set_transition!(pub, transition_bigger_blur);
+    crate::implement_set_transition!(pub, transition_bigger_stretch);
+    crate::implement_set_transition!(pub, transition_bigger_opacity);
+    crate::implement_set_transition!(pub, transition_smaller_blur);
+    crate::implement_set_transition!(pub, transition_smaller_stretch);
+    crate::implement_set_transition!(pub, transition_smaller_opacity);
+    
+
+}
+
+#[macro_export]
+macro_rules! implement_set_transition{
+    ($vis:vis, $val:tt) => {
+        concat_idents::concat_idents!(name = set_, $val {
+            $vis fn name(&self, transition: Bezier, module: bool) -> Result<()> {
+                self.imp()
+                    .local_css_context
+                    .borrow_mut()
+                    .name(transition, module)
+            }
+        });
+    };
 }
 
 //add/remove bg_widget and expose info to GTK debugger
@@ -712,9 +753,9 @@ impl WidgetImpl for ActivityWidgetPriv {
             time = Instant::now();
 
             //draw bckground widget
-            if let Some(bg_widget) = &*self.background_widget.borrow() {
-                self.obj().propagate_draw(bg_widget, cr);
-            }
+            // if let Some(bg_widget) = &*self.background_widget.borrow() {
+            //     self.obj().propagate_draw(bg_widget, cr);
+            // }
             logs.push(format!("bg widget draw {:?}", time.elapsed()));
             time = Instant::now();
 
@@ -741,8 +782,8 @@ impl WidgetImpl for ActivityWidgetPriv {
                 };
 
                 let bigger = next_size.0 > prev_size.0 || next_size.1 > prev_size.1;
-
-                const RAD: f32 = 6.0;
+                // println!("bigger: w({}), h({})", next_size.0 > prev_size.0, next_size.1 > prev_size.1);
+                const RAD: f32 = 9.0;
                 const FILTER_BACKEND: FilterBackend = FilterBackend::Gpu; //TODO move to config file
 
                 let mut tmp_surface_1 = gtk::cairo::ImageSurface::create(
@@ -760,7 +801,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                         .with_context(|| "failed to retrieve context from tmp surface")?;
 
                     let (mut sx, mut sy) = (self_w / wid_w, self_h / wid_h);
-                    let scale_prog = ActivityWidgetPriv::timing_functions(
+                    let scale_prog = self.timing_functions(
                         progress,
                         if bigger {
                             TimingFunction::BiggerStretch
@@ -862,7 +903,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                     logs.push(format!("prev blur written to surface {:?}", time.elapsed()));
                     time = Instant::now();
                 }
-
+                
                 let mut tmp_surface_2 = gtk::cairo::ImageSurface::create(
                     gdk::cairo::Format::ARgb32,
                     self.obj().allocation().width(),
@@ -877,7 +918,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                         .with_context(|| "failed to retrieve context from tmp surface")?;
 
                     let (mut sx, mut sy) = (self_w / wid_w, self_h / wid_h);
-                    let scale_prog = ActivityWidgetPriv::timing_functions(
+                    let scale_prog = self.timing_functions(
                         1.0-progress,
                         if bigger {
                             TimingFunction::SmallerStretch
@@ -980,10 +1021,13 @@ impl WidgetImpl for ActivityWidgetPriv {
                     time = Instant::now();
                 }
 
+                // let mut orig_surface = cr.group_target();
+
                 crate::filters::filter::apply_blur_and_merge_opacity_dual(
+                    // &mut orig_surface,
                     &mut tmp_surface_1,
                     &mut tmp_surface_2,
-                    ActivityWidgetPriv::timing_functions(
+                    self.timing_functions(
                         progress,
                         if bigger {
                             TimingFunction::BiggerBlur
@@ -991,7 +1035,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                             TimingFunction::SmallerBlur
                         },
                     ) * RAD,
-                    ActivityWidgetPriv::timing_functions(
+                    self.timing_functions(
                         1.0 - progress,
                         if bigger {
                             TimingFunction::SmallerBlur
@@ -999,7 +1043,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                             TimingFunction::BiggerBlur
                         },
                     ) * RAD,
-                    ActivityWidgetPriv::timing_functions(
+                    self.timing_functions(
                         1.0 - progress,
                         if bigger {
                             TimingFunction::BiggerOpacity
@@ -1007,7 +1051,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                             TimingFunction::SmallerOpacity
                         },
                     ),
-                    ActivityWidgetPriv::timing_functions(
+                    self.timing_functions(
                         progress,
                         if bigger {
                             TimingFunction::SmallerOpacity
@@ -1219,11 +1263,11 @@ impl WidgetImpl for ActivityWidgetPriv {
 
         logs.push(format!("total: {:?}\n", start.elapsed()));
 
-        // if start.elapsed()>Duration::from_millis(16){
-        //     for log in logs {
-        //         println!("{log}"); //TODO maybe create a utility library
-        //     }
-        // }
+        if start.elapsed()>Duration::from_millis(16){
+            for log in logs {
+                // println!("{log}"); //TODO maybe create a utility library
+            }
+        }
         glib::Propagation::Proceed
     }
 }

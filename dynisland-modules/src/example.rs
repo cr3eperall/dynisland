@@ -222,19 +222,30 @@ impl ExampleModule {
             .blocking_lock()
             .get_property("comp-label")
             .unwrap();
-        let scrolling_enabled = act
+        let _scrolling_enabled = act
             .get("exampleActivity1")
             .unwrap()
             .blocking_lock()
             .get_property("scrolling-transition-enabled")
             .unwrap();
-        let scrolling_text = act
+        let _scrolling_text = act
             .get("exampleActivity1")
             .unwrap()
             .blocking_lock()
             .get_property("scrolling-label-text")
             .unwrap();
         label.blocking_lock().set(config.string.clone()).unwrap();
+            
+        if let Some(widget) = act.get("exampleActivity1")
+            .unwrap()
+            .blocking_lock()
+            .get_activity_widget().current_widget() {
+                //raise window associated to widget if it has one, this enables events on the active mode widget
+                if let Some(window) = widget.window(){
+                    window.raise();
+                }
+        }
+
         // let activity = Arc::new(Mutex::new(Self::get_activity(
         //     prop_send.clone(),
         //     "exampleActivity2",
@@ -340,7 +351,7 @@ impl ExampleModule {
 
         activity_widget.connect_mode_notify(|f| {
             let l = f.mode();
-            println!("Changed mode: {:?}", l);
+            // println!("Changed mode: {:?}", l);
         });
         activity.set_activity_widget(activity_widget.clone());
 
@@ -358,7 +369,6 @@ impl ExampleModule {
             .unwrap();
 
         let mode = activity.get_property("mode").unwrap();
-
 
         let minimal_cl = minimal.clone();
         activity
@@ -416,9 +426,19 @@ impl ExampleModule {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
                 println!("min");
                 let m1 = m1.clone();
-                glib::MainContext::default().spawn_local(async move {
-                    m1.lock().await.set(ActivityMode::Compact).unwrap();
-                });
+                match ev.button() {
+                    gdk::BUTTON_PRIMARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            m1.lock().await.set(ActivityMode::Compact).unwrap();
+                        });
+                    }
+                    gdk::BUTTON_SECONDARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            m1.lock().await.set(ActivityMode::Overlay).unwrap();
+                        });
+                    }
+                    _ => {}
+                }
             }
             glib::Propagation::Proceed
         });
@@ -429,9 +449,19 @@ impl ExampleModule {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
                 println!("comp");
                 let m1 = m1.clone();
-                glib::MainContext::default().spawn_local(async move {
-                    m1.lock().await.set(ActivityMode::Expanded).unwrap();
-                });
+                match ev.button() {
+                    gdk::BUTTON_PRIMARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            m1.lock().await.set(ActivityMode::Expanded).unwrap();
+                        });
+                    }
+                    gdk::BUTTON_SECONDARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            m1.lock().await.set(ActivityMode::Minimal).unwrap();
+                        });
+                    }
+                    _ => {}
+                }
             }
             glib::Propagation::Proceed
         });
@@ -442,9 +472,42 @@ impl ExampleModule {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
                 println!("exp");
                 let m1 = m1.clone();
-                glib::MainContext::default().spawn_local(async move {
-                    m1.lock().await.set(ActivityMode::Compact).unwrap();
-                });
+                match ev.button() {
+                    gdk::BUTTON_PRIMARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            m1.lock().await.set(ActivityMode::Overlay).unwrap();
+                        });
+                    }
+                    gdk::BUTTON_SECONDARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            m1.lock().await.set(ActivityMode::Compact).unwrap();
+                        });
+                    }
+                    _ => {}
+                }
+            }
+            glib::Propagation::Proceed
+        });
+
+        overlay.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        let m1 = mode.clone();
+        overlay.connect_button_release_event(move |_wid, ev| {
+            if let gdk::EventType::ButtonRelease = ev.event_type() {
+                println!("exp");
+                let m1 = m1.clone();
+                match ev.button() {
+                    gdk::BUTTON_PRIMARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            m1.lock().await.set(ActivityMode::Minimal).unwrap();
+                        });
+                    }
+                    gdk::BUTTON_SECONDARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            m1.lock().await.set(ActivityMode::Expanded).unwrap();
+                        });
+                    }
+                    _ => {}
+                }
             }
             glib::Propagation::Proceed
         });
@@ -453,28 +516,55 @@ impl ExampleModule {
         let m1 = mode.clone();
         background.connect_button_release_event(move |_wid, ev| {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
-                println!("bg");
+                // println!("bg");
                 let m1 = m1.clone();
-                glib::MainContext::default().spawn_local(async move {
-                    let mode_g=m1.lock().await;
-                    let mode= cast_dyn_any!(mode_g.get(), ActivityMode).unwrap().clone();
-                    drop(mode_g);
-                    match mode{
-                        ActivityMode::Minimal => {
-                            m1.lock().await.set(ActivityMode::Compact).unwrap();
-                        },
-                        ActivityMode::Compact => {
-                            m1.lock().await.set(ActivityMode::Expanded).unwrap();
-                        },
-                        ActivityMode::Expanded => {
-                            m1.lock().await.set(ActivityMode::Compact).unwrap();
-                        },
-                        ActivityMode::Overlay => {
-                            
-                        },
+                match ev.button() {
+                    gdk::BUTTON_PRIMARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            let mode_g = m1.lock().await;
+                            let mode = cast_dyn_any!(mode_g.get(), ActivityMode).unwrap().clone();
+                            drop(mode_g);
+
+                            match mode {
+                                ActivityMode::Minimal => {
+                                    m1.lock().await.set(ActivityMode::Compact).unwrap();
+                                }
+                                ActivityMode::Compact => {
+                                    m1.lock().await.set(ActivityMode::Expanded).unwrap();
+                                }
+                                ActivityMode::Expanded => {
+                                    m1.lock().await.set(ActivityMode::Overlay).unwrap();
+                                }
+                                ActivityMode::Overlay => {
+                                    m1.lock().await.set(ActivityMode::Minimal).unwrap();
+                                }
+                            }
+                        });
                     }
-                    
-                });
+                    gdk::BUTTON_SECONDARY => {
+                        glib::MainContext::default().spawn_local(async move {
+                            let mode_g = m1.lock().await;
+                            let mode = cast_dyn_any!(mode_g.get(), ActivityMode).unwrap().clone();
+                            drop(mode_g);
+
+                            match mode {
+                                ActivityMode::Minimal => {
+                                    m1.lock().await.set(ActivityMode::Overlay).unwrap();
+                                }
+                                ActivityMode::Compact => {
+                                    m1.lock().await.set(ActivityMode::Minimal).unwrap();
+                                }
+                                ActivityMode::Expanded => {
+                                    m1.lock().await.set(ActivityMode::Compact).unwrap();
+                                }
+                                ActivityMode::Overlay => {
+                                    m1.lock().await.set(ActivityMode::Expanded).unwrap();
+                                }
+                            }
+                        });
+                    }
+                    _ => {}
+                }
             }
             glib::Propagation::Proceed
         });
@@ -529,28 +619,28 @@ impl ExampleModule {
             .halign(gtk::Align::Start)
             .valign(gtk::Align::Start)
             .build();
-        let background=gtk::Box::builder()
-        // .height_request(40)
-        // .width_request(100)
-        .valign(gtk::Align::Start)
-        .halign(gtk::Align::Center)
-        .vexpand(true)
-        .hexpand(true)
-        // .above_child(false) //Allows events on children (like buttons)
-        .child(&background)
-        .build();
+        let background = gtk::Box::builder()
+            // .height_request(40)
+            // .width_request(100)
+            .valign(gtk::Align::Start)
+            .halign(gtk::Align::Center)
+            .vexpand(true)
+            .hexpand(true)
+            // .above_child(false) //Allows events on children (like buttons)
+            .child(&background)
+            .build();
 
-        let background=gtk::EventBox::builder()
-        // .height_request(40)
-        // .width_request(100)
-        .valign(gtk::Align::Start)
-        .halign(gtk::Align::Center)
-        .vexpand(false)
-        .hexpand(false)
-        .above_child(false) //Allows events on children (like buttons)
-        .child(&background)
-        .build();
-    
+        let background = gtk::EventBox::builder()
+            // .height_request(40)
+            // .width_request(100)
+            .valign(gtk::Align::Start)
+            .halign(gtk::Align::Center)
+            .vexpand(false)
+            .hexpand(false)
+            .above_child(false) //Allows events on children (like buttons)
+            .child(&background)
+            .build();
+
         background.upcast()
     }
 
