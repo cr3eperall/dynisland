@@ -4,7 +4,11 @@ use rand::{distributions::Alphanumeric, Rng};
 
 use crate::implement_get_set;
 
-use super::{activity_widget::MINIMAL_HEIGHT, config_variable::ConfigVariable, animations::soy::{self, Bezier}};
+use super::{
+    activity_widget::MINIMAL_HEIGHT,
+    animations::soy::{self, Bezier},
+    config_variable::ConfigVariable,
+};
 
 #[derive(Clone, glib::Boxed, Debug)]
 #[boxed_type(name = "BoxedActivityWidgetLocalCssContext")]
@@ -25,9 +29,7 @@ pub struct ActivityWidgetLocalCssContext {
     transition_smaller_stretch: ConfigVariable<Bezier>,
     transition_bigger_opacity: ConfigVariable<Bezier>,
     transition_smaller_opacity: ConfigVariable<Bezier>,
-    
 }
-
 
 impl ActivityWidgetLocalCssContext {
     pub fn new(name: &str) -> Self {
@@ -129,12 +131,12 @@ impl ActivityWidgetLocalCssContext {
         let border_radius = self.border_radius;
         let name = self.name.as_str();
         let transition_duration = self.get_transition_duration();
-        let size_timing_function=self.get_transition_size().to_string();
+        let size_timing_function = self.get_transition_size().to_string();
         // println!("{size_timing_function}");
         let css = if self.stretch_on_resize {
             // TODO replace timing function with custom bezier from code, move into activity_widget::timing_function
             format!(
-                r".{name} .activity-background ** {{ 
+                r".{name} .activity-background, .{name} .activity-background * {{ 
                     min-width: {w}px; 
                     min-height: {h}px; 
                     transition-property: min-width, min-height;
@@ -155,7 +157,7 @@ impl ActivityWidgetLocalCssContext {
             )
         } else {
             format!(
-                r".{name} .activity-background ** {{ 
+                r".{name} .activity-background, .{name} .activity-background * {{ 
                     min-width: {w}px; 
                     min-height: {h}px; 
                     transition-property: min-width, min-height;

@@ -199,6 +199,7 @@ impl Module for ExampleModule {
 
 impl ExampleModule {
     //TODO add reference to module
+    #[allow(unused_variables)]
     fn producer(
         activities: ActivityMap,
         rt: &Handle,
@@ -235,15 +236,18 @@ impl ExampleModule {
             .get_property("scrolling-label-text")
             .unwrap();
         label.blocking_lock().set(config.string.clone()).unwrap();
-            
-        if let Some(widget) = act.get("exampleActivity1")
+
+        if let Some(widget) = act
+            .get("exampleActivity1")
             .unwrap()
             .blocking_lock()
-            .get_activity_widget().current_widget() {
-                //raise window associated to widget if it has one, this enables events on the active mode widget
-                if let Some(window) = widget.window(){
-                    window.raise();
-                }
+            .get_activity_widget()
+            .current_widget()
+        {
+            //raise window associated to widget if it has one, this enables events on the active mode widget
+            if let Some(window) = widget.window() {
+                window.raise();
+            }
         }
 
         // let activity = Arc::new(Mutex::new(Self::get_activity(
@@ -349,10 +353,11 @@ impl ExampleModule {
         activity_widget.set_expanded_mode(&expanded);
         activity_widget.set_overlay_mode(&overlay);
 
-        activity_widget.connect_mode_notify(|f| {
-            let l = f.mode();
-            // println!("Changed mode: {:?}", l);
-        });
+        // activity_widget.connect_mode_notify(|f| {
+        // let l = f.mode();
+        // println!("Changed mode: {:?}", l);
+        // });
+
         activity.set_activity_widget(activity_widget.clone());
 
         activity

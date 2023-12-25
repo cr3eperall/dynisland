@@ -24,11 +24,11 @@
 
 use core::{
     fmt,
-    ops::{Add, Mul, Sub}, prelude::v1,
+    ops::{Add, Mul, Sub},
 };
-use std::{str::FromStr, marker::PhantomData};
+use std::{marker::PhantomData, str::FromStr};
 
-use serde::{ser::SerializeStruct, de::Visitor};
+use serde::{de::Visitor, ser::SerializeStruct};
 
 /// Interpolate between two values given an interpolation method.
 ///
@@ -40,7 +40,6 @@ use serde::{ser::SerializeStruct, de::Visitor};
 ///
 /// # Usage
 /// ```
-/// fn main() {
 ///     let start = 5.0;
 ///     let end = 10.0;
 ///
@@ -49,7 +48,6 @@ use serde::{ser::SerializeStruct, de::Visitor};
 ///
 ///     let half_way = soy::lerp(soy::Linear, start, end, 0.5);
 ///     assert_eq!(half_way, 7.5);
-/// }
 /// ```
 pub fn lerp<T, D>(lerper: T, start: D, end: D, t: f32) -> D
 where
@@ -91,40 +89,27 @@ pub struct Bezier {
     pub(crate) y: (f32, f32, f32),
 }
 
-impl FromStr for Bezier{
+impl FromStr for Bezier {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "linear" => {
-                Ok(LINEAR)
-            }
-            "ease" => {
-                Ok(EASE)
-            }
-            "ease-in" => {
-                Ok(EASE_IN)
-            }
-            "ease-out" => {
-                Ok(EASE_OUT)
-            }
-            "ease-in-out" => {
-                Ok(EASE_IN_OUT)
-            }
-            "on" => {
-                Ok(ON)
-            }
-            "off" => {
-                Ok(OFF)
-            }
-            _ => {//TODO maybe implement parser for point pair( "cubic-bezier(n,n,n,n)" )
+            "linear" => Ok(LINEAR),
+            "ease" => Ok(EASE),
+            "ease-in" => Ok(EASE_IN),
+            "ease-out" => Ok(EASE_OUT),
+            "ease-in-out" => Ok(EASE_IN_OUT),
+            "on" => Ok(ON),
+            "off" => Ok(OFF),
+            _ => {
+                //TODO maybe implement parser for point pair( "cubic-bezier(n,n,n,n)" )
                 Err("Not a valid named curve".to_string())
             }
         }
     }
 }
 
-impl ToString for Bezier{
+impl ToString for Bezier {
     fn to_string(&self) -> String {
         if *self == LINEAR {
             "linear".to_string()
@@ -141,8 +126,8 @@ impl ToString for Bezier{
         } else if *self == OFF {
             "step-start".to_string()
         } else {
-            let (x1,y1,x2,y2)=self.control_points();
-            format!("cubic-bezier({},{},{},{})",x1,y1,x2,y2).to_string()
+            let (x1, y1, x2, y2) = self.control_points();
+            format!("cubic-bezier({},{},{},{})", x1, y1, x2, y2).to_string()
         }
     }
 }
@@ -162,9 +147,9 @@ impl serde::Serialize for Bezier {
             serializer.serialize_str("ease-out")
         } else if *self == EASE_IN_OUT {
             serializer.serialize_str("ease-in-out")
-        }else if *self == ON {
+        } else if *self == ON {
             serializer.serialize_str("on")
-        }else if *self == OFF {
+        } else if *self == OFF {
             serializer.serialize_str("off")
         } else {
             let mut state = serializer.serialize_struct("Bezier", 2)?;
@@ -188,7 +173,7 @@ impl<'de> serde::Deserialize<'de> for Bezier {
             ///(x1, y1)
             P1,
             ///(x2, y2)
-            P2
+            P2,
         }
 
         impl<'de> serde::Deserialize<'de> for Field {
@@ -238,19 +223,30 @@ impl<'de> serde::Deserialize<'de> for Bezier {
             where
                 V: serde::de::SeqAccess<'de>,
             {
-                let v1: f32=seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                let v2: f32=seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                let v3: f32=seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
-                let v4: f32=seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
-                let v5: Option<f32>=seq.next_element()?.or( None);
-                let v6: Option<f32>=seq.next_element()?.or( None);
+                let v1: f32 = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let v2: f32 = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                let v3: f32 = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                let v4: f32 = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                let v5: Option<f32> = seq.next_element()?.or(None);
+                let v6: Option<f32> = seq.next_element()?.or(None);
                 if let Some(v5) = v5 {
-                    if v6.is_none(){
+                    if v6.is_none() {
                         return Err(serde::de::Error::invalid_length(5, &self));
                     }
-                    let v6=v6.unwrap();
-                    Ok(Bezier { x: (v1,v2,v3), y: (v4,v5,v6) })
-                }else{
+                    let v6 = v6.unwrap();
+                    Ok(Bezier {
+                        x: (v1, v2, v3),
+                        y: (v4, v5, v6),
+                    })
+                } else {
                     Ok(cubic_bezier(v1, v2, v3, v4))
                 }
             }
@@ -282,26 +278,27 @@ impl<'de> serde::Deserialize<'de> for Bezier {
                                 return Err(serde::de::Error::duplicate_field("p1"));
                             }
                             p1 = Some(map.next_value()?);
-                        },
+                        }
                         Field::P2 => {
                             if p2.is_some() {
                                 return Err(serde::de::Error::duplicate_field("p2"));
                             }
                             p2 = Some(map.next_value()?);
-                        },
+                        }
                     }
                 }
-                if x.is_some() && y.is_some() && p1.is_none() && p2.is_none(){
-                    
-                    let x:(f32,f32,f32) =x.unwrap();
-                    let y:(f32,f32,f32) =y.unwrap();
+                if x.is_some() && y.is_some() && p1.is_none() && p2.is_none() {
+                    let x: (f32, f32, f32) = x.unwrap();
+                    let y: (f32, f32, f32) = y.unwrap();
                     Ok(Bezier { x, y })
-                }else if x.is_none() && y.is_none() && p1.is_some() && p2.is_some() {
-                    let p1:(f32,f32) =p1.unwrap();
-                    let p2:(f32,f32) =p2.unwrap();
+                } else if x.is_none() && y.is_none() && p1.is_some() && p2.is_some() {
+                    let p1: (f32, f32) = p1.unwrap();
+                    let p2: (f32, f32) = p2.unwrap();
                     Ok(Bezier::new(p1.0, p1.1, p2.0, p2.1))
-                }else{
-                    Err(serde::de::Error::custom("expecting (`x` and `y`) or (`p1` and `p2`)"))
+                } else {
+                    Err(serde::de::Error::custom(
+                        "expecting (`x` and `y`) or (`p1` and `p2`)",
+                    ))
                 }
             }
         }
@@ -401,49 +398,58 @@ impl Bezier {
         t
     }
 
-    pub fn control_points(&self)-> (f32,f32,f32,f32) {
-        let x1=self.x.2/3.0;
-        let x2=(self.x.1+(2.0*self.x.2))/3.0;
+    pub fn control_points(&self) -> (f32, f32, f32, f32) {
+        let x1 = self.x.2 / 3.0;
+        let x2 = (self.x.1 + (2.0 * self.x.2)) / 3.0;
 
-        let y1=self.y.2/3.0;
-        let y2=(self.y.1+(2.0*self.y.2))/3.0;
-        
-        (x1,y1,x2,y2)
+        let y1 = self.y.2 / 3.0;
+        let y2 = (self.y.1 + (2.0 * self.y.2)) / 3.0;
+
+        (x1, y1, x2, y2)
     }
 
-    pub fn from_string_or_struct<'de,T,D>(deserializer:D)->Result<T, D::Error>
-        where
-            T: serde::Deserialize<'de> + FromStr<Err = String>,
-            D: serde::Deserializer<'de>,
+    pub fn from_string_or_struct<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        T: serde::Deserialize<'de> + FromStr<Err = String>,
+        D: serde::Deserializer<'de>,
     {
         struct StringOrStructBezier<T>(PhantomData<fn() -> T>);
 
-        impl<'de,T> Visitor<'de> for StringOrStructBezier<T>
-            where
-                T: serde::Deserialize<'de> + FromStr<Err = String>{
-            type Value=T;
+        impl<'de, T> Visitor<'de> for StringOrStructBezier<T>
+        where
+            T: serde::Deserialize<'de> + FromStr<Err = String>,
+        {
+            type Value = T;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str(r#"map or (`linear` | `ease` | `ease-in` | `ease-out` | `ease-in-out`)"#)
+                formatter.write_str(
+                    r#"map or (`linear` | `ease` | `ease-in` | `ease-out` | `ease-in-out`)"#,
+                )
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-                where
-                    E: serde::de::Error, {
-                        match <T as FromStr>::from_str(value) {
-                            Ok(v) => Ok(v),
-                            Err(_) => Err(serde::de::Error::invalid_value(serde::de::Unexpected::Str(value), &self)),
-                        }
+            where
+                E: serde::de::Error,
+            {
+                match <T as FromStr>::from_str(value) {
+                    Ok(v) => Ok(v),
+                    Err(_) => Err(serde::de::Error::invalid_value(
+                        serde::de::Unexpected::Str(value),
+                        &self,
+                    )),
+                }
             }
 
             fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
-                where
-                    A: serde::de::MapAccess<'de>, {
+            where
+                A: serde::de::MapAccess<'de>,
+            {
                 serde::Deserialize::deserialize(serde::de::value::MapAccessDeserializer::new(map))
             }
             fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
-                where
-                    A: serde::de::SeqAccess<'de>, {
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
                 serde::Deserialize::deserialize(serde::de::value::SeqAccessDeserializer::new(seq))
             }
         }
@@ -452,9 +458,9 @@ impl Bezier {
 }
 impl Lerper for Bezier {
     fn calculate(&self, t: f32) -> f32 {
-        if *self==ON{
+        if *self == ON {
             return 1.0;
-        }else if *self==OFF{
+        } else if *self == OFF {
             return 0.0;
         }
         self.sample_y(self.solve_x(t))

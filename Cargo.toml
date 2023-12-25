@@ -5,3 +5,4 @@ members = [
     "dynisland-core",
     "dynisland-modules",
 ]
+resolver = "2"

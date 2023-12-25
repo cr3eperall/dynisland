@@ -4,9 +4,9 @@ pub struct ConfigVariable<T: Clone> {
     pub set_by_module: bool,
 }
 
-impl <T: Clone> ConfigVariable<T>{
+impl<T: Clone> ConfigVariable<T> {
     pub fn new(value: T) -> Self {
-        ConfigVariable{
+        ConfigVariable {
             value,
             set_by_module: false,
         }

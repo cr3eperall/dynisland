@@ -1,12 +1,17 @@
 activity-widget {
-    background-color: transparent;
+    background-color: black;
     // border-top: 10px inset rgba(0, 160, 204, 0.5);
     // border-right: 6px inset rgba(184, 204, 0, 0.5);
     // border-bottom: 10px inset rgba(204, 0, 0, 0.5);
     // border-left: 6px inset rgba(204, 0, 177, 0.5);
-    border: 1px inset rgb(0, 97, 124);
-
+    border: 1px solid rgb(0, 97, 124);
+    
     border-radius: 50px;
+
+    //TODO implement here instead of config
+    transition-property: blur, int-opacity;
+    transition-duration: 1111ms;
+    transition-timing-function: ease;
 }
 
 .mode-compact{
