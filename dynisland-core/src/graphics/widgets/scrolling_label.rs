@@ -8,9 +8,12 @@ use glib::{object_subclass, prelude::*, wrapper};
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
 
-use crate::graphics::animations::{
-    soy::{self, Lerper},
-    transition::{StateStruct, StateTransition},
+use crate::graphics::{
+    activity_widget,
+    animations::{
+        soy::{self, Lerper},
+        transition::{StateStruct, StateTransition},
+    },
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -102,7 +105,7 @@ impl StateStruct for ScrollingLabelTransitionState {
 #[boxed_type(name = "BoxedScrollingLabelLocalCssContext")]
 pub struct ScrollingLabelLocalTransitionContext {
     transition_speed: u64,                //pixels per second
-    transition_speed_set_by_module: bool, //TODO maybe not necessary because for now i can't set the speed or timeout from the general config file, currently this is only customizable if the modules include a setting for it
+    transition_speed_set_by_module: bool, //TODO not useless for now, because i can't set the speed or timeout from the general config file, currently this is only customizable if the modules include a setting for it
     transition_timeout: u64,              //millis
     transition_timeout_set_by_module: bool,
 }
@@ -204,7 +207,7 @@ pub struct ScrollingLabelPriv {
     #[property(get, set, nick = "Max Height before enabling scrolling")]
     max_height: RefCell<i32>,
 
-    transition: RefCell<StateTransition<ScrollingLabelTransitionState>>, //FIXME borrow_mut is called in a lot of places, need to verify if borrow rules are always followed / use try_borrow_mut() / switch to mutex
+    transition: RefCell<StateTransition<ScrollingLabelTransitionState>>, //TODO borrow_mut is called in a lot of places, need to verify if borrow rules are always followed / use try_borrow_mut() / switch to mutex
 
     #[property(get, set, nick = "If the animation is enabled")]
     transition_enabled: RefCell<bool>,
@@ -630,7 +633,7 @@ impl WidgetImpl for ScrollingLabelPriv {
     }
 
     fn draw(&self, cr: &gdk::cairo::Context) -> glib::Propagation {
-        //TODO maybe add border support
+        //FIXME text motion is choppy
         //TODO add blur/ reduce opacity at the edges maybe with cr.mask()
         let mut logs: Vec<String> = vec![];
         let start = Instant::now();
@@ -649,12 +652,38 @@ impl WidgetImpl for ScrollingLabelPriv {
                 self.obj().allocation().height()
             } as f64;
 
-            cr.move_to(0.0, 0.0);
-            cr.line_to(self_w, 0.0);
-            cr.line_to(self_w, self_h);
-            cr.line_to(0.0, self_h);
-            cr.line_to(0.0, 0.0);
-            cr.clip();
+            //draw background
+            gtk::render_background(
+                &self.obj().style_context(),
+                cr,
+                0.0,
+                0.0,
+                self.obj().allocation().width() as f64,
+                self.obj().allocation().height() as f64,
+            );
+
+            let border_radius: i32 = self
+                .obj()
+                .style_context()
+                .style_property_for_state("border-radius", self.obj().state_flags())
+                .get()?;
+            let border_radius = border_radius as f64;
+            let radius = f64::min(border_radius, f64::min(self_w / 2.0, self_h / 2.0));
+
+            activity_widget::begin_draw_scaled_clip(
+                cr,
+                (self_w, self_h),
+                (self_w, self_h),
+                (1.0, 1.0),
+                radius,
+            );
+
+            // cr.move_to(0.0, 0.0);
+            // cr.line_to(self_w, 0.0);
+            // cr.line_to(self_w, self_h);
+            // cr.line_to(0.0, self_h);
+            // cr.line_to(0.0, 0.0);
+            // cr.clip();
 
             let inner = &*self.inner_label.borrow();
             // logs.push(format!("transition:{:?}", self.transition.borrow()));
@@ -807,6 +836,15 @@ impl WidgetImpl for ScrollingLabelPriv {
                 }
             }
             cr.reset_clip();
+
+            gtk::render_frame(
+                &self.obj().style_context(),
+                cr,
+                0.0,
+                0.0,
+                self.obj().allocation().width() as f64,
+                self.obj().allocation().height() as f64,
+            );
         };
 
         if let Err(err) = res {

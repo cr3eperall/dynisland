@@ -5,11 +5,9 @@ use rand::{distributions::Alphanumeric, Rng};
 use crate::implement_get_set;
 
 use super::{
-    activity_widget::MINIMAL_HEIGHT,
     animations::soy::{self, Bezier},
     config_variable::ConfigVariable,
 };
-
 #[derive(Clone, glib::Boxed, Debug)]
 #[boxed_type(name = "BoxedActivityWidgetLocalCssContext")]
 pub struct ActivityWidgetLocalCssContext {
@@ -19,6 +17,8 @@ pub struct ActivityWidgetLocalCssContext {
     size: (i32, i32),
     stretch_on_resize: bool,
     border_radius: i32,
+
+    minimal_height: ConfigVariable<i32>,
     transition_duration: ConfigVariable<u64>,
 
     transition_size: ConfigVariable<Bezier>,
@@ -36,7 +36,8 @@ impl ActivityWidgetLocalCssContext {
         Self {
             css_provider: gtk::CssProvider::new(),
             name: name.to_string(),
-            size: (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
+            minimal_height: ConfigVariable::new(40),
+            size: (40, 40),
             stretch_on_resize: true,
             border_radius: 100,
             transition_duration: ConfigVariable::new(0),
@@ -50,6 +51,7 @@ impl ActivityWidgetLocalCssContext {
         }
     }
 
+    implement_get_set!(pub, minimal_height, i32);
     implement_get_set!(pub, transition_duration, u64);
     implement_get_set!(pub, transition_size, Bezier);
     implement_get_set!(pub, transition_bigger_blur, Bezier);
@@ -134,7 +136,6 @@ impl ActivityWidgetLocalCssContext {
         let size_timing_function = self.get_transition_size().to_string();
         // println!("{size_timing_function}");
         let css = if self.stretch_on_resize {
-            // TODO replace timing function with custom bezier from code, move into activity_widget::timing_function
             format!(
                 r".{name} .activity-background, .{name} .activity-background * {{ 
                     min-width: {w}px; 

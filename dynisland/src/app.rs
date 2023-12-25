@@ -1,7 +1,8 @@
-use std::{collections::HashMap, path::Path, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use anyhow::Result;
-use gtk::prelude::*;
+use colored::Colorize;
+use gtk::{prelude::*, CssProvider};
 use notify::Watcher;
 use tokio::{
     runtime::Handle,
@@ -26,26 +27,13 @@ pub struct App {
     pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
     pub app_send: Option<UnboundedSender<UIServerCommand>>,
     pub config: Config,
+    pub css_provider: CssProvider,
 }
 
 impl App {
     pub fn initialize_server(mut self) -> Result<()> {
         //parse static scss file
-        let css_content = grass::from_path(
-            "/home/david/dev/rust/dynisland/dynisland-core/file.scss", // TODO move to config //FIXME add reloading css on file change
-            &grass::Options::default(),
-        );
-
-        //setup static css style
-        let css_provider = gtk::CssProvider::new();
-        css_provider
-            .load_from_data(css_content.unwrap().as_bytes())
-            .unwrap();
-        gtk::StyleContext::add_provider_for_screen(
-            &gdk::Screen::default().unwrap(),
-            &css_provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-        );
+        self.load_css();
         let act_container = gtk::Box::builder()
             .orientation(gtk::Orientation::Horizontal)
             .halign(gtk::Align::Center)
@@ -80,7 +68,7 @@ impl App {
 
         //UI command consumer
         glib::MainContext::default().spawn_local(async move {
-            // TODO check if there are too many tasks on the UI thread and it begins to stutter
+            // TODO check if there are too many tasks on the UI thread and it begins to lag
             while let Some(command) = app_recv.recv().await {
                 match command {
                     UIServerCommand::AddProducer(module_identifier, producer) => {
@@ -91,7 +79,7 @@ impl App {
 
                         module.register_producer(producer).await; //add inside module
                         producer(
-                            //execute //TODO make sure this doesn't get executed twice at the same time when the configuration is being reloaded
+                            // execute //TODO make sure this doesn't get executed twice at the same time when the configuration is being reloaded
                             module.get_registered_activities(),
                             &rt,
                             app_send.clone(),
@@ -147,6 +135,8 @@ impl App {
                         self.load_configs();
                         self.update_general_configs().await;
                         self.restart_producer_rt();
+
+                        self.reload_css();
                     }
                 }
             }
@@ -169,7 +159,7 @@ impl App {
             .expect("failed to start file watcher");
         watcher
             .watch(
-                Path::new(config::CONFIG_FILE),
+                &config::get_config_path(),
                 notify::RecursiveMode::NonRecursive,
             )
             .expect("error starting watcher");
@@ -177,6 +167,36 @@ impl App {
         //start application
         gtk::main();
         Ok(())
+    }
+
+    pub fn load_css(&mut self) {
+        let css_content = grass::from_path(
+            config::get_config_path().join("dynisland.scss"),
+            &grass::Options::default(),
+        );
+        //setup static css style
+        self.css_provider //TODO save previous state before trying to update
+            .load_from_data(css_content.unwrap().as_bytes())
+            .unwrap_or_else(|err| {
+                eprintln!(
+                    "{} {:?}",
+                    "failed to load css:".red(),
+                    err.to_string().red()
+                )
+            });
+        gtk::StyleContext::add_provider_for_screen(
+            &gdk::Screen::default().unwrap(),
+            &self.css_provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    }
+
+    pub fn reload_css(&mut self) {
+        gtk::StyleContext::remove_provider_for_screen(
+            &gdk::Screen::default().unwrap(),
+            &self.css_provider,
+        );
+        self.load_css();
     }
 
     pub fn load_modules(&mut self) {
@@ -206,7 +226,7 @@ impl App {
     }
 
     fn load_configs(&mut self) {
-        self.config = config::get_config(); //FIXME log error instead of crashing
+        self.config = config::get_config();
         println!("general_config: {:?}", self.config.general_config);
         for module in self.module_map.blocking_lock().values_mut() {
             let config_parsed = match self.config.module_config.get(module.get_name()) {
@@ -241,6 +261,10 @@ impl App {
         activity: &Mutex<dynisland_core::base_module::DynamicActivity>,
     ) {
         let activity = activity.lock().await;
+        activity
+            .get_activity_widget()
+            .set_minimal_height(config.minimal_height as i32, false)
+            .expect("failed to set minimal-height");
         activity
             .get_activity_widget()
             .set_transition_duration(config.transition_duration, false)
@@ -299,6 +323,21 @@ impl App {
                     module.get_config(),
                 )
             }
+        }
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        let (hdl, shutdown) = get_new_tokio_rt();
+        App {
+            window: get_window(),
+            module_map: Rc::new(Mutex::new(HashMap::new())),
+            producers_handle: hdl,
+            producers_shutdown: shutdown,
+            app_send: None,
+            config: config::Config::default(),
+            css_provider: gtk::CssProvider::new(),
         }
     }
 }

@@ -22,6 +22,7 @@ pub enum FilterBackend {
 /// outputs the result on surface1
 #[allow(clippy::too_many_arguments)]
 pub fn apply_blur_and_merge_opacity_dual(
+    //TODO implement downsampling
     // orig_surface: &mut gdk::cairo::Surface,
     surface_1: &mut gdk::cairo::ImageSurface,
     surface_2: &mut gdk::cairo::ImageSurface,

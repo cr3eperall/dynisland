@@ -46,7 +46,7 @@ pub struct GpuContext {
     pub merge_pipeline: ComputePipeline,
 }
 
-pub static WGPU_INSTANCE: Lazy<Mutex<GpuContext>> = Lazy::new(|| Mutex::new(GpuContext::new())); //TODO move to app::initialize_server and configure with config file
+pub static WGPU_INSTANCE: Lazy<Mutex<GpuContext>> = Lazy::new(|| Mutex::new(GpuContext::new()));
 impl GpuContext {
     pub fn new() -> Self {
         let name = "gaussian blur";
@@ -374,26 +374,25 @@ impl GpuContext {
             compute_pass.set_bind_group(1, &vertical_bind_group_1, &[]);
             let (dispatch_with, dispatch_height) =
                 compute_work_group_count((texture_size.width, texture_size.height), (128, 1));
-            compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
+            compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1); //TODO maybe dispatch texture_1 and texture_2 at the same time with 2 layers
             compute_pass.set_bind_group(1, &horizontal_bind_group_1, &[]);
             let (dispatch_height, dispatch_with) =
                 compute_work_group_count((texture_size.width, texture_size.height), (1, 128));
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
 
             //texture_2 blur
-            // compute_pass.set_pipeline(&self.blur_pipeline);
             compute_pass.set_bind_group(0, &compute_constants_2, &[]);
             compute_pass.set_bind_group(1, &vertical_bind_group_2, &[]);
             let (dispatch_with, dispatch_height) = compute_work_group_count(
                 (texture_2.size().width, texture_2.size().height),
                 (128, 1),
-            ); //TODO could be computed only once
+            );
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
             compute_pass.set_bind_group(1, &horizontal_bind_group_2, &[]);
             let (dispatch_height, dispatch_with) = compute_work_group_count(
                 (texture_2.size().width, texture_2.size().height),
                 (1, 128),
-            ); //TODO could be computed only once
+            );
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
 
             //texture merge
@@ -401,7 +400,7 @@ impl GpuContext {
             compute_pass.set_bind_group(0, &merge_opacity_bind, &[]);
             compute_pass.set_bind_group(1, &merge_textures_bind, &[]);
             let (dispatch_with, dispatch_height) =
-                compute_work_group_count((texture_size.width, texture_size.height), (16, 16)); //TODO could be computed only once
+                compute_work_group_count((texture_size.width, texture_size.height), (16, 16));
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
         }
         let output_buffer =

@@ -20,8 +20,6 @@ use super::{
     },
 };
 
-pub const MINIMAL_HEIGHT: i32 = 40; //TODO move to config
-
 #[derive(Clone, glib::Boxed, Debug)]
 #[boxed_type(name = "BoxedActivityMode")]
 pub enum ActivityMode {
@@ -43,14 +41,14 @@ pub struct ActivityWidgetPriv {
     mode: RefCell<ActivityMode>,
 
     #[property(get, nick = "Local CSS Provider")]
-    local_css_context: RefCell<ActivityWidgetLocalCssContext>, // TODO change in favor of StateTransition
+    local_css_context: RefCell<ActivityWidgetLocalCssContext>,
 
     #[property(get, set, nick = "Widget name")]
     name: RefCell<String>,
 
     last_mode: RefCell<ActivityMode>,
 
-    transition: RefCell<Transition>,
+    transition: RefCell<Transition>, // TODO change in favor of StateTransition
 
     background_widget: RefCell<Option<gtk::Widget>>,
 
@@ -127,7 +125,9 @@ impl ObjectImpl for ActivityWidgetPriv {
                         }
                     }
                     let height = match *self.mode.borrow() {
-                        ActivityMode::Minimal | ActivityMode::Compact => MINIMAL_HEIGHT,
+                        ActivityMode::Minimal | ActivityMode::Compact => {
+                            self.local_css_context.borrow().get_minimal_height()
+                        }
                         ActivityMode::Expanded | ActivityMode::Overlay => {
                             if widget.height_request() != -1 {
                                 widget.height_request()
@@ -244,10 +244,10 @@ impl ActivityWidgetPriv {
                     + ((parent_allocation.height() - height) as f32 / 2.0).ceil() as i32;
             }
             _ => {
-                glib::g_warning!(
-                    "warning",
-                    "align set to FILL/BASELINE,this will break resizing"
-                );
+                // glib::g_warning!(
+                //     "warning",
+                //     "align set to FILL/BASELINE,this will break resizing"
+                // ); //it doesn't break in valign, i don't remember why
                 y = parent_allocation.y();
                 height = parent_allocation.height();
             }
@@ -255,8 +255,6 @@ impl ActivityWidgetPriv {
         gtk::Allocation::new(x, y, width, height)
     }
     fn timing_functions(&self, progress: f32, timing_for: TimingFunction) -> f32 {
-        // TODO add information on bigger or smaller prev and next
-
         match timing_for {
             TimingFunction::BiggerBlur => {
                 self.local_css_context
@@ -364,6 +362,7 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-minimal");
         priv_.minimal_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Minimal = self.mode() {
+            let min_size = self.local_css_context().get_minimal_height();
             self.imp()
                 .local_css_context
                 .borrow_mut()
@@ -373,7 +372,7 @@ impl ActivityWidget {
                     } else {
                         widget.allocation().width()
                     },
-                    MINIMAL_HEIGHT,
+                    min_size,
                 ))
                 .expect("failed to set activity size");
             match widget.window() {
@@ -405,7 +404,7 @@ impl ActivityWidget {
                     } else {
                         widget.allocation().width()
                     },
-                    MINIMAL_HEIGHT,
+                    self.local_css_context().get_minimal_height(),
                 ))
                 .expect("failed to set activity size");
             match widget.window() {
@@ -527,6 +526,12 @@ impl ActivityWidget {
             .borrow_mut()
             .set_transition_duration(duration_millis, module)
     }
+    pub fn set_minimal_height(&self, height: i32, module: bool) -> Result<()> {
+        self.imp()
+            .local_css_context
+            .borrow_mut()
+            .set_minimal_height(height, module)
+    }
 
     crate::implement_set_transition!(pub, transition_size);
     crate::implement_set_transition!(pub, transition_bigger_blur);
@@ -607,33 +612,37 @@ impl ContainerImpl for ActivityWidgetPriv {
 //size allocation and draw
 impl WidgetImpl for ActivityWidgetPriv {
     fn preferred_width_for_height(&self, height: i32) -> (i32, i32) {
+        let min_height = self.local_css_context.borrow().get_minimal_height();
         match &*self.background_widget.borrow() {
             Some(content) if content.is_visible() => {
                 get_max_preferred_size(content.preferred_width_for_height(height), (height, height))
             }
-            _ => (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
+            _ => (min_height, min_height),
         }
     }
     fn preferred_height_for_width(&self, width: i32) -> (i32, i32) {
+        let min_height = self.local_css_context.borrow().get_minimal_height();
         match &*self.background_widget.borrow() {
             Some(content) if content.is_visible() => {
                 get_max_preferred_size(content.preferred_height_for_width(width), (0, width))
             }
-            _ => (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
+            _ => (min_height, min_height),
         }
     }
 
     fn preferred_height(&self) -> (i32, i32) {
+        let min_height = self.local_css_context.borrow().get_minimal_height();
         match &*self.background_widget.borrow() {
             Some(content) if content.is_visible() => content.preferred_height(),
-            _ => (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
+            _ => (min_height, min_height),
         }
     }
 
     fn preferred_width(&self) -> (i32, i32) {
+        let min_height = self.local_css_context.borrow().get_minimal_height();
         match &*self.background_widget.borrow() {
             Some(content) if content.is_visible() => content.preferred_width(),
-            _ => (MINIMAL_HEIGHT, MINIMAL_HEIGHT),
+            _ => (min_height, min_height),
         }
     }
 
@@ -668,7 +677,9 @@ impl WidgetImpl for ActivityWidgetPriv {
 
         if let Some(widget) = &*self.get_mode_widget(self.mode.borrow().clone()).borrow() {
             let height = match *self.mode.borrow() {
-                ActivityMode::Minimal | ActivityMode::Compact => MINIMAL_HEIGHT,
+                ActivityMode::Minimal | ActivityMode::Compact => {
+                    self.local_css_context.borrow().get_minimal_height()
+                }
                 ActivityMode::Expanded | ActivityMode::Overlay => {
                     if widget.height_request() != -1 {
                         widget.height_request()
@@ -755,7 +766,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                 // println!("bigger: w({}), h({})", next_size.0 > prev_size.0, next_size.1 > prev_size.1);
 
                 const RAD: f32 = 9.0;
-                const FILTER_BACKEND: FilterBackend = FilterBackend::Gpu; //TODO move to config file
+                const FILTER_BACKEND: FilterBackend = FilterBackend::Gpu; //TODO move to config file, if i implement everything on the cpu
 
                 let mut tmp_surface_1 = gtk::cairo::ImageSurface::create(
                     gdk::cairo::Format::ARgb32,
@@ -1005,7 +1016,7 @@ impl WidgetImpl for ActivityWidgetPriv {
     }
 }
 
-fn begin_draw_scaled_clip(
+pub fn begin_draw_scaled_clip(
     cr: &gdk::cairo::Context,
     (self_w, self_h): (f64, f64),
     (inner_w, inner_h): (f64, f64),

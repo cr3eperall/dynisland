@@ -99,12 +99,9 @@ impl FromStr for Bezier {
             "ease-in" => Ok(EASE_IN),
             "ease-out" => Ok(EASE_OUT),
             "ease-in-out" => Ok(EASE_IN_OUT),
-            "on" => Ok(ON),
-            "off" => Ok(OFF),
-            _ => {
-                //TODO maybe implement parser for point pair( "cubic-bezier(n,n,n,n)" )
-                Err("Not a valid named curve".to_string())
-            }
+            "step-end" => Ok(STEP_END),
+            "step-start" => Ok(STEP_START),
+            _ => Err("Not a valid named curve".to_string()),
         }
     }
 }
@@ -121,9 +118,9 @@ impl ToString for Bezier {
             "ease-out".to_string()
         } else if *self == EASE_IN_OUT {
             "ease-in-out".to_string()
-        } else if *self == ON {
+        } else if *self == STEP_END {
             "step-end".to_string()
-        } else if *self == OFF {
+        } else if *self == STEP_START {
             "step-start".to_string()
         } else {
             let (x1, y1, x2, y2) = self.control_points();
@@ -147,10 +144,10 @@ impl serde::Serialize for Bezier {
             serializer.serialize_str("ease-out")
         } else if *self == EASE_IN_OUT {
             serializer.serialize_str("ease-in-out")
-        } else if *self == ON {
-            serializer.serialize_str("on")
-        } else if *self == OFF {
-            serializer.serialize_str("off")
+        } else if *self == STEP_END {
+            serializer.serialize_str("step-end")
+        } else if *self == STEP_START {
+            serializer.serialize_str("step-start")
         } else {
             let mut state = serializer.serialize_struct("Bezier", 2)?;
             state.serialize_field("x", &self.x)?;
@@ -423,7 +420,7 @@ impl Bezier {
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str(
-                    r#"map or (`linear` | `ease` | `ease-in` | `ease-out` | `ease-in-out`)"#,
+                    r#"map or (`linear` | `ease` | `ease-in` | `ease-out` | `ease-in-out` | `step-end` | `step-start`)"#,
                 )
             }
 
@@ -458,10 +455,14 @@ impl Bezier {
 }
 impl Lerper for Bezier {
     fn calculate(&self, t: f32) -> f32 {
-        if *self == ON {
+        if *self == STEP_END {
             return 1.0;
-        } else if *self == OFF {
-            return 0.0;
+        } else if *self == STEP_START {
+            if t == 1.0 {
+                return 1.0;
+            } else {
+                return 0.0;
+            }
         }
         self.sample_y(self.solve_x(t))
     }
@@ -501,12 +502,12 @@ pub const LINEAR: Bezier = Bezier {
     y: (0.0, 3.0, -2.0),
 };
 
-pub const ON: Bezier = Bezier {
+pub const STEP_END: Bezier = Bezier {
     x: (f32::INFINITY, f32::INFINITY, f32::INFINITY),
     y: (f32::INFINITY, f32::INFINITY, f32::INFINITY),
 };
 
-pub const OFF: Bezier = Bezier {
+pub const STEP_START: Bezier = Bezier {
     x: (-f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
     y: (-f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
 };

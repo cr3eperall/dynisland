@@ -20,6 +20,11 @@ activity-widget {
 
 .mode-minimal{
     background-color: rgba(255, 192, 203, 1);
+
+    scrolling-label{
+        border: 20px solid rgb(0, 245, 45);
+        border-radius: 50px;
+    }
 }
 
 .mode-expanded{

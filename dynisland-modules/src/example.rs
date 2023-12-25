@@ -164,8 +164,6 @@ impl Module for ExampleModule {
     }
 
     fn init(&self) {
-        //TODO subdivide in phases
-
         let app_send = self.app_send.clone();
         let name = self.name.clone();
         let prop_send = self.prop_send.clone();
@@ -188,6 +186,7 @@ impl Module for ExampleModule {
                 .unwrap();
         });
     }
+
     fn parse_config(&mut self, config: Value) -> Result<()> {
         self.config = config
             .into_rust()
@@ -198,7 +197,7 @@ impl Module for ExampleModule {
 }
 
 impl ExampleModule {
-    //TODO add reference to module
+    //TODO add reference to module and recieve messages from main
     #[allow(unused_variables)]
     fn producer(
         activities: ActivityMap,
@@ -586,7 +585,7 @@ impl ExampleModule {
         activity
             .subscribe_to_property("comp-label", move |new_value| {
                 let real_value = cast_dyn_any!(new_value, String).unwrap();
-                compact //FIXME WTF is this, i need to change it
+                compact //FIXME WTF is this, i need to change it, maybe with a macro
                     .clone()
                     .downcast::<gtk::EventBox>()
                     .unwrap()
@@ -657,6 +656,7 @@ impl ExampleModule {
             .halign(gtk::Align::Center)
             .vexpand(false)
             .hexpand(false)
+            .homogeneous(true)
             .build();
         minimal.set_margin_start(20);
         minimal.set_margin_end(20);
@@ -671,7 +671,7 @@ impl ExampleModule {
 
         let scroll_label = ScrollingLabel::new();
         scroll_label.set_max_height(40);
-        scroll_label.set_max_width(140); // should be width+internal margins for vertical
+        scroll_label.set_max_width(140); // ?? should be width+internal margins for vertical
         scroll_label.set_orientation(Orientation::Horizontal);
         scroll_label.set_transition_roll(true);
         scroll_label.set_text("valueasdfvasdfasdfasdfasfd");
@@ -684,9 +684,9 @@ impl ExampleModule {
         minimal.add(&scroll_label);
 
         let minimal = gtk::EventBox::builder()
-            .height_request(40)
+            // .height_request(40)
             // .width_request(100)
-            .valign(gtk::Align::Center)
+            .valign(gtk::Align::Fill)
             .halign(gtk::Align::Center)
             .vexpand(false)
             .hexpand(false)
@@ -716,9 +716,9 @@ impl ExampleModule {
                 .build(),
         );
         let compact = gtk::EventBox::builder()
-            .height_request(40)
+            // .height_request(40)
             .width_request(280)
-            .valign(gtk::Align::Center)
+            .valign(gtk::Align::Fill)
             .halign(gtk::Align::Center)
             .vexpand(false)
             .hexpand(false)
@@ -748,7 +748,7 @@ impl ExampleModule {
         let expanded = gtk::EventBox::builder()
             .height_request(400)
             .width_request(500)
-            .valign(gtk::Align::Center)
+            .valign(gtk::Align::Fill)
             .halign(gtk::Align::Center)
             .vexpand(false)
             .hexpand(false)
@@ -771,7 +771,7 @@ impl ExampleModule {
             &gtk::Label::builder()
                 .label("Overlay label,\n Hello Hello \n Hello Hello")
                 .halign(gtk::Align::Center)
-                .valign(gtk::Align::Center)
+                .valign(gtk::Align::Fill)
                 .hexpand(true)
                 .build(),
         );
@@ -835,12 +835,10 @@ impl ExampleModule {
 //     }
 
 //     fn init(&self) {
-//         //TODO subdivide in phases
 
 //         //create ui channel
 //         let (prop_send, mut prop_recv) = tokio::sync::mpsc::unbounded_channel::<PropertyUpdate>();
 
-//         //TODO maybe move to server
 //         let app_send = self.app_send.clone();
 //         let name = self.name.clone();
 //         glib::MainContext::default().spawn_local(async move {
@@ -879,7 +877,6 @@ impl ExampleModule {
 // }
 
 // impl ExampleModule2 {
-//     //TODO replace 'activities' with module context
 //     fn producer(
 //         activities: ActivityMap,
 //         rt: &Handle,
@@ -888,7 +885,6 @@ impl ExampleModule {
 //     ) {
 //         //data producer
 //         let _config: &ExampleConfig = cast_dyn_any!(config, ExampleConfig).unwrap();
-//         //TODO shouldn't be blocking locks, maybe execute async with glib::MainContext
 //         let act = activities.blocking_lock();
 //         let mode = act
 //             .get("exampleActivity2")

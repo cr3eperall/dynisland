@@ -23,7 +23,6 @@ use crate::graphics::activity_widget::ActivityWidget;
 pub static MODULES: [fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module>];
 
 pub enum UIServerCommand {
-    //TODO change to APIServerCommand
     AddActivity(String, Rc<Mutex<DynamicActivity>>),
     AddProducer(String, Producer),
     RemoveActivity(String, String), //TODO needs to be tested
@@ -188,7 +187,6 @@ pub struct SubscribableProperty {
 }
 
 pub struct DynamicActivity {
-    //TODO change to getters and setters
     pub(crate) widget: ActivityWidget,
     pub(crate) property_dictionary: HashMap<String, SubscribableProperty>,
     pub(crate) ui_send: UnboundedSender<PropertyUpdate>,

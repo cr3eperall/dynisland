@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use colored::Colorize;
 use dynisland_core::graphics::animations::soy::{self, Bezier};
 use ron::Value;
 use serde::{Deserialize, Serialize};
 
-pub const CONFIG_FILE: &str = "/home/david/.config/dynisland/dynisland.ron"; //TODO add cli override
+pub const CONFIG_REL_PATH: &str = "dynisland/"; //TODO add cli override
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -15,6 +15,8 @@ pub struct Config {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct GeneralConfig {
+    #[serde(default = "min_height")]
+    pub minimal_height: u32,
     #[serde(default = "t_d_default")]
     pub transition_duration: u64,
     #[serde(
@@ -54,6 +56,10 @@ pub struct GeneralConfig {
     pub transition_smaller_opacity: Bezier,
 }
 
+fn min_height() -> u32 {
+    40
+}
+
 fn t_d_default() -> u64 {
     1000
 }
@@ -87,6 +93,7 @@ impl Default for Config {
         Self {
             module_config: map,
             general_config: GeneralConfig {
+                minimal_height: min_height(),
                 transition_duration: t_d_default(),
                 transition_size: t_s_default(),
                 transition_bigger_blur: t_bb_default(),
@@ -95,14 +102,21 @@ impl Default for Config {
                 transition_smaller_blur: t_sb_default(),
                 transition_smaller_stretch: t_ss_default(),
                 transition_smaller_opacity: t_so_default(),
-                //TODO find a way to add scrolling label defaults
+                //TODO find a way to add scrolling label to settings
             },
         }
     }
 }
 
+pub fn get_config_path() -> PathBuf {
+    glib::user_config_dir().join(CONFIG_REL_PATH)
+}
+
 pub fn get_config() -> Config {
-    let content = std::fs::read_to_string(CONFIG_FILE).expect("failed to read config file");
+    let config_path = glib::user_config_dir()
+        .join(CONFIG_REL_PATH)
+        .join("dynisland.ron");
+    let content = std::fs::read_to_string(config_path).expect("failed to read config file");
     let ron: Config = ron::de::from_str(&content).unwrap_or_else(|err| {
         println!(
             "{} {}",
