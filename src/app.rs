@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, collections::HashMap, path::Path, rc::Rc};
+use std::{collections::HashMap, path::Path, rc::Rc};
 
 use anyhow::Result;
 use gtk::prelude::*;
@@ -13,7 +13,7 @@ use tokio::{
 
 use crate::config::{self, Config, GeneralConfig};
 
-use dynisland_core::base_module::{DynamicActivity, Module, UIServerCommand, MODULES};
+use dynisland_core::base_module::{Module, UIServerCommand, MODULES};
 
 pub enum BackendServerCommand {
     ReloadConfig(),
@@ -106,7 +106,8 @@ impl App {
                         Self::update_general_configs_on_activity(
                             &self.config.general_config,
                             &activity,
-                        ).await;
+                        )
+                        .await;
                         let map = map.lock().await;
                         let module = map
                             .get(&module_identifier)
@@ -229,10 +230,8 @@ impl App {
     async fn update_general_configs(&mut self) {
         for module in self.module_map.blocking_lock().values_mut() {
             for activity in module.get_registered_activities().lock().await.values() {
-                Self::update_general_configs_on_activity(
-                    &self.config.general_config,
-                    activity,
-                ).await;
+                Self::update_general_configs_on_activity(&self.config.general_config, activity)
+                    .await;
             }
         }
     }
@@ -241,8 +240,9 @@ impl App {
         config: &GeneralConfig,
         activity: &Mutex<dynisland_core::base_module::DynamicActivity>,
     ) {
-        let activity=activity.lock().await;
-        activity.get_activity_widget()        
+        let activity = activity.lock().await;
+        activity
+            .get_activity_widget()
             .set_transition_duration(config.transition_duration, false)
             .expect("failed to set transition-duration");
         activity
