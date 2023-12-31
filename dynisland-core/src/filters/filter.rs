@@ -56,7 +56,7 @@ pub fn apply_blur_and_merge_opacity_dual(
         match backend {
             FilterBackend::Gpu => {
                 // let start2=Instant::now();
-                // println!("data1: {}, target: {}",surface_data_1.len(), target_surface_data.len());
+                // trace!("data1: {}, target: {}",surface_data_1.len(), target_surface_data.len());
 
                 super::gpu_filter::WGPU_INSTANCE
                     .blocking_lock()
@@ -129,7 +129,7 @@ pub fn apply_blur(
                         sigma,
                     );
 
-                // let dur2= start2.elapsed();
+                // let dur2= start2.elapsed(); //TODO implement something nicer
                 // {
                 //     const samples: u128=1000;
                 //     let mut perf=PERF.blocking_lock();
@@ -146,7 +146,7 @@ pub fn apply_blur(
                 //         let p9=Duration::from_micros((*vec.get(90).unwrap()).try_into().unwrap());
                 //         let p99 = Duration::from_micros((*vec.get(990).unwrap()).try_into().unwrap());
                 //         let p999=Duration::from_micros((*vec.get(999).unwrap()).try_into().unwrap());
-                //         println!("RAW:{:?} avg: {:?}, 9th p: {:?}, 99th p: {:?}, 999th p: {:?}",backend, avg, p9, p99, p999);
+                //         trace!("RAW:{:?} avg: {:?}, 9th p: {:?}, 99th p: {:?}, 999th p: {:?}",backend, avg, p9, p99, p999);
                 //     }
                 // }
             }
@@ -182,7 +182,7 @@ pub fn apply_blur(
                 //         let p9=Duration::from_micros((*vec.get(90).unwrap()).try_into().unwrap());
                 //         let p99 = Duration::from_micros((*vec.get(990).unwrap()).try_into().unwrap());
                 //         let p999=Duration::from_micros((*vec.get(999).unwrap()).try_into().unwrap());
-                //         println!("RAW:{:?} avg: {:?}, 9th p: {:?}, 99th p: {:?}, 999th p: {:?}",backend, avg, p9, p99, p999);
+                //         trace!("RAW:{:?} avg: {:?}, 9th p: {:?}, 99th p: {:?}, 999th p: {:?}",backend, avg, p9, p99, p999);
                 //     }
                 // }
             }
@@ -204,7 +204,7 @@ pub fn apply_blur(
         //         let p9 = Duration::from_micros((*vec.get(90).unwrap()).try_into().unwrap());
         //         let p99 = Duration::from_micros((*vec.get(990).unwrap()).try_into().unwrap());
         //         let p999 = Duration::from_micros((*vec.get(999).unwrap()).try_into().unwrap());
-        //         println!(
+        //         trace!(
         //             "{:?} avg: {:?}, 9th p: {:?}, 99th p: {:?}, 999th p: {:?}",
         //             backend, avg, p9, p99, p999
         //         );

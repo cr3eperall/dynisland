@@ -55,6 +55,17 @@ impl Transition {
     }
 }
 
+impl Debug for Transition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StateTransition")
+            .field("duration", &self.duration)
+            .field("start_time", &self.start_time)
+            .field("remaining-time", &self.duration_to_end())
+            .field("running", &self.is_active())
+            .finish()
+    }
+}
+
 pub trait StateStruct: Clone + Default + Debug {
     type StateEnum: Copy + Clone;
     fn timer_ended_callback(state_transition: &mut StateTransition<Self>);

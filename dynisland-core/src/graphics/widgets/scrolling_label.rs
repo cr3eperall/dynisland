@@ -7,6 +7,7 @@ use anyhow::{bail, Context, Result};
 use glib::{object_subclass, prelude::*, wrapper};
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
+use log::error;
 
 use crate::graphics::{
     activity_widget,
@@ -453,7 +454,7 @@ impl BinImpl for ScrollingLabelPriv {}
 impl ScrollingLabelPriv {
     fn get_child_aligned_allocation(&self, child: &gtk::Label) -> gdk::Rectangle {
         let parent_allocation = self.obj().allocation();
-        // println!("parent alloc: ({}, {})", parent_allocation.width(), parent_allocation.height());
+        // trace!("parent alloc: ({}, {})", parent_allocation.width(), parent_allocation.height());
         let x: i32;
         let y: i32;
         let mut width = match *self.orientation.borrow() {
@@ -464,7 +465,7 @@ impl ScrollingLabelPriv {
             }
             Orientation::Vertical => *self.max_width.borrow(),
         };
-        // println!("max_w: {}",*self.max_width.borrow());
+        // trace!("max_w: {}",*self.max_width.borrow());
         let mut height = match *self.orientation.borrow() {
             Orientation::Horizontal => child.preferred_height().1,
             Orientation::Vertical => child.preferred_height_for_width(*self.max_width.borrow()).1,
@@ -623,12 +624,12 @@ impl WidgetImpl for ScrollingLabelPriv {
     fn size_allocate(&self, allocation: &gdk::Rectangle) {
         self.obj().set_allocation(allocation);
         self.obj().set_clip(allocation);
-        // println!("clip: {:?}", self.obj().clip());
+        // trace!("clip: {:?}", self.obj().clip());
 
         let inner = &*self.inner_label.borrow();
         let allocation = self.get_child_aligned_allocation(inner);
         inner.size_allocate(&allocation);
-        // println!("orientation: {:?}, child alloc: ({}, {})", self.orientation.borrow(), inner.allocation().width(), inner.allocation().height());
+        // trace!("orientation: {:?}, child alloc: ({}, {})", self.orientation.borrow(), inner.allocation().width(), inner.allocation().height());
         self.update_running_transition_duration();
     }
 
@@ -848,15 +849,15 @@ impl WidgetImpl for ScrollingLabelPriv {
         };
 
         if let Err(err) = res {
-            eprintln!("{err}");
+            error!("{err}");
         }
 
         logs.push(format!("total: {:?}", start.elapsed()));
         // for log in &logs {
-        //     println!("{log}"); //TODO maybe create a utility library
+        //     debug!("{log}"); //TODO maybe create a utility library
         // }
         // if !logs.is_empty() {
-        //     println!();
+        //     debug!();
         // }
         // todo!();
         glib::Propagation::Proceed

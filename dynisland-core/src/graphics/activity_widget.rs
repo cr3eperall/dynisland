@@ -1,3 +1,4 @@
+use log::{debug, error};
 use rand::{distributions::Alphanumeric, Rng};
 use std::{
     cell::RefCell,
@@ -104,7 +105,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                             //lower previous window associated to widget if it has one, this disables events on the last mode widget
                             Some(window) => window.lower(),
                             None => {
-                                // println!("no window");
+                                // debug!("no window");
                             }
                         }
                     }
@@ -113,7 +114,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                             //lower previous window associated to widget if it has one, this disables events on the last mode widget
                             Some(window) => window.raise(),
                             None => {
-                                // println!("no window");
+                                // debug!("no window");
                             }
                         }
                     }
@@ -121,31 +122,17 @@ impl ObjectImpl for ActivityWidgetPriv {
                         //raise window associated to widget if it has one, this enables events on the active mode widget
                         Some(window) => window.raise(),
                         None => {
-                            // println!("no window");
+                            // debug!("no window");
                         }
                     }
-                    let height = match *self.mode.borrow() {
-                        ActivityMode::Minimal | ActivityMode::Compact => {
-                            self.local_css_context.borrow().get_minimal_height()
-                        }
-                        ActivityMode::Expanded | ActivityMode::Overlay => {
-                            if widget.height_request() != -1 {
-                                widget.height_request()
-                            } else {
-                                widget.allocation().height()
-                            }
-                        }
-                    };
+                    let (width, height) = get_final_widget_size(
+                        widget,
+                        self.mode.borrow().clone(),
+                        self.local_css_context.borrow().get_minimal_height(),
+                    );
                     self.local_css_context
                         .borrow_mut()
-                        .set_size((
-                            if widget.width_request() != -1 {
-                                widget.width_request()
-                            } else {
-                                widget.allocation().width()
-                            },
-                            height,
-                        ))
+                        .set_size((width, height))
                         .expect("failed to set activity size");
                 }
                 self.obj().queue_draw(); // Queue a draw call with the updated value
@@ -244,10 +231,10 @@ impl ActivityWidgetPriv {
                     + ((parent_allocation.height() - height) as f32 / 2.0).ceil() as i32;
             }
             _ => {
-                // glib::g_warning!(
-                //     "warning",
-                //     "align set to FILL/BASELINE,this will break resizing"
-                // ); //it doesn't break in valign, i don't remember why
+                glib::g_warning!(
+                    "warning",
+                    "align set to FILL/BASELINE,this will break resizing"
+                );
                 y = parent_allocation.y();
                 height = parent_allocation.height();
             }
@@ -321,6 +308,17 @@ impl ObjectSubclass for ActivityWidgetPriv {
 
     fn class_init(klass: &mut Self::Class) {
         klass.set_css_name("activity-widget");
+        // unsafe {
+        //     let widget_class = klass as *mut _ as *mut gtk::ffi::GtkWidgetClass;
+        //     let mut n: c_uint=0;
+        //     let out = gtk::ffi::gtk_widget_class_list_style_properties(widget_class, &mut n);
+        //     let sl = std::slice::from_raw_parts_mut(out, n.try_into().unwrap());
+        //     for prop in sl {
+        //         let pspec=glib::ParamSpec::from_glib_ptr_borrow(&prop.cast_const());
+        //      }
+
+        //     gtk::ffi::gtk_widget_class_install_style_property(klass, pspec)
+        // }
     }
 }
 
@@ -362,24 +360,21 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-minimal");
         priv_.minimal_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Minimal = self.mode() {
-            let min_size = self.local_css_context().get_minimal_height();
+            let (width, height) = get_final_widget_size(
+                widget,
+                self.mode(),
+                self.local_css_context().get_minimal_height(),
+            );
             self.imp()
                 .local_css_context
                 .borrow_mut()
-                .set_size((
-                    if widget.width_request() != -1 {
-                        widget.width_request()
-                    } else {
-                        widget.allocation().width()
-                    },
-                    min_size,
-                ))
+                .set_size((width, height))
                 .expect("failed to set activity size");
             match widget.window() {
                 //raise window associated to widget if it has one, this enables events on the active mode widget
                 Some(window) => window.raise(),
                 None => {
-                    // println!("no window");
+                    // debug!("no window");
                 }
             }
         }
@@ -395,23 +390,21 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-compact");
         priv_.compact_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Compact = self.mode() {
+            let (width, height) = get_final_widget_size(
+                widget,
+                self.mode(),
+                self.local_css_context().get_minimal_height(),
+            );
             self.imp()
                 .local_css_context
                 .borrow_mut()
-                .set_size((
-                    if widget.width_request() != -1 {
-                        widget.width_request()
-                    } else {
-                        widget.allocation().width()
-                    },
-                    self.local_css_context().get_minimal_height(),
-                ))
+                .set_size((width, height))
                 .expect("failed to set activity size");
             match widget.window() {
                 //raise window associated to widget if it has one, this enables events on the active mode widget
                 Some(window) => window.raise(),
                 None => {
-                    // println!("no window");
+                    // debug!("no window");
                 }
             }
         }
@@ -427,27 +420,21 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-expanded");
         priv_.expanded_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Expanded = self.mode() {
+            let (width, height) = get_final_widget_size(
+                widget,
+                self.mode(),
+                self.local_css_context().get_minimal_height(),
+            );
             self.imp()
                 .local_css_context
                 .borrow_mut()
-                .set_size((
-                    if widget.width_request() != -1 {
-                        widget.width_request()
-                    } else {
-                        widget.allocation().width()
-                    },
-                    if widget.height_request() != -1 {
-                        widget.height_request()
-                    } else {
-                        widget.allocation().height()
-                    },
-                ))
+                .set_size((width, height))
                 .expect("failed to set activity size");
             match widget.window() {
                 //raise window associated to widget if it has one, this enables events on the active mode widget
                 Some(window) => window.raise(),
                 None => {
-                    // println!("no window");
+                    // debug!("no window");
                 }
             }
         }
@@ -463,27 +450,21 @@ impl ActivityWidget {
         widget.style_context().add_class("mode-overlay");
         priv_.overlay_mode_widget.replace(Some(widget.clone()));
         if let ActivityMode::Overlay = self.mode() {
+            let (width, height) = get_final_widget_size(
+                widget,
+                self.mode(),
+                self.local_css_context().get_minimal_height(),
+            );
             self.imp()
                 .local_css_context
                 .borrow_mut()
-                .set_size((
-                    if widget.width_request() != -1 {
-                        widget.width_request()
-                    } else {
-                        widget.allocation().width()
-                    },
-                    if widget.height_request() != -1 {
-                        widget.height_request()
-                    } else {
-                        widget.allocation().height()
-                    },
-                ))
+                .set_size((width, height))
                 .expect("failed to set activity size");
             match widget.window() {
                 //raise window associated to widget if it has one, this enables events on the active mode widget
                 Some(window) => window.raise(),
                 None => {
-                    // println!("no window");
+                    // debug!("no window");
                 }
             }
         }
@@ -647,9 +628,7 @@ impl WidgetImpl for ActivityWidgetPriv {
     }
 
     fn size_allocate(&self, allocation: &gdk::Rectangle) {
-        // println!("activity allocate: ({}, {})", allocation.width(), allocation.height());
-        // let sc=self.obj().style_context();
-        // println!("path: \n{}", sc.path().unwrap());
+        // trace!("activity allocate: ({}, {})", allocation.width(), allocation.height());
 
         if let Some(content) = &*self.background_widget.borrow() {
             content.size_allocate(allocation);
@@ -676,31 +655,17 @@ impl WidgetImpl for ActivityWidgetPriv {
         }
 
         if let Some(widget) = &*self.get_mode_widget(self.mode.borrow().clone()).borrow() {
-            let height = match *self.mode.borrow() {
-                ActivityMode::Minimal | ActivityMode::Compact => {
-                    self.local_css_context.borrow().get_minimal_height()
-                }
-                ActivityMode::Expanded | ActivityMode::Overlay => {
-                    if widget.height_request() != -1 {
-                        widget.height_request()
-                    } else {
-                        widget.allocation().height()
-                    }
-                }
-            };
+            let (width, height) = get_final_widget_size(
+                widget,
+                self.mode.borrow().clone(),
+                self.local_css_context.borrow().get_minimal_height(),
+            );
             self.local_css_context
                 .borrow_mut()
-                .set_size((
-                    if widget.width_request() != -1 {
-                        widget.width_request()
-                    } else {
-                        widget.allocation().width()
-                    },
-                    height,
-                ))
+                .set_size((width, height))
                 .expect("failed to set activity size");
         }
-        // println!("css_size: {:?}",self.local_css_context.borrow().get_size());
+        // trace!("css_size: {:?}",self.local_css_context.borrow().get_size());
     }
 
     fn draw(&self, cr: &gdk::cairo::Context) -> glib::Propagation {
@@ -708,6 +673,19 @@ impl WidgetImpl for ActivityWidgetPriv {
         let mut logs: Vec<String> = vec![];
         let start = Instant::now();
         let mut time = Instant::now();
+
+        // let binding = self.obj();
+        // let klass = binding.class();
+        // unsafe {
+        //     let widget_class = klass.as_ref() as *const _ as *mut gtk::ffi::GtkWidgetClass;
+        //     let mut n: c_uint=0;
+        //     let out = gtk::ffi::gtk_widget_class_list_style_properties(widget_class, &mut n);
+        //     let sl = std::slice::from_raw_parts_mut(out, n.try_into().unwrap());
+        //     for prop in sl {
+        //         let pspec=glib::ParamSpec::from_glib_ptr_borrow(&prop.cast_const());
+        //     }
+
+        // }
         let res: Result<()> = try {
             cr.save()?;
             cr.move_to(
@@ -749,21 +727,30 @@ impl WidgetImpl for ActivityWidgetPriv {
             //animate blur and opacity if during transition
             if self.transition.borrow().is_active() {
                 let progress = self.transition.borrow().get_progress();
-                // println!("{}, start: {:?}, dur: {:?}",progress, self.transition.borrow().start_time.elapsed(), self.transition.borrow().duration);
+                // trace!("{}, start: {:?}, dur: {:?}",progress, self.transition.borrow().start_time.elapsed(), self.transition.borrow().duration);
                 let last_widget_to_render = self.get_mode_widget(self.last_mode.borrow().clone());
 
                 let prev_size = if let Some(widget) = &*last_widget_to_render.borrow() {
-                    widget.size_request()
+                    get_final_widget_size(
+                        widget,
+                        self.last_mode.borrow().clone(),
+                        self.local_css_context.borrow().get_minimal_height(),
+                    )
                 } else {
                     (0, 0)
                 };
                 let next_size = if let Some(widget) = &*widget_to_render.borrow() {
-                    widget.size_request()
+                    get_final_widget_size(
+                        widget,
+                        self.mode.borrow().clone(),
+                        self.local_css_context.borrow().get_minimal_height(),
+                    )
                 } else {
                     (0, 0)
                 };
+
                 let bigger = next_size.0 > prev_size.0 || next_size.1 > prev_size.1;
-                // println!("bigger: w({}), h({})", next_size.0 > prev_size.0, next_size.1 > prev_size.1);
+                // trace!("bigger: w({}), h({})", next_size.0 > prev_size.0, next_size.1 > prev_size.1);
 
                 const RAD: f32 = 9.0;
                 const FILTER_BACKEND: FilterBackend = FilterBackend::Gpu; //TODO move to config file, if i implement everything on the cpu
@@ -774,14 +761,15 @@ impl WidgetImpl for ActivityWidgetPriv {
                     self_h as i32,
                 )
                 .with_context(|| "failed to create new imagesurface")?;
+                //PREV
                 if let Some(widget) = &*last_widget_to_render.borrow() {
-                    let wid_w = widget.allocation().width() as f64;
-                    let wid_h = widget.allocation().height() as f64;
-
                     let tmp_cr = gdk::cairo::Context::new(&tmp_surface_1)
                         .with_context(|| "failed to retrieve context from tmp surface")?;
 
-                    let (mut sx, mut sy) = (self_w / wid_w, self_h / wid_h);
+                    let (mut sx, mut sy) = (
+                        self_w / prev_size.0 as f64,
+                        self_h / prev_size.1 as f64,
+                    );
                     let scale_prog = self.timing_functions(
                         progress,
                         if bigger {
@@ -793,14 +781,17 @@ impl WidgetImpl for ActivityWidgetPriv {
 
                     sx = (1.0 - scale_prog) + sx * scale_prog; // 0->1 | 1-> +sx >1 | 0.5-> 0.5+sx/2=(1+sx)/2 >1
                     sy = (1.0 - scale_prog) + sy * scale_prog;
-
+                    
                     //setup clip
-                    let radius = f64::min(border_radius, f64::min(wid_h / 2.0, wid_w / 2.0));
+                    let radius = f64::min(
+                        border_radius,
+                        f64::min((prev_size.0 as f64 * sx) / 2.0, (prev_size.1 as f64 * sy) / 2.0),
+                    );
 
                     begin_draw_scaled_clip(
                         &tmp_cr,
                         (self_w, self_h),
-                        (wid_w, wid_h),
+                        (prev_size.0 as f64, prev_size.1 as f64),
                         (sx, sy),
                         radius,
                     );
@@ -809,8 +800,11 @@ impl WidgetImpl for ActivityWidgetPriv {
                     tmp_cr.scale(sx, sy);
 
                     tmp_cr.translate(
-                        -(self_w - wid_w) / 2.0 + (self_w - wid_w * sx) / (2.0 * sx),
-                        -(self_h - wid_h) / 2.0 + (self_h - wid_h * sy) / (2.0 * sy),
+                        //V
+                        -(self_w - prev_size.0 as f64) / 2.0
+                            + (self_w - prev_size.0 as f64 * sx) / (2.0 * sx),
+                        -(self_h - prev_size.1 as f64) / 2.0
+                            + (self_h - prev_size.1 as f64 * sy) / (2.0 * sy),
                     );
 
                     self.obj().propagate_draw(widget, &tmp_cr);
@@ -854,16 +848,18 @@ impl WidgetImpl for ActivityWidgetPriv {
                     self_h as i32,
                 )
                 .with_context(|| "failed to create new imagesurface")?;
-
+                //NEXT
                 if let Some(widget) = &*widget_to_render.borrow() {
-                    let wid_w = widget.allocation().width() as f64;
-                    let wid_h = widget.allocation().height() as f64;
 
                     let tmp_cr = gdk::cairo::Context::new(&tmp_surface_2)
                         .with_context(|| "failed to retrieve context from tmp surface")?;
 
-                    let (mut sx, mut sy) = (self_w / wid_w, self_h / wid_h);
-                    let scale_prog = self.timing_functions(
+                    let (mut sx, mut sy) = (
+                        self_w / next_size.0 as f64,
+                        self_h / next_size.1 as f64,
+                    );
+
+                    let scale_prog =self.timing_functions(
                         1.0 - progress,
                         if bigger {
                             TimingFunction::SmallerStretch
@@ -872,25 +868,32 @@ impl WidgetImpl for ActivityWidgetPriv {
                         },
                     ) as f64;
 
-                    sx = (1.0 - scale_prog) + sx * scale_prog;
+                    sx = (1.0 - scale_prog) + sx * scale_prog; // 0->1 | 1-> +sx >1 | 0.5-> 0.5+sx/2=(1+sx)/2 >1
                     sy = (1.0 - scale_prog) + sy * scale_prog;
-
+                    
                     //setup clip
-                    let radius = f64::min(border_radius, f64::min(wid_h / 2.0, wid_w / 2.0));
+                    let radius = f64::min(
+                        border_radius,
+                        f64::min((next_size.0 as f64 * sx) / 2.0, (next_size.1 as f64 * sx) / 2.0)
+                    );
 
                     begin_draw_scaled_clip(
                         &tmp_cr,
                         (self_w, self_h),
-                        (wid_w, wid_h),
+                        (next_size.0 as f64, next_size.1 as f64),
                         (sx, sy),
                         radius,
                     );
 
                     //scale and center
                     tmp_cr.scale(sx, sy);
+
                     tmp_cr.translate(
-                        -(self_w - wid_w) / 2.0 + (self_w - wid_w * sx) / (2.0 * sx),
-                        -(self_h - wid_h) / 2.0 + (self_h - wid_h * sy) / (2.0 * sy),
+                        //V
+                        -(self_w - next_size.0 as f64) / 2.0
+                            + (self_w - next_size.0 as f64 * sx) / (2.0 * sx),
+                        -(self_h - next_size.1 as f64) / 2.0
+                            + (self_h - next_size.1 as f64 * sy) / (2.0 * sy),
                     );
 
                     self.obj().propagate_draw(widget, &tmp_cr);
@@ -1002,16 +1005,19 @@ impl WidgetImpl for ActivityWidgetPriv {
         };
 
         if let Err(err) = res {
-            eprintln!("{err}");
+            error!("{err}");
         }
 
-        logs.push(format!("total: {:?}\n", start.elapsed()));
+        logs.push(format!("total: {:?}", start.elapsed()));
 
-        // if start.elapsed()>Duration::from_millis(16){
-        //     for log in logs {
-        //         println!("{log}"); //TODO maybe create a utility library
-        //     }
-        // }
+        if start.elapsed() > Duration::from_millis(16) {
+            let mut out = String::from("\n");
+            for log in logs {
+                out.push_str(&log);
+                out.push('\n');
+            }
+            debug!("{out}"); //TODO maybe create a utility library
+        }
         glib::Propagation::Proceed
     }
 }
@@ -1076,4 +1082,27 @@ pub fn begin_draw_scaled_clip(
 
 fn get_max_preferred_size(m1: (i32, i32), m2: (i32, i32)) -> (i32, i32) {
     (std::cmp::max(m1.0, m2.0), std::cmp::max(m1.1, m2.1))
+}
+
+fn get_final_widget_size(
+    widget: &gtk::Widget,
+    mode: ActivityMode,
+    minimal_height: i32,
+) -> (i32, i32) {
+    let height = match mode {
+        ActivityMode::Minimal | ActivityMode::Compact => minimal_height,
+        ActivityMode::Expanded | ActivityMode::Overlay => {
+            if widget.height_request() != -1 {
+                widget.height_request()
+            } else {
+                widget.allocation().height()
+            }
+        }
+    };
+    let width = if widget.width_request() != -1 {
+        widget.width_request()
+    } else {
+        widget.allocation().width()
+    };
+    (width, height)
 }

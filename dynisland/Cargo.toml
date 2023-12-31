@@ -21,3 +21,6 @@ grass = {version = "0.13.1", default-features = false} #scss parsing
 ron = "0.8.1"
 serde = { version = "1.0.188", features = ["serde_derive"] }
 colored="2.1.0"
+env_logger = "0.10.1"
+log = "0.4.20"
+

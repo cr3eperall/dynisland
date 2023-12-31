@@ -134,7 +134,7 @@ impl ActivityWidgetLocalCssContext {
         let name = self.name.as_str();
         let transition_duration = self.get_transition_duration();
         let size_timing_function = self.get_transition_size().to_string();
-        // println!("{size_timing_function}");
+        // debug!("{size_timing_function}");
         let css = if self.stretch_on_resize {
             format!(
                 r".{name} .activity-background, .{name} .activity-background * {{ 
@@ -179,7 +179,7 @@ impl ActivityWidgetLocalCssContext {
                 }}"
             )
         };
-        // println!("{css}");
+        // trace!("{css}");
         self.css_provider
             .load_from_data(css.as_bytes())
             .with_context(|| "failed to update css provider data")

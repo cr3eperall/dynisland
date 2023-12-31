@@ -28,7 +28,7 @@ macro_rules! implement_get_set {
         });
         concat_idents::concat_idents!(name = set_, $val {
             $vis fn name(&mut self, value: $type, module: bool) -> Result<()> {
-                // println!("tried to set value {:?}", value);
+                // trace!("tried to set value {:?}", value);
                 if self.$val.value == value {
                     return Ok(());
                 }

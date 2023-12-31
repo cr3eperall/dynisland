@@ -8,6 +8,7 @@ use anyhow::{Context, Ok, Result};
 use async_trait::async_trait;
 use gtk::prelude::*;
 use linkme::distributed_slice;
+use log::debug;
 use ron::Value;
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -96,7 +97,7 @@ impl Module for ExampleModule {
     //                             }
     //                         }
     //                         Err(_err) => {
-    //                             // eprintln!("{}", err)
+    //                             // error!("{}", err)
     //                         }
     //                     }
     //                 }
@@ -110,12 +111,12 @@ impl Module for ExampleModule {
     //                                 }
     //                             }
     //                             Err(_err) => {
-    //                                 // eprintln!("{}", err)
+    //                                 // error!("{}", err)
     //                             }
     //                         }
     //                     }
     //                     None => {
-    //                         eprintln!("activity {} not found on ExampleModule", res.activity_id);
+    //                         error!("activity {} not found on ExampleModule", res.activity_id);
     //                     }
     //                 }
     //             }
@@ -260,9 +261,9 @@ impl ExampleModule {
         //     ))
         //     .unwrap();
 
-        // println!("starting task");
+        // debug!("starting task");
         rt.spawn(async move {
-            // println!("task started");
+            // debug!("task started");
             // mode.lock().await.set(ActivityMode::Minimal).unwrap();
             // loop {
             //     // scrolling_enabled.lock().await.set(false).unwrap();
@@ -354,7 +355,7 @@ impl ExampleModule {
 
         // activity_widget.connect_mode_notify(|f| {
         // let l = f.mode();
-        // println!("Changed mode: {:?}", l);
+        // debug!("Changed mode: {:?}", l);
         // });
 
         activity.set_activity_widget(activity_widget.clone());
@@ -378,7 +379,7 @@ impl ExampleModule {
         activity
             .subscribe_to_property("scrolling-transition-enabled", move |new_value| {
                 let real_value = cast_dyn_any!(new_value, bool).unwrap();
-                // println!("enabled changed:{real_value}");
+                // debug!("enabled changed:{real_value}");
                 minimal_cl
                     .clone()
                     .downcast::<gtk::EventBox>()
@@ -403,7 +404,7 @@ impl ExampleModule {
         activity
             .subscribe_to_property("scrolling-label-text", move |new_value| {
                 let real_value = cast_dyn_any!(new_value, String).unwrap();
-                // println!("text changed:{real_value}");
+                // debug!("text changed:{real_value}");
                 minimal_cl
                     .clone()
                     .downcast::<gtk::EventBox>()
@@ -428,7 +429,7 @@ impl ExampleModule {
         let m1 = mode.clone();
         minimal.connect_button_release_event(move |_wid, ev| {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
-                println!("min");
+                debug!("min");
                 let m1 = m1.clone();
                 match ev.button() {
                     gdk::BUTTON_PRIMARY => {
@@ -451,7 +452,7 @@ impl ExampleModule {
         let m1 = mode.clone();
         compact.connect_button_release_event(move |_wid, ev| {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
-                println!("comp");
+                debug!("comp");
                 let m1 = m1.clone();
                 match ev.button() {
                     gdk::BUTTON_PRIMARY => {
@@ -474,7 +475,7 @@ impl ExampleModule {
         let m1 = mode.clone();
         expanded.connect_button_release_event(move |_wid, ev| {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
-                println!("exp");
+                debug!("exp");
                 let m1 = m1.clone();
                 match ev.button() {
                     gdk::BUTTON_PRIMARY => {
@@ -497,7 +498,7 @@ impl ExampleModule {
         let m1 = mode.clone();
         overlay.connect_button_release_event(move |_wid, ev| {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
-                println!("exp");
+                debug!("exp");
                 let m1 = m1.clone();
                 match ev.button() {
                     gdk::BUTTON_PRIMARY => {
@@ -520,7 +521,7 @@ impl ExampleModule {
         let m1 = mode.clone();
         background.connect_button_release_event(move |_wid, ev| {
             if let gdk::EventType::ButtonRelease = ev.event_type() {
-                // println!("bg");
+                // debug!("bg");
                 let m1 = m1.clone();
                 match ev.button() {
                     gdk::BUTTON_PRIMARY => {
@@ -686,7 +687,7 @@ impl ExampleModule {
         let minimal = gtk::EventBox::builder()
             // .height_request(40)
             // .width_request(100)
-            .valign(gtk::Align::Fill)
+            .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
             .vexpand(false)
             .hexpand(false)
@@ -718,7 +719,7 @@ impl ExampleModule {
         let compact = gtk::EventBox::builder()
             // .height_request(40)
             .width_request(280)
-            .valign(gtk::Align::Fill)
+            .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
             .vexpand(false)
             .hexpand(false)
@@ -748,7 +749,7 @@ impl ExampleModule {
         let expanded = gtk::EventBox::builder()
             .height_request(400)
             .width_request(500)
-            .valign(gtk::Align::Fill)
+            .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
             .vexpand(false)
             .hexpand(false)
@@ -771,7 +772,7 @@ impl ExampleModule {
             &gtk::Label::builder()
                 .label("Overlay label,\n Hello Hello \n Hello Hello")
                 .halign(gtk::Align::Center)
-                .valign(gtk::Align::Fill)
+                .valign(gtk::Align::Center)
                 .hexpand(true)
                 .build(),
         );
@@ -862,7 +863,7 @@ impl ExampleModule {
 //                             sub(&*res.1);
 //                         }
 //                     }
-//                     Err(err) => eprintln!("{}", err),
+//                     Err(err) => error!("{}", err),
 //                 }
 //             }
 //         });
@@ -954,7 +955,7 @@ impl ExampleModule {
 
 //         // activity_widget.connect_mode_notify(|f| {
 //         //     let l = f.mode();
-//         //     println!("Changed mode: {:?}", l);
+//         //     debug!("Changed mode: {:?}", l);
 //         // });
 //         activity.set_activity_widget(activity_widget.clone());
 

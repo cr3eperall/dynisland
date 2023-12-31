@@ -321,6 +321,17 @@ impl GpuContext {
         );
         let texture_size = texture_1.size();
 
+        // self.device.create_sampler(&wgpu::SamplerDescriptor { //TODO look into this
+        //     label: None,
+        //     address_mode_u: wgpu::AddressMode::ClampToEdge,
+        //     address_mode_v: wgpu::AddressMode::ClampToEdge,
+        //     address_mode_w: wgpu::AddressMode::ClampToEdge,
+        //     mag_filter: wgpu::FilterMode::Linear,
+        //     min_filter: wgpu::FilterMode::Linear,
+        //     mipmap_filter: wgpu::FilterMode::Nearest,
+        //     ..Default::default()
+        // });
+
         let compute_constants_1 = self.get_settings_bind_group(sigma_1);
 
         let compute_constants_2 = self.get_settings_bind_group(sigma_2);

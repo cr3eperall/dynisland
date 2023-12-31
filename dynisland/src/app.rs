@@ -3,6 +3,7 @@ use std::{collections::HashMap, rc::Rc};
 use anyhow::Result;
 use colored::Colorize;
 use gtk::{prelude::*, CssProvider};
+use log::{debug, error, info};
 use notify::Watcher;
 use tokio::{
     runtime::Handle,
@@ -62,7 +63,7 @@ impl App {
         // let app_send1=self.app_send.clone().unwrap();
         // glib::MainContext::default().spawn_local(async move {
         //     glib::timeout_future_seconds(10).await;
-        //     println!("reloading config");
+        //     debug!("reloading config");
         //     app_send1.send(UIServerCommand::ReloadConfig()).unwrap();
         // });
 
@@ -86,7 +87,7 @@ impl App {
                             module.get_prop_send(),
                             module.get_config(),
                         );
-                        println!("registered producer {}", module.get_name());
+                        info!("registered producer {}", module.get_name());
                     }
                     UIServerCommand::AddActivity(module_identifier, activity) => {
                         act_container.add(&activity.lock().await.get_activity_widget()); //add to window
@@ -101,7 +102,7 @@ impl App {
                             .get(&module_identifier)
                             .unwrap_or_else(|| panic!("module {} not found", module_identifier));
                         module.register_activity(activity).await; //add inside its module
-                        println!("registered activity on {}", module.get_name());
+                        info!("registered activity on {}", module.get_name());
                     }
                     UIServerCommand::RemoveActivity(module_identifier, name) => {
                         let map = map.lock().await;
@@ -150,10 +151,10 @@ impl App {
                             .expect("failed to send notification"),
                         _ => {}
                     }
-                    // println!("{evt:?}");
+                    // debug!("{evt:?}");
                 }
                 Err(err) => {
-                    eprintln!("notify watcher error: {err}")
+                    error!("notify watcher error: {err}")
                 }
             })
             .expect("failed to start file watcher");
@@ -178,7 +179,7 @@ impl App {
         self.css_provider //TODO save previous state before trying to update
             .load_from_data(css_content.unwrap().as_bytes())
             .unwrap_or_else(|err| {
-                eprintln!(
+                error!(
                     "{} {:?}",
                     "failed to load css:".red(),
                     err.to_string().red()
@@ -219,7 +220,7 @@ impl App {
         //     .blocking_lock()
         //     .insert(example_mod2.get_name().to_string(), Box::new(example_mod2));
 
-        println!(
+        info!(
             "loaded modules: {:?}",
             self.module_map.blocking_lock().keys()
         );
@@ -227,7 +228,7 @@ impl App {
 
     fn load_configs(&mut self) {
         self.config = config::get_config();
-        println!("general_config: {:?}", self.config.general_config);
+        debug!("general_config: {:#?}", self.config.general_config);
         for module in self.module_map.blocking_lock().values_mut() {
             let config_parsed = match self.config.module_config.get(module.get_name()) {
                 Some(conf) => module.parse_config(conf.clone()),
@@ -235,13 +236,13 @@ impl App {
             };
             match config_parsed {
                 Err(err) => {
-                    eprintln!(
+                    error!(
                         "failed to parse config for module {}: {err:?}",
                         module.get_name()
                     )
                 }
                 Ok(()) => {
-                    println!("{}: {:?}", module.get_name(), module.get_config());
+                    debug!("{}: {:#?}", module.get_name(), module.get_config());
                 }
             }
         }
@@ -349,14 +350,14 @@ impl Default for App {
 //             Ok(evt) => {
 //                 match evt.kind {
 //                     notify::EventKind::Create(_) | notify::EventKind::Modify(_) => {
-//                         println!("filesystem event");
+//                         debug!("filesystem event");
 //                         server_send.send(BackendServerCommand::ReloadConfig()).expect("failed to send notification")
 //                     },
 //                     _ => {}
 //                 }
-//                 println!("{evt:?}");
+//                 debug!("{evt:?}");
 //             },
-//             Err(err) => {eprintln!("notify watcher error: {err}")},
+//             Err(err) => {error!("notify watcher error: {err}")},
 //         }
 //     }).expect("failed to start file watcher");
 //     watcher.watch(Path::new(config::CONFIG_FILE), notify::RecursiveMode::NonRecursive).expect("error starting watcher");

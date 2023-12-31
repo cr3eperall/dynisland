@@ -10,6 +10,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use dyn_clone::DynClone;
 use linkme::distributed_slice;
+use log::error;
 use ron::Value;
 use tokio::{
     runtime::Handle,
@@ -112,8 +113,8 @@ pub trait Module {
                                     sub(&*res.value);
                                 }
                             }
-                            Err(_err) => {
-                                // eprintln!("{}", err)
+                            Err(err) => {
+                                error!("{}", err)
                             }
                         }
                     }
@@ -126,13 +127,13 @@ pub trait Module {
                                         sub(&*res.value);
                                     }
                                 }
-                                Err(_err) => {
-                                    // eprintln!("{}", err)
+                                Err(err) => {
+                                    error!("{}", err)
                                 }
                             }
                         }
                         None => {
-                            eprintln!("activity {} not found on ExampleModule", res.activity_id);
+                            error!("activity {} not found on ExampleModule", res.activity_id);
                         }
                     }
                 }
