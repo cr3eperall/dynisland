@@ -2,6 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use colored::Colorize;
 use dynisland_core::graphics::animations::soy::{self, Bezier};
+use log::warn;
 use ron::Value;
 use serde::{Deserialize, Serialize};
 
@@ -118,9 +119,9 @@ pub fn get_config() -> Config {
         .join("dynisland.ron");
     let content = std::fs::read_to_string(config_path).expect("failed to read config file");
     let ron: Config = ron::de::from_str(&content).unwrap_or_else(|err| {
-        println!(
+        warn!(
             "{} {}",
-            "failed to parse config:".red(),
+            "failed to parse config, using default. Err:".red(),
             err.to_string().red()
         );
         Config::default()
