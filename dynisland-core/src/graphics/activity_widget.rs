@@ -752,7 +752,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                 let bigger = next_size.0 > prev_size.0 || next_size.1 > prev_size.1;
                 // trace!("bigger: w({}), h({})", next_size.0 > prev_size.0, next_size.1 > prev_size.1);
 
-                const RAD: f32 = 9.0;
+                const RAD: f32 = 6.0;
                 const FILTER_BACKEND: FilterBackend = FilterBackend::Gpu; //TODO move to config file, if i implement everything on the cpu
 
                 let mut tmp_surface_1 = gtk::cairo::ImageSurface::create(
@@ -886,15 +886,20 @@ impl WidgetImpl for ActivityWidgetPriv {
                     );
 
                     //scale and center
+                    
+                    //for some reason, without this the widget is not centered with scales near 1.0 (probably due to rounding errors)
+                    const CORRECTIVE_FACTOR:f64=2.0;
+                    
                     tmp_cr.scale(sx, sy);
 
                     tmp_cr.translate(
                         //V
-                        -(self_w - next_size.0 as f64) / 2.0
+                        -CORRECTIVE_FACTOR-(self_w - next_size.0 as f64) / 2.0
                             + (self_w - next_size.0 as f64 * sx) / (2.0 * sx),
-                        -(self_h - next_size.1 as f64) / 2.0
+                        -CORRECTIVE_FACTOR-(self_h - next_size.1 as f64) / 2.0
                             + (self_h - next_size.1 as f64 * sy) / (2.0 * sy),
                     );
+
 
                     self.obj().propagate_draw(widget, &tmp_cr);
 

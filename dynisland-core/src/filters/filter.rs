@@ -99,11 +99,13 @@ pub fn apply_blur_and_merge_opacity_dual(
 }
 
 /// works with 4 byte colors
+#[allow(unreachable_code, unused_variables)]
 pub fn apply_blur(
     surface: &mut gdk::cairo::ImageSurface,
     sigma: f32,
     backend: FilterBackend,
 ) -> Result<()> {
+    unimplemented!("doesn't work anymore, needs to be removed");
     if sigma <= 0.0 {
         return Ok(());
     }

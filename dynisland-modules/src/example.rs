@@ -685,7 +685,7 @@ impl ExampleModule {
         minimal.add(&scroll_label);
 
         let minimal = gtk::EventBox::builder()
-            // .height_request(40)
+            .height_request(40)
             // .width_request(100)
             .valign(gtk::Align::Center)
             .halign(gtk::Align::Center)
