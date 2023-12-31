@@ -39,6 +39,7 @@ impl App {
             .orientation(gtk::Orientation::Horizontal)
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Start)
+            .margin_top(10)
             .build();
 
         // gtk::Window::set_interactive_debugging(true);
