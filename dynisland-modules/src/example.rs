@@ -527,7 +527,7 @@ impl ExampleModule {
                     gdk::BUTTON_PRIMARY => {
                         glib::MainContext::default().spawn_local(async move {
                             let mode_g = m1.lock().await;
-                            let mode = cast_dyn_any!(mode_g.get(), ActivityMode).unwrap().clone();
+                            let mode = *cast_dyn_any!(mode_g.get(), ActivityMode).unwrap();
                             drop(mode_g);
 
                             match mode {
@@ -549,7 +549,7 @@ impl ExampleModule {
                     gdk::BUTTON_SECONDARY => {
                         glib::MainContext::default().spawn_local(async move {
                             let mode_g = m1.lock().await;
-                            let mode = cast_dyn_any!(mode_g.get(), ActivityMode).unwrap().clone();
+                            let mode = *cast_dyn_any!(mode_g.get(), ActivityMode).unwrap();
                             drop(mode_g);
 
                             match mode {

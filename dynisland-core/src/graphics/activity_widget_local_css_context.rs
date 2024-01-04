@@ -1,13 +1,11 @@
 use anyhow::{Context, Result};
+use css_anim::{soy::EaseFunction, ease_functions::LinearEaseFunction};
 use gtk::{prelude::CssProviderExt, CssProvider};
 use rand::{distributions::Alphanumeric, Rng};
 
 use crate::implement_get_set;
 
-use super::{
-    animations::soy::{self, Bezier},
-    config_variable::ConfigVariable,
-};
+use super::config_variable::ConfigVariable;
 #[derive(Clone, glib::Boxed, Debug)]
 #[boxed_type(name = "BoxedActivityWidgetLocalCssContext")]
 pub struct ActivityWidgetLocalCssContext {
@@ -21,14 +19,14 @@ pub struct ActivityWidgetLocalCssContext {
     minimal_height: ConfigVariable<i32>,
     transition_duration: ConfigVariable<u64>,
 
-    transition_size: ConfigVariable<Bezier>,
+    transition_size: ConfigVariable<Box<dyn EaseFunction>>,
 
-    transition_bigger_blur: ConfigVariable<Bezier>,
-    transition_smaller_blur: ConfigVariable<Bezier>,
-    transition_bigger_stretch: ConfigVariable<Bezier>,
-    transition_smaller_stretch: ConfigVariable<Bezier>,
-    transition_bigger_opacity: ConfigVariable<Bezier>,
-    transition_smaller_opacity: ConfigVariable<Bezier>,
+    transition_bigger_blur: ConfigVariable<Box<dyn EaseFunction>>,
+    transition_smaller_blur: ConfigVariable<Box<dyn EaseFunction>>,
+    transition_bigger_stretch: ConfigVariable<Box<dyn EaseFunction>>,
+    transition_smaller_stretch: ConfigVariable<Box<dyn EaseFunction>>,
+    transition_bigger_opacity: ConfigVariable<Box<dyn EaseFunction>>,
+    transition_smaller_opacity: ConfigVariable<Box<dyn EaseFunction>>,
 }
 
 impl ActivityWidgetLocalCssContext {
@@ -41,25 +39,25 @@ impl ActivityWidgetLocalCssContext {
             stretch_on_resize: true,
             border_radius: 100,
             transition_duration: ConfigVariable::new(0),
-            transition_size: ConfigVariable::new(soy::LINEAR),
-            transition_bigger_blur: ConfigVariable::new(soy::LINEAR),
-            transition_smaller_blur: ConfigVariable::new(soy::LINEAR),
-            transition_bigger_stretch: ConfigVariable::new(soy::LINEAR),
-            transition_smaller_stretch: ConfigVariable::new(soy::LINEAR),
-            transition_bigger_opacity: ConfigVariable::new(soy::LINEAR),
-            transition_smaller_opacity: ConfigVariable::new(soy::LINEAR),
+            transition_size: ConfigVariable::new(Box::<LinearEaseFunction>::default()),
+            transition_bigger_blur: ConfigVariable::new(Box::<LinearEaseFunction>::default()),
+            transition_smaller_blur: ConfigVariable::new(Box::<LinearEaseFunction>::default()),
+            transition_bigger_stretch: ConfigVariable::new(Box::<LinearEaseFunction>::default()),
+            transition_smaller_stretch: ConfigVariable::new(Box::<LinearEaseFunction>::default()),
+            transition_bigger_opacity: ConfigVariable::new(Box::<LinearEaseFunction>::default()),
+            transition_smaller_opacity: ConfigVariable::new(Box::<LinearEaseFunction>::default()),
         }
     }
 
     implement_get_set!(pub, minimal_height, i32);
     implement_get_set!(pub, transition_duration, u64);
-    implement_get_set!(pub, transition_size, Bezier);
-    implement_get_set!(pub, transition_bigger_blur, Bezier);
-    implement_get_set!(pub, transition_smaller_blur, Bezier);
-    implement_get_set!(pub, transition_bigger_stretch, Bezier);
-    implement_get_set!(pub, transition_smaller_stretch, Bezier);
-    implement_get_set!(pub, transition_bigger_opacity, Bezier);
-    implement_get_set!(pub, transition_smaller_opacity, Bezier);
+    implement_get_set!(pub, transition_size, Box<dyn EaseFunction>);
+    implement_get_set!(pub, transition_bigger_blur, Box<dyn EaseFunction>);
+    implement_get_set!(pub, transition_smaller_blur, Box<dyn EaseFunction>);
+    implement_get_set!(pub, transition_bigger_stretch, Box<dyn EaseFunction>);
+    implement_get_set!(pub, transition_smaller_stretch, Box<dyn EaseFunction>);
+    implement_get_set!(pub, transition_bigger_opacity, Box<dyn EaseFunction>);
+    implement_get_set!(pub, transition_smaller_opacity, Box<dyn EaseFunction>);
 
     pub fn get_css_provider(&self) -> CssProvider {
         self.css_provider.clone()
@@ -102,32 +100,6 @@ impl ActivityWidgetLocalCssContext {
         self.border_radius = border_radius;
         self.update_provider()
     }
-
-    // pub fn get_transition_duration(&self) -> u64 {
-    //     self.transition_duration
-    // }
-    // pub fn get_transition_duration_set_by_module(&self) -> bool {
-    //     self.transition_duration_set_by_module
-    // }
-
-    // pub fn set_transition_duration(
-    //     // if the duration is set by the module it uses that, otherwise it uses the one in the comfig file
-    //     &mut self,
-    //     transition_duration: u64,
-    //     module: bool,
-    // ) -> Result<()> {
-    //     if self.transition_duration == transition_duration {
-    //         return Ok(());
-    //     }
-    //     if module {
-    //         self.transition_duration_set_by_module = true;
-    //     } else if self.transition_duration_set_by_module {
-    //         return Ok(());
-    //     }
-    //     self.transition_duration = transition_duration;
-    //     self.update_provider()
-    // }
-
     fn update_provider(&self) -> Result<()> {
         let (w, h) = self.size;
         let border_radius = self.border_radius;

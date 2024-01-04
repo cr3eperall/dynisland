@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use css_anim::soy::{self, EaseFunction};
 use glib::{object_subclass, prelude::*, wrapper};
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
@@ -11,10 +12,7 @@ use log::error;
 
 use crate::graphics::{
     activity_widget,
-    animations::{
-        soy::{self, Lerper},
-        transition::{StateStruct, StateTransition},
-    },
+    animations::transition::{StateStruct, StateTransition},
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -171,12 +169,6 @@ impl ScrollingLabelLocalTransitionContext {
 impl Default for ScrollingLabelLocalTransitionContext {
     fn default() -> Self {
         Self::new(
-            // rand::thread_rng()
-            //     .sample_iter(&Alphanumeric)
-            //     .take(6)
-            //     .map(char::from)
-            //     .collect::<String>()
-            //     .as_str(),
         )
     }
 }
@@ -219,13 +211,6 @@ pub struct ScrollingLabelPriv {
     /// if you use this, you shouldn't change alignment, text or wrap
     #[property(get, nick = "Internal Label")]
     inner_label: RefCell<gtk::Label>,
-    // minimal_mode_widget: RefCell<Option<gtk::Widget>>,
-
-    // compact_mode_widget: RefCell<Option<gtk::Widget>>,
-
-    // expanded_mode_widget: RefCell<Option<gtk::Widget>>,
-
-    // overlay_mode_widget: RefCell<Option<gtk::Widget>>,
 }
 
 //set properties
@@ -333,23 +318,15 @@ impl Default for ScrollingLabelPriv {
         let mut transition = StateTransition::default();
         transition.enable();
         Self {
-            // mode: RefCell::new(ActivityMode::Minimal),
-            // // transition_duration: RefCell::new(0),
-            local_transition_context: RefCell::new(ScrollingLabelLocalTransitionContext::new(
-                // &name,
-            )),
-            // last_mode: RefCell::new(ActivityMode::Minimal),
+            local_transition_context: RefCell::new(ScrollingLabelLocalTransitionContext::new()),
             orientation: RefCell::new(Orientation::Horizontal),
             transition: RefCell::new(transition),
             transition_enabled: RefCell::new(true),
             transition_roll: RefCell::new(true),
-            //TODO ???(what does this mean?) should also set max length and other things
+            //TODO ???(What does this mean? What other things?) should also set max length and other things
             inner_label: RefCell::new(inner_label),
             max_width: RefCell::new(-1),
             max_height: RefCell::new(-1),
-            // text: RefCell::new(String::new()),
-            // overlay_mode_widget: RefCell::new(None),
-            // background_widget: RefCell::new(None),
         }
     }
 }
@@ -369,14 +346,7 @@ impl ObjectSubclass for ScrollingLabelPriv {
 
 impl Default for ScrollingLabel {
     fn default() -> Self {
-        Self::new(
-            // rand::thread_rng()
-            //     .sample_iter(&Alphanumeric)
-            //     .take(6)
-            //     .map(char::from)
-            //     .collect::<String>()
-            //     .as_str(),
-        )
+        Self::new()
     }
 }
 impl ScrollingLabel {
@@ -546,21 +516,21 @@ impl ScrollingLabelPriv {
                 }
             }
         };
-        let duration_secs = i32::abs(size) as f32
+        let duration_secs = i32::abs(size) as f64
             / u64::max(
                 self.local_transition_context
                     .borrow()
                     .get_transition_speed(),
                 1,
-            ) as f32;
+            ) as f64;
         self.transition
             .borrow_mut()
             .set_running_duration((duration_secs * 1000.0) as u64);
     }
 
-    fn timing_functions(progress: f32, timing_for: TimingFunction) -> f32 {
+    fn timing_functions(progress: f64, timing_for: TimingFunction) -> f64 {
         match timing_for {
-            TimingFunction::Translate => soy::LINEAR.calculate(progress),
+            TimingFunction::Translate => soy::LINEAR.ease(progress),
         }
     }
 }
@@ -737,7 +707,7 @@ impl WidgetImpl for ScrollingLabelPriv {
                                     let tx = ScrollingLabelPriv::timing_functions(
                                         progress,
                                         TimingFunction::Translate,
-                                    ) as f64
+                                    )
                                         * max_tx;
 
                                     cr.set_source_surface(&tmp_surface, tx, 0.0)
@@ -764,7 +734,7 @@ impl WidgetImpl for ScrollingLabelPriv {
                                         ScrollingLabelPriv::timing_functions(
                                             progress,
                                             TimingFunction::Translate,
-                                        ) as f64
+                                        )
                                             * max_tx,
                                         0.0,
                                     );
@@ -794,7 +764,7 @@ impl WidgetImpl for ScrollingLabelPriv {
                                     let ty = ScrollingLabelPriv::timing_functions(
                                         progress,
                                         TimingFunction::Translate,
-                                    ) as f64
+                                    )
                                         * max_ty;
 
                                     cr.set_source_surface(&tmp_surface, 0.0, ty)
@@ -823,7 +793,7 @@ impl WidgetImpl for ScrollingLabelPriv {
                                         ScrollingLabelPriv::timing_functions(
                                             progress,
                                             TimingFunction::Translate,
-                                        ) as f64
+                                        )
                                             * max_ty,
                                     );
                                     self.obj().propagate_draw(inner, cr);

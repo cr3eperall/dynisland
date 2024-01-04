@@ -3,68 +3,68 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub struct Transition {
-    pub active: bool,
-    pub duration: Duration,
-    pub start_time: Instant,
-}
+// pub struct Transition {
+//     pub active: bool,
+//     pub duration: Duration,
+//     pub start_time: Instant,
+// }
 
-impl Transition {
-    pub fn is_active(&self) -> bool {
-        self.active && Instant::now() < self.start_time + self.duration
-    }
+// impl Transition {
+//     pub fn is_active(&self) -> bool {
+//         self.active && Instant::now() < self.start_time + self.duration
+//     }
 
-    pub fn is_zero(&self) -> bool {
-        self.duration.is_zero()
-    }
+//     pub fn is_zero(&self) -> bool {
+//         self.duration.is_zero()
+//     }
 
-    pub fn get_progress(&self) -> f32 {
-        self.start_time
-            .elapsed()
-            .div_duration_f32(self.duration)
-            .clamp(0.0, 1.0)
-    }
+//     pub fn get_progress(&self) -> f32 {
+//         self.start_time
+//             .elapsed()
+//             .div_duration_f32(self.duration)
+//             .clamp(0.0, 1.0)
+//     }
 
-    pub fn new(start_time: Instant, duration: Duration) -> Self {
-        Transition {
-            active: start_time <= Instant::now(),
-            duration,
-            start_time,
-        }
-    }
+//     pub fn new(start_time: Instant, duration: Duration) -> Self {
+//         Transition {
+//             active: start_time <= Instant::now(),
+//             duration,
+//             start_time,
+//         }
+//     }
 
-    pub fn duration_to_end(&self) -> Duration {
-        if self.get_progress() == 1.0 {
-            Duration::ZERO
-        } else {
-            (self.start_time + self.duration).duration_since(Instant::now())
-        }
-    }
+//     pub fn duration_to_end(&self) -> Duration {
+//         if self.get_progress() == 1.0 {
+//             Duration::ZERO
+//         } else {
+//             (self.start_time + self.duration).duration_since(Instant::now())
+//         }
+//     }
 
-    /// returns if the active status changed after the update
-    pub fn update_active(&mut self) -> bool {
-        let prev = self.active;
-        if let Some(dur) = Instant::now().checked_duration_since(self.start_time) {
-            if dur < self.duration {
-                self.active = true;
-                return prev != self.active; // if it just started
-            }
-        }
-        self.active = false;
-        prev != self.active //if it just ended
-    }
-}
+//     /// returns if the active status changed after the update
+//     pub fn update_active(&mut self) -> bool {
+//         let prev = self.active;
+//         if let Some(dur) = Instant::now().checked_duration_since(self.start_time) {
+//             if dur < self.duration {
+//                 self.active = true;
+//                 return prev != self.active; // if it just started
+//             }
+//         }
+//         self.active = false;
+//         prev != self.active //if it just ended
+//     }
+// }
 
-impl Debug for Transition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("StateTransition")
-            .field("duration", &self.duration)
-            .field("start_time", &self.start_time)
-            .field("remaining-time", &self.duration_to_end())
-            .field("running", &self.is_active())
-            .finish()
-    }
-}
+// impl Debug for Transition {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         f.debug_struct("StateTransition")
+//             .field("duration", &self.duration)
+//             .field("start_time", &self.start_time)
+//             .field("remaining-time", &self.duration_to_end())
+//             .field("running", &self.is_active())
+//             .finish()
+//     }
+// }
 
 pub trait StateStruct: Clone + Default + Debug {
     type StateEnum: Copy + Clone;
@@ -126,10 +126,10 @@ impl<T: StateStruct> StateTransition<T> {
         &mut self.state
     }
 
-    pub fn get_progress(&self) -> f32 {
+    pub fn get_progress(&self) -> f64 {
         self.start_time
             .elapsed()
-            .div_duration_f32(self.duration)
+            .div_duration_f64(self.duration)
             .clamp(0.0, 1.0)
     }
 

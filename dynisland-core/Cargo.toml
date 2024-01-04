@@ -35,3 +35,5 @@ linkme = "0.3.17"
 concat-idents = "1.1.5"
 # env_logger = "0.10.1"
 log = "0.4.20"
+
+css-anim = {path = "../../css-anim", version = "*"}

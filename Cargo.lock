@@ -437,6 +437,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "css-anim"
+version = "0.1.0"
+dependencies = [
+ "dyn-clone",
+ "serde",
+]
+
+[[package]]
 name = "d3d12"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -459,6 +467,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "colored",
+ "css-anim",
  "dynisland-core",
  "dynisland-modules",
  "env_logger",
@@ -484,6 +493,7 @@ dependencies = [
  "cairo",
  "clap",
  "concat-idents",
+ "css-anim",
  "dyn-clone",
  "futures",
  "gdk",

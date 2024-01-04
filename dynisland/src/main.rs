@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     //init GTK
     gtk::init().with_context(|| "failed to init gtk")?;
 
-    env_logger::Builder::from_env(Env::default().default_filter_or(Level::Error.as_str()))
+    env_logger::Builder::from_env(Env::default().default_filter_or(Level::Warn.as_str()))
         .filter_module("dynisland", log::LevelFilter::Warn)
         .filter_module("dynisland_core", log::LevelFilter::Debug)
         .filter_module("dynisland_modules", log::LevelFilter::Debug)

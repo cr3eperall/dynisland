@@ -1,3 +1,4 @@
+use css_anim::{soy::EaseFunction, transition::{TransitionManager, TransitionDef}};
 use log::{debug, error};
 use rand::{distributions::Alphanumeric, Rng};
 use std::{
@@ -15,19 +16,29 @@ use crate::filters::filter::FilterBackend;
 
 use super::{
     activity_widget_local_css_context::ActivityWidgetLocalCssContext,
-    animations::{
-        soy::{Bezier, Lerper},
-        transition::Transition,
-    },
+    // animations::transition::Transition,
 };
 
-#[derive(Clone, glib::Boxed, Debug)]
+const BLUR_RADIUS: f32 = 6.0;
+
+#[derive(Clone, glib::Boxed, Debug, Copy)]
 #[boxed_type(name = "BoxedActivityMode")]
 pub enum ActivityMode {
     Minimal = 0,
     Compact = 1,
     Expanded = 2,
     Overlay = 3,
+}
+
+impl ToString for ActivityMode {
+    fn to_string(&self) -> String {
+        match self {
+            ActivityMode::Minimal => "minimal".to_string(),
+            ActivityMode::Compact => "compact".to_string(),
+            ActivityMode::Expanded => "expanded".to_string(),
+            ActivityMode::Overlay => "overlay".to_string(),
+        }
+    }
 }
 
 wrapper! {
@@ -49,7 +60,7 @@ pub struct ActivityWidgetPriv {
 
     last_mode: RefCell<ActivityMode>,
 
-    transition: RefCell<Transition>, // TODO change in favor of StateTransition
+    transition_manager: RefCell<TransitionManager>,
 
     background_widget: RefCell<Option<gtk::Widget>>,
 
@@ -76,63 +87,46 @@ impl ObjectImpl for ActivityWidgetPriv {
     fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "mode" => {
-                self.last_mode.replace(self.mode.borrow().clone());
+                self.last_mode.replace(*self.mode.borrow());
                 self.mode.replace(value.get().unwrap());
-                let start: Instant;
-                let duration: Duration;
-                if self.transition.borrow().is_active() {
-                    duration = Duration::from_millis(
-                        self.local_css_context.borrow().get_transition_duration(),
-                    ) + self.transition.borrow().duration_to_end();
-                    start = Instant::now()
-                        .checked_sub(self.transition.borrow().duration_to_end())
-                        .expect("time error");
-                } else {
-                    start = Instant::now();
-                    duration = Duration::from_millis(
-                        self.local_css_context.borrow().get_transition_duration(),
-                    );
-                }
+                
+                let mode=self.mode.borrow();
+                let last_mode=self.last_mode.borrow();
 
-                self.transition.replace(Transition::new(start, duration));
-
-                if let Some(widget) = &*self.get_mode_widget(self.mode.borrow().clone()).borrow() {
-                    if let Some(widget) = &*self
-                        .get_mode_widget(self.last_mode.borrow().clone())
-                        .borrow()
-                    {
-                        match widget.window() {
-                            //lower previous window associated to widget if it has one, this disables events on the last mode widget
-                            Some(window) => window.lower(),
-                            None => {
-                                // debug!("no window");
-                            }
-                        }
-                    }
-                    if let Some(widget) = &*self.background_widget.borrow() {
-                        match widget.window() {
-                            //lower previous window associated to widget if it has one, this disables events on the last mode widget
-                            Some(window) => window.raise(),
-                            None => {
-                                // debug!("no window");
-                            }
-                        }
-                    }
-                    match widget.window() {
-                        //raise window associated to widget if it has one, this enables events on the active mode widget
-                        Some(window) => window.raise(),
-                        None => {
-                            // debug!("no window");
-                        }
-                    }
-                    let (width, height) = get_final_widget_size(
+                let mut prev_size=(self.obj().allocated_width() as f64, self.obj().allocated_height() as f64);
+                if let Some(widget) = &*self.get_mode_widget(*last_mode).borrow() {
+                    let tmp=get_final_widget_size(
                         widget,
-                        self.mode.borrow().clone(),
+                        *self.last_mode.borrow(),
                         self.local_css_context.borrow().get_minimal_height(),
                     );
-                    self.local_css_context
-                        .borrow_mut()
-                        .set_size((width, height))
+                    prev_size=(tmp.0 as f64, tmp.1 as f64);
+                }
+                let mut next_size=(self.obj().allocated_width() as f64, self.obj().allocated_height() as f64);
+                if let Some(widget) = &*self.get_mode_widget(*mode).borrow() {
+                    let tmp=get_final_widget_size(
+                        widget,
+                        *self.mode.borrow(),
+                        self.local_css_context.borrow().get_minimal_height(),
+                    );
+                    next_size=(tmp.0 as f64, tmp.1 as f64);
+                }
+                let mut css_context=self.local_css_context.borrow_mut();
+                let bigger = next_size.0 > prev_size.0 || next_size.1 > prev_size.1;
+
+                self.transition_opacity(false, bigger, &css_context, 1.0, 0.0);
+                self.transition_opacity(true, bigger, &css_context, 0.0, 1.0);
+
+                self.transition_blur(false, bigger, &css_context, 0.0, BLUR_RADIUS as f64);
+                self.transition_blur(true, bigger, &css_context, BLUR_RADIUS as f64, 0.0);
+
+                self.transition_stretch(false, bigger, &css_context, (1.0,1.0), (next_size.0/prev_size.0,next_size.1/prev_size.1));
+                self.transition_stretch(true, bigger, &css_context, (prev_size.0/next_size.0, prev_size.1/next_size.1), (1.0,1.0));
+
+                self.raise_windows();
+                if self.get_mode_widget(*self.mode.borrow()).borrow().is_some() {
+                    css_context
+                        .set_size((next_size.0 as i32, next_size.1 as i32))
                         .expect("failed to set activity size");
                 }
                 self.obj().queue_draw(); // Queue a draw call with the updated value
@@ -167,13 +161,17 @@ impl Default for ActivityWidgetPriv {
             .take(6)
             .map(char::from)
             .collect();
+        let mut transition_manager=TransitionManager::new(false);
+        init_transition_properties(&mut transition_manager);
+
+
         Self {
             mode: RefCell::new(ActivityMode::Minimal),
             // transition_duration: RefCell::new(0),
             local_css_context: RefCell::new(ActivityWidgetLocalCssContext::new(&name)),
             last_mode: RefCell::new(ActivityMode::Minimal),
             name: RefCell::new(name),
-            transition: RefCell::new(Transition::new(Instant::now(), Duration::ZERO)),
+            transition_manager: RefCell::new(transition_manager),
             minimal_mode_widget: RefCell::new(None),
             compact_mode_widget: RefCell::new(None),
             expanded_mode_widget: RefCell::new(None),
@@ -181,6 +179,28 @@ impl Default for ActivityWidgetPriv {
             background_widget: RefCell::new(None),
         }
     }
+}
+
+fn init_transition_properties(transition_manager: &mut TransitionManager) {
+    transition_manager.add_property("minimal-opacity", 1.0);
+    transition_manager.add_property("minimal-blur", 0.0);
+    transition_manager.add_property("minimal-stretch-x", 1.0);
+    transition_manager.add_property("minimal-stretch-y", 1.0);
+
+    transition_manager.add_property("compact-opacity", 0.0);
+    transition_manager.add_property("compact-blur", BLUR_RADIUS as f64);
+    transition_manager.add_property("compact-stretch-x", 1.0);
+    transition_manager.add_property("compact-stretch-y", 1.0);
+
+    transition_manager.add_property("expanded-opacity", 0.0);
+    transition_manager.add_property("expanded-blur", BLUR_RADIUS as f64);
+    transition_manager.add_property("expanded-stretch-x", 1.0);
+    transition_manager.add_property("expanded-stretch-y", 1.0);
+
+    transition_manager.add_property("overlay-opacity", 0.0);
+    transition_manager.add_property("overlay-blur", BLUR_RADIUS as f64);
+    transition_manager.add_property("overlay-stretch-x", 1.0);
+    transition_manager.add_property("overlay-stretch-y", 1.0);
 }
 
 impl ActivityWidgetPriv {
@@ -241,61 +261,77 @@ impl ActivityWidgetPriv {
         }
         gtk::Allocation::new(x, y, width, height)
     }
-    fn timing_functions(&self, progress: f32, timing_for: TimingFunction) -> f32 {
-        match timing_for {
-            TimingFunction::BiggerBlur => {
-                self.local_css_context
-                    .borrow()
-                    .get_transition_bigger_blur()
-                    .calculate(progress)
-                // soy::EASE_IN.calculate(progress)
+    
+    fn raise_windows(&self) {
+        if let Some(widget) = &*self.get_mode_widget(*self.mode.borrow()).borrow() {
+            if let Some(widget) = &*self
+                .get_mode_widget(*self.last_mode.borrow())
+                .borrow()
+            {
+                match widget.window() {
+                    //lower previous window associated to widget if it has one, this "disables" events on the last mode widget
+                    Some(window) => window.lower(),
+                    None => {
+                        // debug!("no window");
+                    }
+                }
             }
-            TimingFunction::BiggerStretch => {
-                self.local_css_context
-                    .borrow()
-                    .get_transition_bigger_stretch()
-                    .calculate(progress)
-                // soy::EASE_OUT.calculate(progress)
+            if let Some(widget) = &*self.background_widget.borrow() {
+                match widget.window() {
+                    //raise background widget's window if it has one, this creates a default if the new widget doesn't have a window
+                    Some(window) => window.raise(),
+                    None => {
+                        // debug!("no window");
+                    }
+                }
             }
-            TimingFunction::BiggerOpacity => {
-                self.local_css_context
-                    .borrow()
-                    .get_transition_bigger_opacity()
-                    .calculate(progress)
-                // soy::cubic_bezier(0.2, 0.55, 0.15, 1.0).calculate(progress)
-            }
-            TimingFunction::SmallerBlur => {
-                self.local_css_context
-                    .borrow()
-                    .get_transition_smaller_blur()
-                    .calculate(progress)
-                // soy::EASE_IN.calculate(progress)
-            }
-            TimingFunction::SmallerStretch => {
-                self.local_css_context
-                    .borrow()
-                    .get_transition_smaller_stretch()
-                    .calculate(progress)
-                // soy::EASE_OUT.calculate(progress)
-            }
-            TimingFunction::SmallerOpacity => {
-                self.local_css_context
-                    .borrow()
-                    .get_transition_smaller_opacity()
-                    .calculate(progress)
-                // soy::cubic_bezier(0.2, 0.55, 0.15, 1.0).calculate(progress)
+            match widget.window() {
+                //raise window associated to widget if it has one, this "enables" events on the active mode widget
+                Some(window) => window.raise(),
+                None => {
+                    // debug!("no window");
+                }
             }
         }
     }
-}
 
-enum TimingFunction {
-    BiggerBlur,
-    BiggerStretch,
-    BiggerOpacity,
-    SmallerBlur,
-    SmallerStretch,
-    SmallerOpacity,
+    fn transition_opacity(&self, next_mode:bool, bigger:bool, css_context:&ActivityWidgetLocalCssContext, from:f64,to:f64){
+        let duration=Duration::from_millis(css_context.get_transition_duration());
+        let opacity=if next_mode{self.mode.borrow()}else{self.last_mode.borrow()}.to_string()+"-opacity";
+        self.transition_manager.borrow_mut().set_value_with_transition_from(&opacity, from, to,&TransitionDef::new(duration, 
+        if bigger ^ next_mode {
+            css_context.get_transition_bigger_opacity()
+        } else {
+            css_context.get_transition_smaller_opacity()
+        }, Duration::ZERO, false));
+    }
+    fn transition_blur(&self, next_mode:bool, bigger:bool, css_context:&ActivityWidgetLocalCssContext, from:f64,to:f64){
+        let duration=Duration::from_millis(css_context.get_transition_duration());
+        let blur=if next_mode{self.mode.borrow()}else{self.last_mode.borrow()}.to_string()+"-blur";
+        self.transition_manager.borrow_mut().set_value_with_transition_from(&blur, from, to,&TransitionDef::new(duration, 
+        if bigger ^ next_mode {
+            css_context.get_transition_bigger_blur()
+        } else {
+            css_context.get_transition_smaller_blur()
+        }, Duration::ZERO, false));
+    }
+    fn transition_stretch(&self, next_mode:bool, bigger:bool, css_context:&ActivityWidgetLocalCssContext, from:(f64,f64),to:(f64,f64)){
+        let duration=Duration::from_millis(css_context.get_transition_duration());
+        let stretch_x=if next_mode{self.mode.borrow()}else{self.last_mode.borrow()}.to_string()+"-stretch-x";
+        let stretch_y=if next_mode{self.mode.borrow()}else{self.last_mode.borrow()}.to_string()+"-stretch-y";
+        self.transition_manager.borrow_mut().set_value_with_transition_from(&stretch_x, from.0, to.0,&TransitionDef::new(duration, 
+        if bigger ^ next_mode {
+            css_context.get_transition_bigger_stretch()
+        } else {
+            css_context.get_transition_smaller_stretch()
+        }, Duration::ZERO, false));
+        self.transition_manager.borrow_mut().set_value_with_transition_from(&stretch_y, from.1, to.1,&TransitionDef::new(duration, 
+        if bigger ^ next_mode {
+            css_context.get_transition_bigger_stretch()
+        } else {
+            css_context.get_transition_smaller_stretch()
+        }, Duration::ZERO, false));
+    }
 }
 
 //init widget info
@@ -370,6 +406,8 @@ impl ActivityWidget {
                 .borrow_mut()
                 .set_size((width, height))
                 .expect("failed to set activity size");
+            let bigger=width > self.allocated_width() || height > self.allocated_height();
+            self.imp().transition_stretch(true, bigger, &self.local_css_context(), (self.allocated_width() as f64/width as f64, self.allocated_height() as f64/height as f64), (1.0,1.0));
             match widget.window() {
                 //raise window associated to widget if it has one, this enables events on the active mode widget
                 Some(window) => window.raise(),
@@ -400,6 +438,8 @@ impl ActivityWidget {
                 .borrow_mut()
                 .set_size((width, height))
                 .expect("failed to set activity size");
+            let bigger=width > self.allocated_width() || height > self.allocated_height();
+            self.imp().transition_stretch(true, bigger, &self.local_css_context(), (self.allocated_width() as f64/width as f64, self.allocated_height() as f64/height as f64), (1.0,1.0));
             match widget.window() {
                 //raise window associated to widget if it has one, this enables events on the active mode widget
                 Some(window) => window.raise(),
@@ -430,6 +470,8 @@ impl ActivityWidget {
                 .borrow_mut()
                 .set_size((width, height))
                 .expect("failed to set activity size");
+            let bigger=width > self.allocated_width() || height > self.allocated_height();
+            self.imp().transition_stretch(true, bigger, &self.local_css_context(), (self.allocated_width() as f64/width as f64, self.allocated_height() as f64/height as f64), (1.0,1.0));
             match widget.window() {
                 //raise window associated to widget if it has one, this enables events on the active mode widget
                 Some(window) => window.raise(),
@@ -460,6 +502,8 @@ impl ActivityWidget {
                 .borrow_mut()
                 .set_size((width, height))
                 .expect("failed to set activity size");
+            let bigger=width > self.allocated_width() || height > self.allocated_height();
+            self.imp().transition_stretch(true, bigger, &self.local_css_context(), (self.allocated_width() as f64/width as f64, self.allocated_height() as f64/height as f64), (1.0,1.0));
             match widget.window() {
                 //raise window associated to widget if it has one, this enables events on the active mode widget
                 Some(window) => window.raise(),
@@ -514,24 +558,39 @@ impl ActivityWidget {
             .set_minimal_height(height, module)
     }
 
-    crate::implement_set_transition!(pub, transition_size);
-    crate::implement_set_transition!(pub, transition_bigger_blur);
-    crate::implement_set_transition!(pub, transition_bigger_stretch);
-    crate::implement_set_transition!(pub, transition_bigger_opacity);
-    crate::implement_set_transition!(pub, transition_smaller_blur);
-    crate::implement_set_transition!(pub, transition_smaller_stretch);
-    crate::implement_set_transition!(pub, transition_smaller_opacity);
+    crate::implement_set_transition!(pub, transition_size,[]);
+    crate::implement_set_transition!(pub, transition_bigger_blur,["blur"]);
+    crate::implement_set_transition!(pub, transition_bigger_stretch,["stretch-x","stretch-y"]);
+    crate::implement_set_transition!(pub, transition_bigger_opacity,["opacity"]);
+    crate::implement_set_transition!(pub, transition_smaller_blur,[]);
+    crate::implement_set_transition!(pub, transition_smaller_stretch,[]);
+    crate::implement_set_transition!(pub, transition_smaller_opacity,[]);
 }
 
 #[macro_export]
 macro_rules! implement_set_transition{
-    ($vis:vis, $val:tt) => {
+    ($vis:vis, $val:tt, $props:expr) => {
         concat_idents::concat_idents!(name = set_, $val {
-            $vis fn name(&self, transition: Bezier, module: bool) -> Result<()> {
+            $vis fn name(&self, transition: Box<dyn EaseFunction>, module: bool) -> Result<()> {
                 self.imp()
                     .local_css_context
                     .borrow_mut()
-                    .name(transition, module)
+                    .name(dyn_clone::clone_box(transition.as_ref()), module)?;
+                let dur=Duration::from_millis(self.imp().local_css_context.borrow().get_transition_duration());
+                for prop in $props{
+                    self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("minimal-")+prop), dyn_clone::clone_box(transition.as_ref()));
+                    self.imp().transition_manager.borrow_mut().set_duration(&(String::from("minimal-")+prop), dur);
+                    
+                    self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("compact-")+prop), dyn_clone::clone_box(transition.as_ref()));
+                    self.imp().transition_manager.borrow_mut().set_duration(&(String::from("compact-")+prop), dur);
+
+                    self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("expanded-")+prop), dyn_clone::clone_box(transition.as_ref()));
+                    self.imp().transition_manager.borrow_mut().set_duration(&(String::from("expanded-")+prop), dur);
+
+                    self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("overlay-")+prop), dyn_clone::clone_box(transition.as_ref()));
+                    self.imp().transition_manager.borrow_mut().set_duration(&(String::from("overlay-")+prop), dur);
+                }
+                Ok(())
             }
         });
     };
@@ -654,10 +713,10 @@ impl WidgetImpl for ActivityWidgetPriv {
             content.size_allocate(&allocation);
         }
 
-        if let Some(widget) = &*self.get_mode_widget(self.mode.borrow().clone()).borrow() {
+        if let Some(widget) = &*self.get_mode_widget(*self.mode.borrow()).borrow() {
             let (width, height) = get_final_widget_size(
                 widget,
-                self.mode.borrow().clone(),
+                *self.mode.borrow(),
                 self.local_css_context.borrow().get_minimal_height(),
             );
             self.local_css_context
@@ -722,18 +781,17 @@ impl WidgetImpl for ActivityWidgetPriv {
             time = Instant::now();
 
             //draw active mode widget
-            let widget_to_render = self.get_mode_widget(self.mode.borrow().clone());
+            let widget_to_render = self.get_mode_widget(*self.mode.borrow());
 
-            //animate blur and opacity if during transition
-            if self.transition.borrow().is_active() {
-                let progress = self.transition.borrow().get_progress();
+            //animate blur, opacity and stretch if during transition
+            if self.transition_manager.borrow_mut().has_running() {
                 // trace!("{}, start: {:?}, dur: {:?}",progress, self.transition.borrow().start_time.elapsed(), self.transition.borrow().duration);
-                let last_widget_to_render = self.get_mode_widget(self.last_mode.borrow().clone());
+                let last_widget_to_render = self.get_mode_widget(*self.last_mode.borrow());
 
                 let prev_size = if let Some(widget) = &*last_widget_to_render.borrow() {
                     get_final_widget_size(
                         widget,
-                        self.last_mode.borrow().clone(),
+                        *self.last_mode.borrow(),
                         self.local_css_context.borrow().get_minimal_height(),
                     )
                 } else {
@@ -742,17 +800,12 @@ impl WidgetImpl for ActivityWidgetPriv {
                 let next_size = if let Some(widget) = &*widget_to_render.borrow() {
                     get_final_widget_size(
                         widget,
-                        self.mode.borrow().clone(),
+                        *self.mode.borrow(),
                         self.local_css_context.borrow().get_minimal_height(),
                     )
                 } else {
                     (0, 0)
                 };
-
-                let bigger = next_size.0 > prev_size.0 || next_size.1 > prev_size.1;
-                // trace!("bigger: w({}), h({})", next_size.0 > prev_size.0, next_size.1 > prev_size.1);
-
-                const RAD: f32 = 6.0;
                 const FILTER_BACKEND: FilterBackend = FilterBackend::Gpu; //TODO move to config file, if i implement everything on the cpu
 
                 let mut tmp_surface_1 = gtk::cairo::ImageSurface::create(
@@ -766,21 +819,24 @@ impl WidgetImpl for ActivityWidgetPriv {
                     let tmp_cr = gdk::cairo::Context::new(&tmp_surface_1)
                         .with_context(|| "failed to retrieve context from tmp surface")?;
 
-                    let (mut sx, mut sy) = (
-                        self_w / prev_size.0 as f64,
-                        self_h / prev_size.1 as f64,
-                    );
-                    let scale_prog = self.timing_functions(
-                        progress,
-                        if bigger {
-                            TimingFunction::BiggerStretch
-                        } else {
-                            TimingFunction::SmallerStretch
-                        },
-                    ) as f64;
+                    let sx=self.transition_manager.borrow_mut().get_value(&(self.last_mode.borrow().to_string()+"-stretch-x")).unwrap();
+                    let sy=self.transition_manager.borrow_mut().get_value(&(self.last_mode.borrow().to_string()+"-stretch-y")).unwrap();
+                    // debug!("PREV: sx: {}, sy: {}", sx, sy);
+                    // let (mut sx, mut sy) = (
+                    //     self_w / prev_size.0 as f64,
+                    //     self_h / prev_size.1 as f64,
+                    // );
+                    // let scale_prog = self.timing_functions(
+                    //     progress,
+                    //     if bigger {
+                    //         TimingFunction::BiggerStretch
+                    //     } else {
+                    //         TimingFunction::SmallerStretch
+                    //     },
+                    // );
 
-                    sx = (1.0 - scale_prog) + sx * scale_prog; // 0->1 | 1-> +sx >1 | 0.5-> 0.5+sx/2=(1+sx)/2 >1
-                    sy = (1.0 - scale_prog) + sy * scale_prog;
+                    // sx = (1.0 - scale_prog) + sx * scale_prog; // 0->1 | 1-> +sx >1 | 0.5-> 0.5+sx/2=(1+sx)/2 >1
+                    // sy = (1.0 - scale_prog) + sy * scale_prog;
                     
                     //setup clip
                     let radius = f64::min(
@@ -854,22 +910,25 @@ impl WidgetImpl for ActivityWidgetPriv {
                     let tmp_cr = gdk::cairo::Context::new(&tmp_surface_2)
                         .with_context(|| "failed to retrieve context from tmp surface")?;
 
-                    let (mut sx, mut sy) = (
-                        self_w / next_size.0 as f64,
-                        self_h / next_size.1 as f64,
-                    );
+                    let sx=self.transition_manager.borrow_mut().get_value(&(self.mode.borrow().to_string()+"-stretch-x")).unwrap();
+                    let sy=self.transition_manager.borrow_mut().get_value(&(self.mode.borrow().to_string()+"-stretch-y")).unwrap();
+                    // debug!("NEXT: sx: {}, sy: {}", sx, sy);
+                    // let (mut sx, mut sy) = (
+                    //     self_w / next_size.0 as f64,
+                    //     self_h / next_size.1 as f64,
+                    // );
 
-                    let scale_prog =self.timing_functions(
-                        1.0 - progress,
-                        if bigger {
-                            TimingFunction::SmallerStretch
-                        } else {
-                            TimingFunction::BiggerStretch
-                        },
-                    ) as f64;
+                    // let scale_prog =self.timing_functions(
+                    //     1.0 - progress,
+                    //     if bigger {
+                    //         TimingFunction::SmallerStretch
+                    //     } else {
+                    //         TimingFunction::BiggerStretch
+                    //     },
+                    // ) as f64;
 
-                    sx = (1.0 - scale_prog) + sx * scale_prog; // 0->1 | 1-> +sx >1 | 0.5-> 0.5+sx/2=(1+sx)/2 >1
-                    sy = (1.0 - scale_prog) + sy * scale_prog;
+                    // sx = (1.0 - scale_prog) + sx * scale_prog; // 0->1 | 1-> +sx >1 | 0.5-> 0.5+sx/2=(1+sx)/2 >1
+                    // sy = (1.0 - scale_prog) + sy * scale_prog;
                     
                     //setup clip
                     let radius = f64::min(
@@ -938,43 +997,21 @@ impl WidgetImpl for ActivityWidgetPriv {
                 }
 
                 // let mut orig_surface = cr.group_target();
+                let last_blur=self.transition_manager.borrow_mut().get_value(&(self.last_mode.borrow().to_string()+"-blur")).unwrap();
+                let next_blur = self.transition_manager.borrow_mut().get_value(&(self.mode.borrow().to_string()+"-blur")).unwrap();
 
+                let last_opacity = self.transition_manager.borrow_mut().get_value(&(self.last_mode.borrow().to_string()+"-opacity")).unwrap();
+                let next_opacity = self.transition_manager.borrow_mut().get_value(&(self.mode.borrow().to_string()+"-opacity")).unwrap();
+
+                // debug!("last_blur: {}, next_blur: {}, last_opacity: {}, next_opacity: {}\n", last_blur, next_blur, last_opacity, next_opacity);
                 crate::filters::filter::apply_blur_and_merge_opacity_dual(
                     // &mut orig_surface,
                     &mut tmp_surface_1,
                     &mut tmp_surface_2,
-                    self.timing_functions(
-                        progress,
-                        if bigger {
-                            TimingFunction::BiggerBlur
-                        } else {
-                            TimingFunction::SmallerBlur
-                        },
-                    ) * RAD,
-                    self.timing_functions(
-                        1.0 - progress,
-                        if bigger {
-                            TimingFunction::SmallerBlur
-                        } else {
-                            TimingFunction::BiggerBlur
-                        },
-                    ) * RAD,
-                    self.timing_functions(
-                        1.0 - progress,
-                        if bigger {
-                            TimingFunction::BiggerOpacity
-                        } else {
-                            TimingFunction::SmallerOpacity
-                        },
-                    ),
-                    self.timing_functions(
-                        progress,
-                        if bigger {
-                            TimingFunction::SmallerOpacity
-                        } else {
-                            TimingFunction::BiggerOpacity
-                        },
-                    ),
+                    last_blur as f32,
+                    next_blur as f32,
+                    last_opacity as f32,
+                    next_opacity as f32,
                     FILTER_BACKEND,
                 )
                 .with_context(|| "failed to apply double blur + merge to tmp surface")?;
@@ -992,6 +1029,7 @@ impl WidgetImpl for ActivityWidgetPriv {
                     "double blur written to surface {:?}",
                     time.elapsed()
                 ));
+                self.obj().queue_draw();
             } else if let Some(widget) = &*widget_to_render.borrow() {
                 self.obj().propagate_draw(widget, cr);
                 logs.push(format!("static widget drawn {:?}", time.elapsed()));
@@ -1001,10 +1039,7 @@ impl WidgetImpl for ActivityWidgetPriv {
             cr.reset_clip();
             gtk::render_frame(&self.obj().style_context(), cr, 0.0, 0.0, self_w, self_h);
 
-            self.transition.borrow_mut().update_active();
-            if self.transition.borrow().is_active() {
-                self.obj().queue_draw();
-            }
+            // self.transition_manager.borrow_mut().update_active();
 
             cr.restore()?;
         };
