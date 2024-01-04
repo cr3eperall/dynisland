@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use colored::Colorize;
-use dynisland_core::graphics::animations::soy::{self, Bezier};
+use css_anim::soy::{self, Bezier};
 use log::warn;
 use ron::Value;
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,7 @@ pub struct GeneralConfig {
         deserialize_with = "Bezier::from_string_or_struct",
         default = "t_s_default"
     )]
-    pub transition_size: Bezier,
+    pub transition_size: Bezier, //TODO need to change all of these to EaseFunction and implement some standard parsing
     #[serde(
         deserialize_with = "Bezier::from_string_or_struct",
         default = "t_bb_default"

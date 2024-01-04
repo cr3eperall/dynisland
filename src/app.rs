@@ -273,31 +273,31 @@ impl App {
             .expect("failed to set transition-duration");
         activity
             .get_activity_widget()
-            .set_transition_size(config.transition_size, false)
+            .set_transition_size(Box::new(config.transition_size), false)
             .expect("failed to set transition-size");
         activity
             .get_activity_widget()
-            .set_transition_bigger_blur(config.transition_bigger_blur, false)
+            .set_transition_bigger_blur(Box::new(config.transition_bigger_blur), false)
             .expect("failed to set transition-bigger-blur");
         activity
             .get_activity_widget()
-            .set_transition_bigger_stretch(config.transition_bigger_stretch, false)
+            .set_transition_bigger_stretch(Box::new(config.transition_bigger_stretch), false)
             .expect("failed to set transition-bigger-stretch");
         activity
             .get_activity_widget()
-            .set_transition_bigger_opacity(config.transition_bigger_opacity, false)
+            .set_transition_bigger_opacity(Box::new(config.transition_bigger_opacity), false)
             .expect("failed to set transition-bigger-opacity");
         activity
             .get_activity_widget()
-            .set_transition_smaller_blur(config.transition_smaller_blur, false)
+            .set_transition_smaller_blur(Box::new(config.transition_smaller_blur), false)
             .expect("failed to set transition-smaller-blur");
         activity
             .get_activity_widget()
-            .set_transition_smaller_stretch(config.transition_smaller_stretch, false)
+            .set_transition_smaller_stretch(Box::new(config.transition_smaller_stretch), false)
             .expect("failed to set transition-smaller-stretch");
         activity
             .get_activity_widget()
-            .set_transition_smaller_opacity(config.transition_smaller_opacity, false)
+            .set_transition_smaller_opacity(Box::new(config.transition_smaller_opacity), false)
             .expect("failed to set transition-smaller-opacity");
     }
 
