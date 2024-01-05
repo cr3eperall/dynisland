@@ -1,11 +1,13 @@
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
+    str::FromStr,
     sync::Arc,
 };
 
 use anyhow::{Context, Ok, Result};
 use async_trait::async_trait;
+use css_anim::soy::Bezier;
 use gtk::prelude::*;
 use linkme::distributed_slice;
 use log::debug;
@@ -678,6 +680,7 @@ impl ExampleModule {
         scroll_label.set_text("valueasdfvasdfasdfasdfasfd");
         scroll_label.set_transition_speed(30, true).unwrap();
         scroll_label.set_timeout_duration(2000, true).unwrap();
+        // scroll_label.set_transition(Box::new(Bezier::from_str("ease-in-out").unwrap()), true).unwrap();
 
         scroll_label.inner_label().set_margin_start(10);
         scroll_label.inner_label().set_margin_end(30);

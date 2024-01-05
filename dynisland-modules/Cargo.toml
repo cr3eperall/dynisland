@@ -8,6 +8,7 @@ license = "mit"
 
 [dependencies]
 dynisland-core = { path = "../dynisland-core"}
+css-anim = {path = "../../css-anim", version = "*"}
 
 anyhow = "1.0.75"
 gtk = "0.18.1"

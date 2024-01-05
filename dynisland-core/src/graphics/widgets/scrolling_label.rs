@@ -6,6 +6,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use css_anim::{
     ease_functions::LinearEaseFunction,
+    soy::EaseFunction,
     transition::{TransitionDef, TransitionManager},
 };
 use glib::{object_subclass, prelude::*, wrapper};
@@ -112,6 +113,7 @@ use crate::{
 pub struct ScrollingLabelLocalTransitionContext {
     transition_speed: ConfigVariable<u64>, //pixels per second //TODO set_by_module useless for now, because i can't set the speed or timeout from the general config file, currently this is only customizable if the modules include a setting for it
     transition_timeout: ConfigVariable<u64>, //millis
+    transition: ConfigVariable<Box<dyn EaseFunction>>,
 }
 
 impl ScrollingLabelLocalTransitionContext {
@@ -121,11 +123,13 @@ impl ScrollingLabelLocalTransitionContext {
             // transition_timeout_set_by_module: false,
             transition_speed: ConfigVariable::new(1),
             // transition_speed_set_by_module: false,
+            transition: ConfigVariable::new(Box::<LinearEaseFunction>::default()),
         }
     }
 
     implement_get_set!(pub, transition_timeout, u64);
     implement_get_set!(pub, transition_speed, u64);
+    implement_get_set!(pub, transition, Box<dyn EaseFunction>);
 }
 
 impl Default for ScrollingLabelLocalTransitionContext {
@@ -370,11 +374,36 @@ impl ScrollingLabel {
             ),
             false,
         );
-        if self.transition_enabled() {
-            tm.set_value_no_anim("translate", 0.0);
-            tm.set_duration("translate", self.imp().get_transition_duration());
-            tm.set_value("translate", self.imp().get_transition_size())
-        }
+        // if self.transition_enabled() {
+        //     tm.set_value_no_anim("translate", 0.0);
+        //     tm.set_duration("translate", self.imp().get_transition_duration());
+        //     tm.set_value("translate", self.imp().get_transition_size())
+        // }
+        Ok(())
+    }
+    pub fn set_transition(&self, transition: Box<dyn EaseFunction>, module: bool) -> Result<()> {
+        self.imp()
+            .local_transition_context
+            .borrow_mut()
+            .set_transition(dyn_clone::clone_box(transition.as_ref()), module)?;
+
+        let mut tm = self.imp().transition_manager.borrow_mut();
+        tm.set_easing_function("translate", transition);
+        // tm.set_delay(
+        //     "translate",
+        //     Duration::from_millis(
+        //         self.imp()
+        //             .local_transition_context
+        //             .borrow()
+        //             .get_transition_timeout(),
+        //     ),
+        //     false,
+        // );
+        // if self.transition_enabled() {
+        //     tm.set_value_no_anim("translate", 0.0);
+        //     tm.set_duration("translate", self.imp().get_transition_duration());
+        //     tm.set_value("translate", self.imp().get_transition_size())
+        // }
         Ok(())
     }
     pub fn set_text(&self, text: &str) {

@@ -519,6 +519,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "css-anim",
  "dyn-clone",
  "dynisland-core",
  "env_logger",

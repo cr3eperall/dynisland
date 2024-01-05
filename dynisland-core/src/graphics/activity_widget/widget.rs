@@ -672,13 +672,13 @@ impl ActivityWidget {
             .set_minimal_height(height, module)
     }
 
-    crate::implement_set_transition!(pub, transition_size, []);
+    crate::implement_set_transition!(pub, transition_size);
     crate::implement_set_transition!(pub, transition_bigger_blur, ["blur"]);
     crate::implement_set_transition!(pub, transition_bigger_stretch, ["stretch-x", "stretch-y"]);
     crate::implement_set_transition!(pub, transition_bigger_opacity, ["opacity"]);
-    crate::implement_set_transition!(pub, transition_smaller_blur, []);
-    crate::implement_set_transition!(pub, transition_smaller_stretch, []);
-    crate::implement_set_transition!(pub, transition_smaller_opacity, []);
+    crate::implement_set_transition!(pub, transition_smaller_blur);
+    crate::implement_set_transition!(pub, transition_smaller_stretch);
+    crate::implement_set_transition!(pub, transition_smaller_opacity);
 }
 
 #[macro_export]
@@ -705,6 +705,16 @@ macro_rules! implement_set_transition{
                     self.imp().transition_manager.borrow_mut().set_duration(&(String::from("overlay-")+prop), dur);
                 }
                 Ok(())
+            }
+        });
+    };
+    ($vis:vis, $val:tt) => {
+        concat_idents::concat_idents!(name = set_, $val {
+            $vis fn name(&self, transition: Box<dyn EaseFunction>, module: bool) -> Result<()> {
+                self.imp()
+                    .local_css_context
+                    .borrow_mut()
+                    .name(dyn_clone::clone_box(transition.as_ref()), module)
             }
         });
     };
