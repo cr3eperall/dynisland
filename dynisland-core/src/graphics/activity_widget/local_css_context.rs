@@ -1,11 +1,10 @@
 use anyhow::{Context, Result};
-use css_anim::{soy::EaseFunction, ease_functions::LinearEaseFunction};
+use css_anim::{ease_functions::LinearEaseFunction, soy::EaseFunction};
 use gtk::{prelude::CssProviderExt, CssProvider};
 use rand::{distributions::Alphanumeric, Rng};
 
-use crate::implement_get_set;
+use crate::{graphics::config_variable::ConfigVariable, implement_get_set};
 
-use super::config_variable::ConfigVariable;
 #[derive(Clone, glib::Boxed, Debug)]
 #[boxed_type(name = "BoxedActivityWidgetLocalCssContext")]
 pub struct ActivityWidgetLocalCssContext {

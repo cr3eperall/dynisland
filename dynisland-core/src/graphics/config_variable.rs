@@ -1,7 +1,10 @@
 use dyn_clone::DynClone;
 
 #[derive(Clone, Debug)]
-pub struct ConfigVariable<T> where T: DynClone {
+pub struct ConfigVariable<T>
+where
+    T: DynClone,
+{
     pub value: T,
     pub set_by_module: bool,
 }

@@ -7,7 +7,7 @@ use crate::base_module::{
     ValidDynamicClosure,
 };
 
-use super::activity_widget::ActivityWidget;
+use super::activity_widget::widget::ActivityWidget;
 
 impl DynamicActivity {
     pub fn new(ui_send: UnboundedSender<PropertyUpdate>, name: &str) -> Self {

@@ -11,7 +11,7 @@ use gtk::{prelude::*, subclass::prelude::*};
 use log::error;
 
 use crate::graphics::{
-    activity_widget,
+    activity_widget::allocate_and_draw::begin_draw_clip,
     animations::transition::{StateStruct, StateTransition},
 };
 
@@ -168,8 +168,7 @@ impl ScrollingLabelLocalTransitionContext {
 
 impl Default for ScrollingLabelLocalTransitionContext {
     fn default() -> Self {
-        Self::new(
-        )
+        Self::new()
     }
 }
 
@@ -641,13 +640,7 @@ impl WidgetImpl for ScrollingLabelPriv {
             let border_radius = border_radius as f64;
             let radius = f64::min(border_radius, f64::min(self_w / 2.0, self_h / 2.0));
 
-            activity_widget::begin_draw_scaled_clip(
-                cr,
-                (self_w, self_h),
-                (self_w, self_h),
-                (1.0, 1.0),
-                radius,
-            );
+            begin_draw_clip(cr, (self_w, self_h), (self_w, self_h), radius);
 
             // cr.move_to(0.0, 0.0);
             // cr.line_to(self_w, 0.0);
@@ -707,8 +700,7 @@ impl WidgetImpl for ScrollingLabelPriv {
                                     let tx = ScrollingLabelPriv::timing_functions(
                                         progress,
                                         TimingFunction::Translate,
-                                    )
-                                        * max_tx;
+                                    ) * max_tx;
 
                                     cr.set_source_surface(&tmp_surface, tx, 0.0)
                                         .with_context(|| "failed to set source surface")?;
@@ -734,8 +726,7 @@ impl WidgetImpl for ScrollingLabelPriv {
                                         ScrollingLabelPriv::timing_functions(
                                             progress,
                                             TimingFunction::Translate,
-                                        )
-                                            * max_tx,
+                                        ) * max_tx,
                                         0.0,
                                     );
                                     self.obj().propagate_draw(inner, cr);
@@ -764,8 +755,7 @@ impl WidgetImpl for ScrollingLabelPriv {
                                     let ty = ScrollingLabelPriv::timing_functions(
                                         progress,
                                         TimingFunction::Translate,
-                                    )
-                                        * max_ty;
+                                    ) * max_ty;
 
                                     cr.set_source_surface(&tmp_surface, 0.0, ty)
                                         .with_context(|| "failed to set source surface")?;
@@ -793,8 +783,7 @@ impl WidgetImpl for ScrollingLabelPriv {
                                         ScrollingLabelPriv::timing_functions(
                                             progress,
                                             TimingFunction::Translate,
-                                        )
-                                            * max_ty,
+                                        ) * max_ty,
                                     );
                                     self.obj().propagate_draw(inner, cr);
                                 }

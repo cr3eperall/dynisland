@@ -7,13 +7,15 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, TextureDescriptor, TextureDimension, TextureFormat,
     TextureUsages, TextureViewDescriptor,
 };
-use wgpu::{Buffer, BufferUsages, ComputePipeline, Device, InstanceFlags, Queue, Texture, Extent3d};
+use wgpu::{
+    Buffer, BufferUsages, ComputePipeline, Device, Extent3d, InstanceFlags, Queue, Texture,
+};
 
 use super::filter::kernel_size_for_sigma;
 
 const GAUSSIAN_BLUR_SHADER: &str = include_str!("../shaders/gaussian_blur.wgsl");
 const MERGE_ALPHA_SHADER: &str = include_str!("../shaders/merge_alpha.wgsl");
-const LOD_FACTOR: f32 = 1.0/5.0;
+const LOD_FACTOR: f32 = 1.0 / 5.0;
 struct Kernel {
     sum: f32,
     values: Vec<f32>,
@@ -322,41 +324,45 @@ impl GpuContext {
         );
         let texture_size = texture_1.size();
 
-        let lod_1=sigma_1*LOD_FACTOR;
-        let final_size_1=Extent3d{
-            width: (texture_size.width as f32/f32::exp2(lod_1)).ceil() as u32,
-            height: (texture_size.height as f32/f32::exp2(lod_1)).ceil() as u32,
+        let lod_1 = sigma_1 * LOD_FACTOR;
+        let final_size_1 = Extent3d {
+            width: (texture_size.width as f32 / f32::exp2(lod_1)).ceil() as u32,
+            height: (texture_size.height as f32 / f32::exp2(lod_1)).ceil() as u32,
             depth_or_array_layers: 1,
         };
 
-        let lod_2=sigma_2*LOD_FACTOR;
-        let final_size_2=Extent3d{
-            width: (texture_size.width as f32/f32::exp2(lod_2)).ceil() as u32,
-            height: (texture_size.height as f32/f32::exp2(lod_2)).ceil() as u32,
+        let lod_2 = sigma_2 * LOD_FACTOR;
+        let final_size_2 = Extent3d {
+            width: (texture_size.width as f32 / f32::exp2(lod_2)).ceil() as u32,
+            height: (texture_size.height as f32 / f32::exp2(lod_2)).ceil() as u32,
             depth_or_array_layers: 1,
         };
-        
-        let lod_bind_group_1=self.get_lod_bind_group(lod_1);
-        let lod_bind_group_2=self.get_lod_bind_group(lod_2);
+
+        let lod_bind_group_1 = self.get_lod_bind_group(lod_1);
+        let lod_bind_group_2 = self.get_lod_bind_group(lod_2);
 
         let kernel_binding_1 = self.get_kernel_bind_group(sigma_1);
 
         let kernel_binding_2 = self.get_kernel_bind_group(sigma_2);
 
-
         let (vertical_pass_texture_1, vertical_bind_group_1) =
-            self.get_vertical_bind_group(&texture_1, final_size_1.height );
+            self.get_vertical_bind_group(&texture_1, final_size_1.height);
 
-        let (horizontal_pass_texture_1, horizontal_bind_group_1) =
-            self.get_horizontal_bind_group(vertical_pass_texture_1, final_size_1.width, final_size_1.height);
+        let (horizontal_pass_texture_1, horizontal_bind_group_1) = self.get_horizontal_bind_group(
+            vertical_pass_texture_1,
+            final_size_1.width,
+            final_size_1.height,
+        );
 
         let (vertical_pass_texture_2, vertical_bind_group_2) =
             self.get_vertical_bind_group(&texture_2, final_size_2.height);
 
-        let (horizontal_pass_texture_2, horizontal_bind_group_2) =
-            self.get_horizontal_bind_group(vertical_pass_texture_2, final_size_2.width, final_size_2.height);
+        let (horizontal_pass_texture_2, horizontal_bind_group_2) = self.get_horizontal_bind_group(
+            vertical_pass_texture_2,
+            final_size_2.width,
+            final_size_2.height,
+        );
 
-        
         // Merge
 
         let merge_opacity_bind = self.get_merge_opacity_bind_group(opacity_1, opacity_2);
@@ -405,16 +411,12 @@ impl GpuContext {
             compute_pass.set_bind_group(0, &kernel_binding_2, &[]);
             compute_pass.set_bind_group(1, &vertical_bind_group_2, &[]);
             compute_pass.set_bind_group(2, &lod_bind_group_2, &[]);
-            let (dispatch_with, dispatch_height) = compute_work_group_count(
-                (texture_size.width, final_size_2.height),
-                (128, 1),
-            );
+            let (dispatch_with, dispatch_height) =
+                compute_work_group_count((texture_size.width, final_size_2.height), (128, 1));
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
             compute_pass.set_bind_group(1, &horizontal_bind_group_2, &[]);
-            let (dispatch_height, dispatch_with) = compute_work_group_count(
-                (final_size_2.width, final_size_2.height),
-                (1, 128),
-            );
+            let (dispatch_height, dispatch_with) =
+                compute_work_group_count((final_size_2.width, final_size_2.height), (1, 128));
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
 
             //texture merge
@@ -543,7 +545,7 @@ impl GpuContext {
         &self,
         vertical_pass_texture_1: Texture,
         final_w: u32,
-        final_h: u32
+        final_h: u32,
     ) -> (Texture, wgpu::BindGroup) {
         let horizontal_pass_texture_1 = self.device.create_texture(&TextureDescriptor {
             label: None,
@@ -586,7 +588,11 @@ impl GpuContext {
         (horizontal_pass_texture_1, horizontal_bind_group_1)
     }
 
-    fn get_vertical_bind_group(&self, texture_1: &Texture, final_h: u32) -> (Texture, wgpu::BindGroup) {
+    fn get_vertical_bind_group(
+        &self,
+        texture_1: &Texture,
+        final_h: u32,
+    ) -> (Texture, wgpu::BindGroup) {
         let vertical_pass_texture_1 = self.device.create_texture(&TextureDescriptor {
             label: None,
             size: Extent3d {
@@ -659,13 +665,13 @@ impl GpuContext {
     }
 
     fn get_lod_bind_group(&self, lod: f32) -> wgpu::BindGroup {
-        
         let lod_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Image info"),
             contents: bytemuck::cast_slice(&[lod]),
             usage: BufferUsages::UNIFORM,
         });
-        let sampler_buffer= self.device.create_sampler(&wgpu::SamplerDescriptor { //TODO look into this
+        let sampler_buffer = self.device.create_sampler(&wgpu::SamplerDescriptor {
+            //TODO look into this
             label: None,
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,

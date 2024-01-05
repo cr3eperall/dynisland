@@ -1,4 +1,9 @@
+// use std::{time::{Duration, Instant}, collections::VecDeque};
+
 use anyhow::{Context, Ok, Result};
+// use log::debug;
+// use once_cell::sync::Lazy;
+// use tokio::sync::Mutex;
 
 // use std::{
 //     convert::TryFrom,
@@ -15,7 +20,7 @@ pub enum FilterBackend {
 }
 
 // static PERF: Lazy<Mutex<VecDeque<Duration>>> =
-//     Lazy::new(|| Mutex::new(VecDeque::with_capacity(1001)));
+//     Lazy::new(|| Mutex::new(VecDeque::with_capacity(101)));
 // static PERF_2: Lazy<Mutex<VecDeque<Duration>>> =
 //     Lazy::new(|| Mutex::new(VecDeque::with_capacity(1001)));
 
@@ -36,7 +41,7 @@ pub fn apply_blur_and_merge_opacity_dual(
     if width != surface_2.width() || height != surface_2.height() {
         panic!("images have different sizes")
     }
-
+    // let start = Instant::now();
     // let (orig_surface, mut target_image_surface)=map_to_image(orig_surface, None).unwrap();
     // let mut target_surface_data=data_unsafe(&mut target_image_surface).unwrap();
 
@@ -90,6 +95,27 @@ pub fn apply_blur_and_merge_opacity_dual(
             }
         }
     }
+    // let dur = start.elapsed();
+    // const SAMPLES: u128 = 100;
+    // let mut perf = PERF.blocking_lock();
+    // perf.push_back(dur);
+    // if perf.len() > SAMPLES as usize {
+    //     perf.pop_front();
+    //     let mut vec: Vec<u128> = perf.iter().map(|dur| dur.as_micros()).collect();
+    //     vec.sort();
+    //     let mut acc = 0u128;
+    //     for el in vec.iter() {
+    //         acc += el;
+    //     }
+    //     let avg = Duration::from_micros((acc / SAMPLES).try_into().unwrap());
+    //     let p9 = Duration::from_micros((*vec.get(9).unwrap()).try_into().unwrap());
+    //     let p99 = Duration::from_micros((*vec.get(99).unwrap()).try_into().unwrap());
+    //     // let p999 = Duration::from_micros((*vec.get(999).unwrap()).try_into().unwrap());
+    //     debug!(
+    //         "{:?} avg: {:?}, 9th p: {:?}, 99th p: {:?}",
+    //         backend, avg, p9, p99
+    //     );
+    // }
     drop(surface_data_1);
     drop(surface_data_2);
     // drop(target_surface_data);

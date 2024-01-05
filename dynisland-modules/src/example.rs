@@ -23,7 +23,7 @@ use dynisland_core::{
     },
     cast_dyn_any,
     graphics::{
-        activity_widget::{ActivityMode, ActivityWidget},
+        activity_widget::widget::{ActivityMode, ActivityWidget},
         widgets::scrolling_label::{Orientation, ScrollingLabel},
     },
 };
