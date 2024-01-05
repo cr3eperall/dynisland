@@ -4,166 +4,128 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use css_anim::soy::{self, EaseFunction};
+use css_anim::{
+    ease_functions::LinearEaseFunction,
+    transition::{TransitionDef, TransitionManager},
+};
 use glib::{object_subclass, prelude::*, wrapper};
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
 use log::error;
 
-use crate::graphics::{
-    activity_widget::allocate_and_draw::begin_draw_clip,
-    animations::transition::{StateStruct, StateTransition},
+use crate::{
+    graphics::{
+        activity_widget::allocate_and_draw::begin_draw_clip,
+        config_variable::ConfigVariable,
+        // animations::transition::{StateStruct, StateTransition},
+    },
+    implement_get_set,
 };
 
-#[derive(Copy, Clone, Debug)]
-pub enum ScrollingLabelTransitionStateEnum {
-    Stopped,
-    Timeout,
-    Running,
-}
+// #[derive(Copy, Clone, Debug)]
+// pub enum ScrollingLabelTransitionStateEnum {
+//     Stopped,
+//     Timeout,
+//     Running,
+// }
 
-#[derive(Clone, Debug)]
-pub struct ScrollingLabelTransitionState {
-    running_duration: u64,
-    timeout_duration: u64,
-    state: ScrollingLabelTransitionStateEnum,
-}
-impl Default for ScrollingLabelTransitionState {
-    fn default() -> Self {
-        Self {
-            running_duration: 0,
-            timeout_duration: 0,
-            state: ScrollingLabelTransitionStateEnum::Stopped,
-        }
-    }
-}
-impl StateTransition<ScrollingLabelTransitionState> {
-    pub fn set_running_duration(&mut self, running_duration: u64) {
-        if running_duration == self.get_state_struct().running_duration {
-            return;
-        }
+// #[derive(Clone, Debug)]
+// pub struct ScrollingLabelTransitionState {
+//     running_duration: u64,
+//     timeout_duration: u64,
+//     state: ScrollingLabelTransitionStateEnum,
+// }
+// impl Default for ScrollingLabelTransitionState {
+//     fn default() -> Self {
+//         Self {
+//             running_duration: 0,
+//             timeout_duration: 0,
+//             state: ScrollingLabelTransitionStateEnum::Stopped,
+//         }
+//     }
+// }
+// impl StateTransition<ScrollingLabelTransitionState> {
+//     pub fn set_running_duration(&mut self, running_duration: u64) {
+//         if running_duration == self.get_state_struct().running_duration {
+//             return;
+//         }
 
-        self.get_state_struct().running_duration = running_duration;
-        if let ScrollingLabelTransitionStateEnum::Running = self.get_state() {
-            self.start_timer_duration(Duration::from_millis(running_duration));
-        }
-    }
-    pub fn set_timeout_duration(&mut self, timeout_duration: u64) {
-        if timeout_duration == self.get_state_struct().timeout_duration {
-            return;
-        }
+//         self.get_state_struct().running_duration = running_duration;
+//         if let ScrollingLabelTransitionStateEnum::Running = self.get_state() {
+//             self.start_timer_duration(Duration::from_millis(running_duration));
+//         }
+//     }
+//     pub fn set_timeout_duration(&mut self, timeout_duration: u64) {
+//         if timeout_duration == self.get_state_struct().timeout_duration {
+//             return;
+//         }
 
-        self.get_state_struct().timeout_duration = timeout_duration;
-        if let ScrollingLabelTransitionStateEnum::Timeout = self.get_state() {
-            self.start_timer_duration(Duration::from_millis(timeout_duration));
-        }
-    }
-}
+//         self.get_state_struct().timeout_duration = timeout_duration;
+//         if let ScrollingLabelTransitionStateEnum::Timeout = self.get_state() {
+//             self.start_timer_duration(Duration::from_millis(timeout_duration));
+//         }
+//     }
+// }
 
-impl StateStruct for ScrollingLabelTransitionState {
-    type StateEnum = ScrollingLabelTransitionStateEnum;
+// impl StateStruct for ScrollingLabelTransitionState {
+//     type StateEnum = ScrollingLabelTransitionStateEnum;
 
-    //assume transition is enabled and not running
-    fn timer_ended_callback(state_transition: &mut StateTransition<Self>) {
-        match state_transition.get_state() {
-            ScrollingLabelTransitionStateEnum::Stopped => {
-                let state = state_transition.get_state_struct();
-                state.set_state(ScrollingLabelTransitionStateEnum::Timeout);
-                let timeout_duration = state.timeout_duration;
-                state_transition.start_timer_duration(Duration::from_millis(timeout_duration));
-            }
-            ScrollingLabelTransitionStateEnum::Timeout => {
-                let state = state_transition.get_state_struct();
-                state.set_state(ScrollingLabelTransitionStateEnum::Running);
-                let running_duration = state.running_duration;
-                state_transition.start_timer_duration(Duration::from_millis(running_duration));
-            }
-            ScrollingLabelTransitionStateEnum::Running => {
-                let state = state_transition.get_state_struct();
-                state.set_state(ScrollingLabelTransitionStateEnum::Timeout);
-                let timeout_duration = state.timeout_duration;
-                state_transition.start_timer_duration(Duration::from_millis(timeout_duration));
-            }
-        }
-    }
+//     //assume transition is enabled and not running
+//     fn timer_ended_callback(state_transition: &mut StateTransition<Self>) {
+//         match state_transition.get_state() {
+//             ScrollingLabelTransitionStateEnum::Stopped => {
+//                 let state = state_transition.get_state_struct();
+//                 state.set_state(ScrollingLabelTransitionStateEnum::Timeout);
+//                 let timeout_duration = state.timeout_duration;
+//                 state_transition.start_timer_duration(Duration::from_millis(timeout_duration));
+//             }
+//             ScrollingLabelTransitionStateEnum::Timeout => {
+//                 let state = state_transition.get_state_struct();
+//                 state.set_state(ScrollingLabelTransitionStateEnum::Running);
+//                 let running_duration = state.running_duration;
+//                 state_transition.start_timer_duration(Duration::from_millis(running_duration));
+//             }
+//             ScrollingLabelTransitionStateEnum::Running => {
+//                 let state = state_transition.get_state_struct();
+//                 state.set_state(ScrollingLabelTransitionStateEnum::Timeout);
+//                 let timeout_duration = state.timeout_duration;
+//                 state_transition.start_timer_duration(Duration::from_millis(timeout_duration));
+//             }
+//         }
+//     }
 
-    fn get_idle_state() -> Self::StateEnum {
-        ScrollingLabelTransitionStateEnum::Stopped
-    }
+//     fn get_idle_state() -> Self::StateEnum {
+//         ScrollingLabelTransitionStateEnum::Stopped
+//     }
 
-    fn get_state(&self) -> Self::StateEnum {
-        self.state
-    }
+//     fn get_state(&self) -> Self::StateEnum {
+//         self.state
+//     }
 
-    fn set_state(&mut self, state: Self::StateEnum) {
-        self.state = state;
-    }
-}
+//     fn set_state(&mut self, state: Self::StateEnum) {
+//         self.state = state;
+//     }
+// }
 
 #[derive(Clone, glib::Boxed, Debug)]
 #[boxed_type(name = "BoxedScrollingLabelLocalCssContext")]
 pub struct ScrollingLabelLocalTransitionContext {
-    transition_speed: u64,                //pixels per second
-    transition_speed_set_by_module: bool, //TODO not useless for now, because i can't set the speed or timeout from the general config file, currently this is only customizable if the modules include a setting for it
-    transition_timeout: u64,              //millis
-    transition_timeout_set_by_module: bool,
+    transition_speed: ConfigVariable<u64>, //pixels per second //TODO set_by_module useless for now, because i can't set the speed or timeout from the general config file, currently this is only customizable if the modules include a setting for it
+    transition_timeout: ConfigVariable<u64>, //millis
 }
 
 impl ScrollingLabelLocalTransitionContext {
     pub fn new() -> Self {
         Self {
-            transition_timeout: 0,
-            transition_timeout_set_by_module: false,
-            transition_speed: 1,
-            transition_speed_set_by_module: false,
+            transition_timeout: ConfigVariable::new(0),
+            // transition_timeout_set_by_module: false,
+            transition_speed: ConfigVariable::new(1),
+            // transition_speed_set_by_module: false,
         }
     }
 
-    pub fn get_transition_speed(&self) -> u64 {
-        self.transition_speed
-    }
-    pub fn get_transition_speed_set_by_module(&self) -> bool {
-        self.transition_speed_set_by_module
-    }
-    pub fn get_transition_timeout(&self) -> u64 {
-        self.transition_timeout
-    }
-    pub fn get_transition_timeout_set_by_module(&self) -> bool {
-        self.transition_timeout_set_by_module
-    }
-
-    pub fn set_transition_speed(
-        // if the speed is set by the module it uses that, otherwise it uses the one in the comfig file
-        &mut self,
-        transition_speed: u64,
-        module: bool,
-    ) -> Result<()> {
-        if transition_speed == 0 {
-            bail!("cannot set speed of zero")
-        }
-        if module {
-            self.transition_speed_set_by_module = true;
-        } else if self.transition_speed_set_by_module {
-            return Ok(());
-        }
-        self.transition_speed = transition_speed;
-        Ok(())
-    }
-
-    pub fn set_transition_timeout(
-        // if the duration is set by the module it uses that, otherwise it uses the one in the comfig file
-        &mut self,
-        transition_timeout: u64,
-        module: bool,
-    ) -> Result<()> {
-        if module {
-            self.transition_timeout_set_by_module = true;
-        } else if self.transition_timeout_set_by_module {
-            return Ok(());
-        }
-        self.transition_timeout = transition_timeout;
-        Ok(())
-    }
+    implement_get_set!(pub, transition_timeout, u64);
+    implement_get_set!(pub, transition_speed, u64);
 }
 
 impl Default for ScrollingLabelLocalTransitionContext {
@@ -199,7 +161,7 @@ pub struct ScrollingLabelPriv {
     #[property(get, set, nick = "Max Height before enabling scrolling")]
     max_height: RefCell<i32>,
 
-    transition: RefCell<StateTransition<ScrollingLabelTransitionState>>, //TODO borrow_mut is called in a lot of places, need to verify if borrow rules are always followed / use try_borrow_mut() / switch to mutex
+    transition_manager: RefCell<TransitionManager>, //TODO borrow_mut is called in a lot of places, need to verify if borrow rules are always followed / use try_borrow_mut() / switch to mutex
 
     #[property(get, set, nick = "If the animation is enabled")]
     transition_enabled: RefCell<bool>,
@@ -243,11 +205,13 @@ impl ObjectImpl for ScrollingLabelPriv {
                 self.orientation.replace(or);
 
                 self.obj().queue_allocate();
-                self.transition
-                    .borrow_mut()
-                    .get_state_struct()
-                    .set_state(ScrollingLabelTransitionStateEnum::Timeout); //reset position, it doesn't matter if for the first cycle the transition duration is wrong
-                self.update_running_transition_duration(); //update speed
+
+                if *self.transition_enabled.borrow() {
+                    let mut tm = self.transition_manager.borrow_mut();
+                    tm.set_value_no_anim("translate", 0.0);
+                    tm.set_duration("translate", self.get_transition_duration());
+                    tm.set_value("translate", self.get_transition_size())
+                }
             }
             "max-width" => {
                 let value = value.get::<i32>().unwrap();
@@ -255,11 +219,13 @@ impl ObjectImpl for ScrollingLabelPriv {
                     self.max_width.replace(value);
                 }
                 self.obj().queue_allocate();
-                self.transition
-                    .borrow_mut()
-                    .get_state_struct()
-                    .set_state(ScrollingLabelTransitionStateEnum::Timeout); //reset position, it doesn't matter if for the first cycle the transition duration is wrong
-                self.update_running_transition_duration(); //update speed
+
+                if *self.transition_enabled.borrow() {
+                    let mut tm = self.transition_manager.borrow_mut();
+                    tm.set_value_no_anim("translate", 0.0);
+                    tm.set_duration("translate", self.get_transition_duration());
+                    tm.set_value("translate", self.get_transition_size())
+                }
             }
             "max-height" => {
                 let value = value.get::<i32>().unwrap();
@@ -267,26 +233,34 @@ impl ObjectImpl for ScrollingLabelPriv {
                     self.max_height.replace(value);
                 }
                 self.obj().queue_allocate();
-                self.transition
-                    .borrow_mut()
-                    .get_state_struct()
-                    .set_state(ScrollingLabelTransitionStateEnum::Timeout); //reset position, it doesn't matter if for the first cycle the transition duration is wrong
-                self.update_running_transition_duration(); //update speed
+
+                if *self.transition_enabled.borrow() {
+                    let mut tm = self.transition_manager.borrow_mut();
+                    tm.set_value_no_anim("translate", 0.0);
+                    tm.set_duration("translate", self.get_transition_duration());
+                    tm.set_value("translate", self.get_transition_size())
+                }
             }
             "transition-enabled" => {
                 let value = value.get::<bool>().unwrap();
-                self.transition_enabled.replace(value);
-                if value {
-                    self.transition.borrow_mut().enable();
-                } else {
-                    self.transition.borrow_mut().disable();
+                if value && !*self.transition_enabled.borrow() {
+                    let mut tm = self.transition_manager.borrow_mut();
+                    tm.set_value_no_anim("translate", 0.0);
+                    tm.set_duration("translate", self.get_transition_duration());
+                    tm.set_value("translate", self.get_transition_size())
                 }
+                self.transition_enabled.replace(value);
                 self.obj().queue_draw();
             }
             "transition-roll" => {
                 let value = value.get::<bool>().unwrap();
                 self.transition_roll.replace(value);
-                self.update_running_transition_duration();
+                if *self.transition_enabled.borrow() {
+                    let mut tm = self.transition_manager.borrow_mut();
+                    tm.set_value_no_anim("translate", 0.0);
+                    tm.set_duration("translate", self.get_transition_duration());
+                    tm.set_value("translate", self.get_transition_size())
+                }
             }
             x => {
                 panic!("Tried to set inexistant property of ScrollingLabel: {}", x)
@@ -302,11 +276,17 @@ impl ObjectImpl for ScrollingLabelPriv {
 //default data
 impl Default for ScrollingLabelPriv {
     fn default() -> Self {
-        // let name: String = rand::thread_rng()
-        //     .sample_iter(&Alphanumeric)
-        //     .take(6)
-        //     .map(char::from)
-        //     .collect();
+        let mut transition_manager = TransitionManager::new(false);
+        transition_manager.add_property("translate", 0.0);
+        transition_manager.set_transition(
+            "translate",
+            &TransitionDef::new(
+                Duration::ZERO,
+                Box::<LinearEaseFunction>::default(),
+                Duration::ZERO,
+                false,
+            ),
+        );
         let inner_label = gtk::Label::new(None);
         inner_label.set_halign(gtk::Align::Start);
         inner_label.set_valign(gtk::Align::Center);
@@ -314,12 +294,12 @@ impl Default for ScrollingLabelPriv {
         // inner_label.set_margin_end(10);
         inner_label.set_wrap(true);
 
-        let mut transition = StateTransition::default();
-        transition.enable();
+        // let mut transition = StateTransition::default();
+        // transition.enable();
         Self {
             local_transition_context: RefCell::new(ScrollingLabelLocalTransitionContext::new()),
             orientation: RefCell::new(Orientation::Horizontal),
-            transition: RefCell::new(transition),
+            transition_manager: RefCell::new(transition_manager),
             transition_enabled: RefCell::new(true),
             transition_roll: RefCell::new(true),
             //TODO ???(What does this mean? What other things?) should also set max length and other things
@@ -364,7 +344,13 @@ impl ScrollingLabel {
             .local_transition_context
             .borrow_mut()
             .set_transition_speed(pixels_per_second, module)?;
-        self.imp().update_running_transition_duration();
+
+        if self.transition_enabled() {
+            let mut tm = self.imp().transition_manager.borrow_mut();
+            tm.set_value_no_anim("translate", 0.0);
+            tm.set_duration("translate", self.imp().get_transition_duration());
+            tm.set_value("translate", self.imp().get_transition_size())
+        }
         Ok(())
     }
     pub fn set_timeout_duration(&self, duration_millis: u64, module: bool) -> Result<()> {
@@ -372,12 +358,23 @@ impl ScrollingLabel {
             .local_transition_context
             .borrow_mut()
             .set_transition_timeout(duration_millis, module)?;
-        self.imp().transition.borrow_mut().set_timeout_duration(
-            self.imp()
-                .local_transition_context
-                .borrow()
-                .get_transition_timeout(),
+
+        let mut tm = self.imp().transition_manager.borrow_mut();
+        tm.set_delay(
+            "translate",
+            Duration::from_millis(
+                self.imp()
+                    .local_transition_context
+                    .borrow()
+                    .get_transition_timeout(),
+            ),
+            false,
         );
+        if self.transition_enabled() {
+            tm.set_value_no_anim("translate", 0.0);
+            tm.set_duration("translate", self.imp().get_transition_duration());
+            tm.set_value("translate", self.imp().get_transition_size())
+        }
         Ok(())
     }
     pub fn set_text(&self, text: &str) {
@@ -385,12 +382,13 @@ impl ScrollingLabel {
             return;
         }
         self.imp().inner_label.borrow().set_text(text);
-        self.imp()
-            .transition
-            .borrow_mut()
-            .get_state_struct()
-            .set_state(ScrollingLabelTransitionStateEnum::Timeout); //reset position, for now it doesn't matter if for the first cycle the transition duration is wrong
-        self.imp().update_running_transition_duration(); //update speed
+
+        if self.transition_enabled() {
+            let mut tm = self.imp().transition_manager.borrow_mut();
+            tm.set_value_no_anim("translate", 0.0);
+            tm.set_duration("translate", self.imp().get_transition_duration());
+            tm.set_value("translate", self.imp().get_transition_size())
+        }
     }
 }
 
@@ -477,7 +475,7 @@ impl ScrollingLabelPriv {
         gtk::Allocation::new(x, y, width, height)
     }
 
-    fn update_running_transition_duration(&self) {
+    fn get_transition_duration(&self) -> Duration {
         let inner_w = self.inner_label.borrow().allocation().width()
             + self.inner_label.borrow().allocation().x();
         let inner_h = self.inner_label.borrow().allocation().height()
@@ -485,8 +483,7 @@ impl ScrollingLabelPriv {
         let size = match *self.orientation.borrow() {
             Orientation::Horizontal => {
                 if *self.max_width.borrow() == -1 {
-                    self.transition.borrow_mut().set_running_duration(0);
-                    return;
+                    return Duration::ZERO;
                 }
 
                 let size = i32::min(self.obj().allocation().width() - inner_w, 0);
@@ -498,8 +495,7 @@ impl ScrollingLabelPriv {
             }
             Orientation::Vertical => {
                 if *self.max_height.borrow() == -1 {
-                    self.transition.borrow_mut().set_running_duration(0);
-                    return;
+                    return Duration::ZERO;
                 }
                 if *self.max_width.borrow() == -1 {
                     glib::g_warning!(
@@ -515,28 +511,39 @@ impl ScrollingLabelPriv {
                 }
             }
         };
-        let duration_secs = i32::abs(size) as f64
+        let duration_ms = 1000.0 * i32::abs(size) as f64
             / u64::max(
                 self.local_transition_context
                     .borrow()
                     .get_transition_speed(),
                 1,
             ) as f64;
-        self.transition
-            .borrow_mut()
-            .set_running_duration((duration_secs * 1000.0) as u64);
+        Duration::from_millis(duration_ms as u64)
     }
 
-    fn timing_functions(progress: f64, timing_for: TimingFunction) -> f64 {
-        match timing_for {
-            TimingFunction::Translate => soy::LINEAR.ease(progress),
+    fn get_transition_size(&self) -> f64 {
+        match *self.orientation.borrow() {
+            Orientation::Horizontal => {
+                (self.inner_label.borrow().allocation().width()
+                    + self.inner_label.borrow().allocation().x()) as f64
+            }
+            Orientation::Vertical => {
+                (self.inner_label.borrow().allocation().height()
+                    + self.inner_label.borrow().allocation().y()) as f64
+            }
         }
     }
+
+    // fn timing_functions(progress: f64, timing_for: TimingFunction) -> f64 {
+    //     match timing_for {
+    //         TimingFunction::Translate => soy::LINEAR.ease(progress),
+    //     }
+    // }
 }
 
-enum TimingFunction {
-    Translate,
-}
+// enum TimingFunction {
+//     Translate,
+// }
 //size allocation and draw
 impl WidgetImpl for ScrollingLabelPriv {
     fn preferred_width_for_height(&self, height: i32) -> (i32, i32) {
@@ -599,7 +606,7 @@ impl WidgetImpl for ScrollingLabelPriv {
         let allocation = self.get_child_aligned_allocation(inner);
         inner.size_allocate(&allocation);
         // trace!("orientation: {:?}, child alloc: ({}, {})", self.orientation.borrow(), inner.allocation().width(), inner.allocation().height());
-        self.update_running_transition_duration();
+        self.get_transition_duration();
     }
 
     fn draw(&self, cr: &gdk::cairo::Context) -> glib::Propagation {
@@ -642,159 +649,256 @@ impl WidgetImpl for ScrollingLabelPriv {
 
             begin_draw_clip(cr, (self_w, self_h), (self_w, self_h), radius);
 
-            // cr.move_to(0.0, 0.0);
-            // cr.line_to(self_w, 0.0);
-            // cr.line_to(self_w, self_h);
-            // cr.line_to(0.0, self_h);
-            // cr.line_to(0.0, 0.0);
-            // cr.clip();
-
             let inner = &*self.inner_label.borrow();
             // logs.push(format!("transition:{:?}", self.transition.borrow()));
-            let state = self.transition.borrow_mut().get_state();
-            match state {
-                ScrollingLabelTransitionStateEnum::Stopped => {
-                    self.obj().propagate_draw(inner, cr);
-                }
-                ScrollingLabelTransitionStateEnum::Timeout => {
-                    let dur_to_end = self.transition.borrow().duration_to_end();
-                    if dur_to_end <= Duration::from_millis(70) {
-                        self.obj().queue_draw();
-                    } else {
-                        let wid = self.obj().clone();
-                        glib::MainContext::default().spawn_local(async move {
-                            glib::timeout_future(dur_to_end).await;
-                            wid.queue_draw(); // queue draw for future
-                        });
-                    }
-                    self.obj().propagate_draw(inner, cr);
-                }
-                ScrollingLabelTransitionStateEnum::Running => {
-                    if !self.transition.borrow().is_zero() {
-                        let progress = self.transition.borrow().get_progress();
-                        let inner_w = self.inner_label.borrow().allocation().width()
-                            + self.inner_label.borrow().allocation().x();
-                        let inner_h = self.inner_label.borrow().allocation().height()
-                            + self.inner_label.borrow().allocation().y();
-                        match *self.orientation.borrow() {
-                            Orientation::Horizontal => {
-                                // logs.push(format!("inner_w:({:?}), inner_x:({:?}), ", self.inner_label.borrow().allocation().width(),self.inner_label.borrow().allocation().x()));
-                                if *self.transition_roll.borrow() {
-                                    let tmp_surface = gtk::cairo::ImageSurface::create(
-                                        gdk::cairo::Format::ARgb32,
-                                        inner_w,
-                                        inner_h,
-                                    )
-                                    .with_context(|| "failed to create new imagesurface")?;
+            let mut tm = self.transition_manager.borrow_mut();
+            let animating = tm.is_running("translate");
 
-                                    let tmp_cr = gdk::cairo::Context::new(&tmp_surface)
-                                        .with_context(|| {
-                                            "failed to retrieve context from tmp surface"
-                                        })?;
+            if animating {
+                let translation = tm.get_value("translate").unwrap();
+                let inner_w = self.inner_label.borrow().allocation().width()
+                    + self.inner_label.borrow().allocation().x();
+                let inner_h = self.inner_label.borrow().allocation().height()
+                    + self.inner_label.borrow().allocation().y();
+                match *self.orientation.borrow() {
+                    Orientation::Horizontal => {
+                        // logs.push(format!("inner_w:({:?}), inner_x:({:?}), ", self.inner_label.borrow().allocation().width(),self.inner_label.borrow().allocation().x()));
+                        if *self.transition_roll.borrow() {
+                            let tmp_surface = gtk::cairo::ImageSurface::create(
+                                gdk::cairo::Format::ARgb32,
+                                inner_w,
+                                inner_h,
+                            )
+                            .with_context(|| "failed to create new imagesurface")?;
 
-                                    self.obj().propagate_draw(inner, &tmp_cr);
-                                    drop(tmp_cr);
+                            let tmp_cr = gdk::cairo::Context::new(&tmp_surface)
+                                .with_context(|| "failed to retrieve context from tmp surface")?;
 
-                                    let max_tx = -inner_w as f64;
+                            self.obj().propagate_draw(inner, &tmp_cr);
+                            drop(tmp_cr);
 
-                                    let tx = ScrollingLabelPriv::timing_functions(
-                                        progress,
-                                        TimingFunction::Translate,
-                                    ) * max_tx;
+                            cr.set_source_surface(&tmp_surface, -translation, 0.0)
+                                .with_context(|| "failed to set source surface")?;
+                            cr.paint()
+                                .with_context(|| "failed to paint surface to context")?;
 
-                                    cr.set_source_surface(&tmp_surface, tx, 0.0)
-                                        .with_context(|| "failed to set source surface")?;
-                                    // cr.translate(tx, 0.0);
-                                    cr.paint()
-                                        .with_context(|| "failed to paint surface to context")?;
-
-                                    if tx < (self.obj().allocation().width() - inner_w) as f64 {
-                                        cr.set_source_surface(
-                                            &tmp_surface,
-                                            tx + inner_w as f64,
-                                            0.0,
-                                        )
-                                        .with_context(|| "failed to set source surface")?;
-                                        // cr.translate(tx+inner_w as f64, 0.0);
-                                        cr.paint().with_context(|| {
-                                            "failed to paint surface to context"
-                                        })?;
-                                    }
-                                } else {
-                                    let max_tx = (self.obj().allocation().width() - inner_w) as f64;
-                                    cr.translate(
-                                        ScrollingLabelPriv::timing_functions(
-                                            progress,
-                                            TimingFunction::Translate,
-                                        ) * max_tx,
-                                        0.0,
-                                    );
-                                    self.obj().propagate_draw(inner, cr);
-                                }
+                            if -translation < (self.obj().allocation().width() - inner_w) as f64 {
+                                cr.set_source_surface(
+                                    &tmp_surface,
+                                    -translation + inner_w as f64,
+                                    0.0,
+                                )
+                                .with_context(|| "failed to set source surface")?;
+                                cr.paint()
+                                    .with_context(|| "failed to paint surface to context")?;
                             }
-                            Orientation::Vertical => {
-                                // logs.push(format!("inner_h:({:?}), inner_y:({:?}), ", self.inner_label.borrow().allocation().height(),self.inner_label.borrow().allocation().y()));
-                                if *self.transition_roll.borrow() {
-                                    let tmp_surface = gtk::cairo::ImageSurface::create(
-                                        gdk::cairo::Format::ARgb32,
-                                        inner_w,
-                                        inner_h,
-                                    )
-                                    .with_context(|| "failed to create new imagesurface")?;
-
-                                    let tmp_cr = gdk::cairo::Context::new(&tmp_surface)
-                                        .with_context(|| {
-                                            "failed to retrieve context from tmp surface"
-                                        })?;
-
-                                    self.obj().propagate_draw(inner, &tmp_cr);
-                                    drop(tmp_cr);
-
-                                    let max_ty = -inner_h as f64;
-
-                                    let ty = ScrollingLabelPriv::timing_functions(
-                                        progress,
-                                        TimingFunction::Translate,
-                                    ) * max_ty;
-
-                                    cr.set_source_surface(&tmp_surface, 0.0, ty)
-                                        .with_context(|| "failed to set source surface")?;
-                                    // cr.translate(tx, 0.0);
-                                    cr.paint()
-                                        .with_context(|| "failed to paint surface to context")?;
-
-                                    if ty < (self.obj().allocation().height() - inner_h) as f64 {
-                                        cr.set_source_surface(
-                                            &tmp_surface,
-                                            0.0,
-                                            ty + inner_h as f64,
-                                        )
-                                        .with_context(|| "failed to set source surface")?;
-                                        // cr.translate(tx+inner_w as f64, 0.0);
-                                        cr.paint().with_context(|| {
-                                            "failed to paint surface to context"
-                                        })?;
-                                    }
-                                } else {
-                                    let max_ty =
-                                        (self.obj().allocation().height() - inner_h) as f64;
-                                    cr.translate(
-                                        0.0,
-                                        ScrollingLabelPriv::timing_functions(
-                                            progress,
-                                            TimingFunction::Translate,
-                                        ) * max_ty,
-                                    );
-                                    self.obj().propagate_draw(inner, cr);
-                                }
-                            }
+                        } else {
+                            cr.translate(-translation, 0.0);
+                            self.obj().propagate_draw(inner, cr);
                         }
-                    } else {
-                        self.obj().propagate_draw(inner, cr);
                     }
-                    self.obj().queue_draw();
+                    Orientation::Vertical => {
+                        // logs.push(format!("inner_h:({:?}), inner_y:({:?}), ", self.inner_label.borrow().allocation().height(),self.inner_label.borrow().allocation().y()));
+                        if *self.transition_roll.borrow() {
+                            let tmp_surface = gtk::cairo::ImageSurface::create(
+                                gdk::cairo::Format::ARgb32,
+                                inner_w,
+                                inner_h,
+                            )
+                            .with_context(|| "failed to create new imagesurface")?;
+
+                            let tmp_cr = gdk::cairo::Context::new(&tmp_surface)
+                                .with_context(|| "failed to retrieve context from tmp surface")?;
+
+                            self.obj().propagate_draw(inner, &tmp_cr);
+                            drop(tmp_cr);
+
+                            cr.set_source_surface(&tmp_surface, 0.0, -translation)
+                                .with_context(|| "failed to set source surface")?;
+                            cr.paint()
+                                .with_context(|| "failed to paint surface to context")?;
+
+                            if -translation < (self.obj().allocation().height() - inner_h) as f64 {
+                                cr.set_source_surface(
+                                    &tmp_surface,
+                                    0.0,
+                                    -translation + inner_h as f64,
+                                )
+                                .with_context(|| "failed to set source surface")?;
+                                cr.paint()
+                                    .with_context(|| "failed to paint surface to context")?;
+                            }
+                        } else {
+                            cr.translate(0.0, -translation);
+                            self.obj().propagate_draw(inner, cr);
+                        }
+                    }
                 }
+
+                self.obj().queue_draw();
+            } else {
+                if !tm.is_idle("translate") && *self.transition_enabled.borrow() {
+                    tm.set_value_no_anim("translate", 0.0);
+                    tm.set_duration("translate", self.get_transition_duration());
+                    tm.set_value("translate", self.get_transition_size())
+                }
+                let dur_to_end = tm.time_to_animating("transition");
+                if dur_to_end <= Duration::from_millis(70) {
+                    self.obj().queue_draw();
+                } else {
+                    let wid = self.obj().clone();
+                    glib::MainContext::default().spawn_local(async move {
+                        glib::timeout_future(dur_to_end - Duration::from_millis(50)).await;
+                        wid.queue_draw(); // queue draw for future
+                    });
+                }
+                self.obj().propagate_draw(inner, cr);
             }
+
+            // match state {
+            //     ScrollingLabelTransitionStateEnum::Stopped => {
+            //         self.obj().propagate_draw(inner, cr);
+            //     }
+            //     ScrollingLabelTransitionStateEnum::Timeout => {
+            //         let dur_to_end = self.transition.borrow().duration_to_end();
+            //         if dur_to_end <= Duration::from_millis(70) {
+            //             self.obj().queue_draw();
+            //         } else {
+            //             let wid = self.obj().clone();
+            //             glib::MainContext::default().spawn_local(async move {
+            //                 glib::timeout_future(dur_to_end).await;
+            //                 wid.queue_draw(); // queue draw for future
+            //             });
+            //         }
+            //         self.obj().propagate_draw(inner, cr);
+            //     }
+            //     ScrollingLabelTransitionStateEnum::Running => {
+            //         if !self.transition.borrow().is_zero() {
+            //             let progress = self.transition.borrow().get_progress();
+            //             let inner_w = self.inner_label.borrow().allocation().width()
+            //                 + self.inner_label.borrow().allocation().x();
+            //             let inner_h = self.inner_label.borrow().allocation().height()
+            //                 + self.inner_label.borrow().allocation().y();
+            //             match *self.orientation.borrow() {
+            //                 Orientation::Horizontal => {
+            //                     // logs.push(format!("inner_w:({:?}), inner_x:({:?}), ", self.inner_label.borrow().allocation().width(),self.inner_label.borrow().allocation().x()));
+            //                     if *self.transition_roll.borrow() {
+            //                         let tmp_surface = gtk::cairo::ImageSurface::create(
+            //                             gdk::cairo::Format::ARgb32,
+            //                             inner_w,
+            //                             inner_h,
+            //                         )
+            //                         .with_context(|| "failed to create new imagesurface")?;
+
+            //                         let tmp_cr = gdk::cairo::Context::new(&tmp_surface)
+            //                             .with_context(|| {
+            //                                 "failed to retrieve context from tmp surface"
+            //                             })?;
+
+            //                         self.obj().propagate_draw(inner, &tmp_cr);
+            //                         drop(tmp_cr);
+
+            //                         let max_tx = -inner_w as f64;
+
+            //                         let tx = ScrollingLabelPriv::timing_functions(
+            //                             progress,
+            //                             TimingFunction::Translate,
+            //                         ) * max_tx;
+
+            //                         cr.set_source_surface(&tmp_surface, tx, 0.0)
+            //                             .with_context(|| "failed to set source surface")?;
+            //                         // cr.translate(tx, 0.0);
+            //                         cr.paint()
+            //                             .with_context(|| "failed to paint surface to context")?;
+
+            //                         if tx < (self.obj().allocation().width() - inner_w) as f64 {
+            //                             cr.set_source_surface(
+            //                                 &tmp_surface,
+            //                                 tx + inner_w as f64,
+            //                                 0.0,
+            //                             )
+            //                             .with_context(|| "failed to set source surface")?;
+            //                             // cr.translate(tx+inner_w as f64, 0.0);
+            //                             cr.paint().with_context(|| {
+            //                                 "failed to paint surface to context"
+            //                             })?;
+            //                         }
+            //                     } else {
+            //                         let max_tx = (self.obj().allocation().width() - inner_w) as f64;
+            //                         cr.translate(
+            //                             ScrollingLabelPriv::timing_functions(
+            //                                 progress,
+            //                                 TimingFunction::Translate,
+            //                             ) * max_tx,
+            //                             0.0,
+            //                         );
+            //                         self.obj().propagate_draw(inner, cr);
+            //                     }
+            //                 }
+            //                 Orientation::Vertical => {
+            //                     // logs.push(format!("inner_h:({:?}), inner_y:({:?}), ", self.inner_label.borrow().allocation().height(),self.inner_label.borrow().allocation().y()));
+            //                     if *self.transition_roll.borrow() {
+            //                         let tmp_surface = gtk::cairo::ImageSurface::create(
+            //                             gdk::cairo::Format::ARgb32,
+            //                             inner_w,
+            //                             inner_h,
+            //                         )
+            //                         .with_context(|| "failed to create new imagesurface")?;
+
+            //                         let tmp_cr = gdk::cairo::Context::new(&tmp_surface)
+            //                             .with_context(|| {
+            //                                 "failed to retrieve context from tmp surface"
+            //                             })?;
+
+            //                         self.obj().propagate_draw(inner, &tmp_cr);
+            //                         drop(tmp_cr);
+
+            //                         let max_ty = -inner_h as f64;
+
+            //                         let ty = ScrollingLabelPriv::timing_functions(
+            //                             progress,
+            //                             TimingFunction::Translate,
+            //                         ) * max_ty;
+
+            //                         cr.set_source_surface(&tmp_surface, 0.0, ty)
+            //                             .with_context(|| "failed to set source surface")?;
+            //                         // cr.translate(tx, 0.0);
+            //                         cr.paint()
+            //                             .with_context(|| "failed to paint surface to context")?;
+
+            //                         if ty < (self.obj().allocation().height() - inner_h) as f64 {
+            //                             cr.set_source_surface(
+            //                                 &tmp_surface,
+            //                                 0.0,
+            //                                 ty + inner_h as f64,
+            //                             )
+            //                             .with_context(|| "failed to set source surface")?;
+            //                             // cr.translate(tx+inner_w as f64, 0.0);
+            //                             cr.paint().with_context(|| {
+            //                                 "failed to paint surface to context"
+            //                             })?;
+            //                         }
+            //                     } else {
+            //                         let max_ty =
+            //                             (self.obj().allocation().height() - inner_h) as f64;
+            //                         cr.translate(
+            //                             0.0,
+            //                             ScrollingLabelPriv::timing_functions(
+            //                                 progress,
+            //                                 TimingFunction::Translate,
+            //                             ) * max_ty,
+            //                         );
+            //                         self.obj().propagate_draw(inner, cr);
+            //                     }
+            //                 }
+            //             }
+            //         } else {
+            //             self.obj().propagate_draw(inner, cr);
+            //         }
+            //         self.obj().queue_draw();
+            //     }
+            // }
+
             cr.reset_clip();
 
             gtk::render_frame(

@@ -43,7 +43,34 @@ macro_rules! implement_get_set {
                     return Ok(());
                 }
                 self.$val.value = value;
-                self.update_provider()
+                Ok(())
+            }
+        });
+    };
+    ($vis:vis, $val:tt, $type:ty, $_self:ident => $body:block) => {
+        concat_idents::concat_idents!(name = get_, $val {
+            $vis fn name(&self)-> $type{
+                self.$val.value.clone()
+            }
+        });
+        concat_idents::concat_idents!(name = get_, $val, _set_by_module {
+            $vis fn name(&self) -> bool {
+                self.$val.set_by_module
+            }
+        });
+        concat_idents::concat_idents!(name = set_, $val {
+            $vis fn name(&mut $_self, value: $type, module: bool) -> Result<()> {
+                // trace!("tried to set value {:?}", value);
+                // if self.$val.value.eq(&value) {
+                //     return Ok(());
+                // }
+                if module {
+                    $_self.$val.set_by_module = true;
+                } else if $_self.$val.set_by_module {
+                    return Ok(());
+                }
+                $_self.$val.value = value;
+                $body
             }
         });
     };

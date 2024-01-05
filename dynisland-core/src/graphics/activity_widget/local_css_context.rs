@@ -28,6 +28,7 @@ pub struct ActivityWidgetLocalCssContext {
     transition_smaller_opacity: ConfigVariable<Box<dyn EaseFunction>>,
 }
 
+#[allow(unused_braces)]
 impl ActivityWidgetLocalCssContext {
     pub fn new(name: &str) -> Self {
         Self {
@@ -49,8 +50,8 @@ impl ActivityWidgetLocalCssContext {
     }
 
     implement_get_set!(pub, minimal_height, i32);
-    implement_get_set!(pub, transition_duration, u64);
-    implement_get_set!(pub, transition_size, Box<dyn EaseFunction>);
+    implement_get_set!(pub, transition_duration, u64, self => {self.update_provider()});
+    implement_get_set!(pub, transition_size, Box<dyn EaseFunction>, self => {self.update_provider()});
     implement_get_set!(pub, transition_bigger_blur, Box<dyn EaseFunction>);
     implement_get_set!(pub, transition_smaller_blur, Box<dyn EaseFunction>);
     implement_get_set!(pub, transition_bigger_stretch, Box<dyn EaseFunction>);
