@@ -17,26 +17,26 @@ pub mod util {
 
     use super::{widget::ActivityMode, BLUR_RADIUS};
 
-    pub(super) fn init_transition_properties(transition_manager: &mut TransitionManager) {
-        transition_manager.add_property("minimal-opacity", 1.0);
-        transition_manager.add_property("minimal-blur", 0.0);
-        transition_manager.add_property("minimal-stretch-x", 1.0);
-        transition_manager.add_property("minimal-stretch-y", 1.0);
+    pub(super) fn init_transition_properties(tm: &mut TransitionManager) {
+        tm.add_property("minimal-opacity", 1.0);
+        tm.add_property("minimal-blur", 0.0);
+        tm.add_property("minimal-stretch-x", 1.0);
+        tm.add_property("minimal-stretch-y", 1.0);
 
-        transition_manager.add_property("compact-opacity", 0.0);
-        transition_manager.add_property("compact-blur", BLUR_RADIUS as f64);
-        transition_manager.add_property("compact-stretch-x", 1.0);
-        transition_manager.add_property("compact-stretch-y", 1.0);
+        tm.add_property("compact-opacity", 0.0);
+        tm.add_property("compact-blur", BLUR_RADIUS as f64);
+        tm.add_property("compact-stretch-x", 1.0);
+        tm.add_property("compact-stretch-y", 1.0);
 
-        transition_manager.add_property("expanded-opacity", 0.0);
-        transition_manager.add_property("expanded-blur", BLUR_RADIUS as f64);
-        transition_manager.add_property("expanded-stretch-x", 1.0);
-        transition_manager.add_property("expanded-stretch-y", 1.0);
+        tm.add_property("expanded-opacity", 0.0);
+        tm.add_property("expanded-blur", BLUR_RADIUS as f64);
+        tm.add_property("expanded-stretch-x", 1.0);
+        tm.add_property("expanded-stretch-y", 1.0);
 
-        transition_manager.add_property("overlay-opacity", 0.0);
-        transition_manager.add_property("overlay-blur", BLUR_RADIUS as f64);
-        transition_manager.add_property("overlay-stretch-x", 1.0);
-        transition_manager.add_property("overlay-stretch-y", 1.0);
+        tm.add_property("overlay-opacity", 0.0);
+        tm.add_property("overlay-blur", BLUR_RADIUS as f64);
+        tm.add_property("overlay-stretch-x", 1.0);
+        tm.add_property("overlay-stretch-y", 1.0);
     }
 
     pub(super) fn get_max_preferred_size(m1: (i32, i32), m2: (i32, i32)) -> (i32, i32) {
@@ -65,4 +65,46 @@ pub mod util {
         };
         (width, height)
     }
+}
+
+#[macro_export]
+macro_rules! implement_set_transition{
+    ($vis:vis, $ctx:tt, $val:tt, $props:expr) => {
+        concat_idents::concat_idents!(name = set_, $val {
+            $vis fn name(&self, transition: Box<dyn EaseFunction>, module: bool) -> Result<()> {
+                self.imp()
+                    .$ctx
+                    .borrow_mut()
+                    .name(dyn_clone::clone_box(transition.as_ref()), module)?;
+                let dur=Duration::from_millis(self.imp().$ctx.borrow().get_transition_duration());
+                for prop in $props{
+                    self.imp().transition_manager.borrow_mut().set_easing_function(prop, dyn_clone::clone_box(transition.as_ref()));
+                    self.imp().transition_manager.borrow_mut().set_duration(prop, dur);
+
+                    // self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("minimal-")+prop), dyn_clone::clone_box(transition.as_ref()));
+                    // self.imp().transition_manager.borrow_mut().set_duration(&(String::from("minimal-")+prop), dur);
+
+                    // self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("compact-")+prop), dyn_clone::clone_box(transition.as_ref()));
+                    // self.imp().transition_manager.borrow_mut().set_duration(&(String::from("compact-")+prop), dur);
+
+                    // self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("expanded-")+prop), dyn_clone::clone_box(transition.as_ref()));
+                    // self.imp().transition_manager.borrow_mut().set_duration(&(String::from("expanded-")+prop), dur);
+
+                    // self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("overlay-")+prop), dyn_clone::clone_box(transition.as_ref()));
+                    // self.imp().transition_manager.borrow_mut().set_duration(&(String::from("overlay-")+prop), dur);
+                }
+                Ok(())
+            }
+        });
+    };
+    ($vis:vis, $ctx:tt, $val:tt) => {
+        concat_idents::concat_idents!(name = set_, $val {
+            $vis fn name(&self, transition: Box<dyn EaseFunction>, module: bool) -> Result<()> {
+                self.imp()
+                    .$ctx
+                    .borrow_mut()
+                    .name(dyn_clone::clone_box(transition.as_ref()), module)
+            }
+        });
+    };
 }

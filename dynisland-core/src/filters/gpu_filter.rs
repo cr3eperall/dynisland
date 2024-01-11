@@ -5,10 +5,11 @@ use wgpu::{
     util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindingResource,
     CommandEncoderDescriptor, ComputePassDescriptor, ComputePipelineDescriptor,
     ShaderModuleDescriptor, ShaderSource, TextureDescriptor, TextureDimension, TextureFormat,
-    TextureUsages, TextureViewDescriptor,
+    TextureUsages,
 };
 use wgpu::{
     Buffer, BufferUsages, ComputePipeline, Device, Extent3d, InstanceFlags, Queue, Texture,
+    TextureViewDescriptor,
 };
 
 use super::filter::kernel_size_for_sigma;
@@ -338,12 +339,12 @@ impl GpuContext {
             depth_or_array_layers: 1,
         };
 
-        let lod_bind_group_1 = self.get_lod_bind_group(lod_1);
-        let lod_bind_group_2 = self.get_lod_bind_group(lod_2);
+        let lod_data_1 = self.get_lod_settings(lod_1);
+        let lod_data_2 = self.get_lod_settings(lod_2);
 
-        let kernel_binding_1 = self.get_kernel_bind_group(sigma_1);
+        let settings_binding_1 = self.get_settings_bind_group(sigma_1, &lod_data_1);
 
-        let kernel_binding_2 = self.get_kernel_bind_group(sigma_2);
+        let settings_binding_2 = self.get_settings_bind_group(sigma_2, &lod_data_2);
 
         let (vertical_pass_texture_1, vertical_bind_group_1) =
             self.get_vertical_bind_group(&texture_1, final_size_1.height);
@@ -365,7 +366,7 @@ impl GpuContext {
 
         // Merge
 
-        let merge_opacity_bind = self.get_merge_opacity_bind_group(opacity_1, opacity_2);
+        let merge_opacity_data = self.get_merge_opacity_data(opacity_1, opacity_2);
 
         let merge_output_texture = self.device.create_texture(&TextureDescriptor {
             label: None,
@@ -384,6 +385,9 @@ impl GpuContext {
             horizontal_pass_texture_1,
             horizontal_pass_texture_2,
             &merge_output_texture,
+            &merge_opacity_data.0,
+            &merge_opacity_data.1,
+            &lod_data_1.1,
         );
 
         let mut encoder = self
@@ -396,9 +400,9 @@ impl GpuContext {
             });
             //texture_1 blur
             compute_pass.set_pipeline(&self.blur_pipeline);
-            compute_pass.set_bind_group(0, &kernel_binding_1, &[]);
+            compute_pass.set_bind_group(0, &settings_binding_1, &[]);
             compute_pass.set_bind_group(1, &vertical_bind_group_1, &[]);
-            compute_pass.set_bind_group(2, &lod_bind_group_1, &[]);
+            // compute_pass.set_bind_group(2, &lod_data_1, &[]);
             let (dispatch_with, dispatch_height) =
                 compute_work_group_count((texture_size.width, final_size_1.height), (128, 1));
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1); //TODO maybe dispatch texture_1 and texture_2 at the same time with 2 layers
@@ -408,9 +412,9 @@ impl GpuContext {
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
 
             //texture_2 blur
-            compute_pass.set_bind_group(0, &kernel_binding_2, &[]);
+            compute_pass.set_bind_group(0, &settings_binding_2, &[]);
             compute_pass.set_bind_group(1, &vertical_bind_group_2, &[]);
-            compute_pass.set_bind_group(2, &lod_bind_group_2, &[]);
+            // compute_pass.set_bind_group(2, &lod_data_2, &[]);
             let (dispatch_with, dispatch_height) =
                 compute_work_group_count((texture_size.width, final_size_2.height), (128, 1));
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
@@ -421,9 +425,8 @@ impl GpuContext {
 
             //texture merge
             compute_pass.set_pipeline(&self.merge_pipeline);
-            compute_pass.set_bind_group(0, &merge_opacity_bind, &[]);
-            compute_pass.set_bind_group(1, &merge_textures_bind, &[]);
-            compute_pass.set_bind_group(2, &lod_bind_group_1, &[]);
+            compute_pass.set_bind_group(0, &merge_textures_bind, &[]);
+            // compute_pass.set_bind_group(2, &lod_data_1, &[]);
             let (dispatch_with, dispatch_height) =
                 compute_work_group_count((texture_size.width, texture_size.height), (16, 16));
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
@@ -484,10 +487,13 @@ impl GpuContext {
         horizontal_pass_texture_1: Texture,
         horizontal_pass_texture_2: Texture,
         merge_output_texture: &Texture,
+        merge_opacity_1: &Buffer,
+        merge_opacity_2: &Buffer,
+        lod_sampler: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
         let merge_textures_bind = self.device.create_bind_group(&BindGroupDescriptor {
             label: Some("Texture bind group"),
-            layout: &self.merge_pipeline.get_bind_group_layout(1),
+            layout: &self.merge_pipeline.get_bind_group_layout(0),
             entries: &[
                 BindGroupEntry {
                     binding: 0,
@@ -507,12 +513,28 @@ impl GpuContext {
                         &merge_output_texture.create_view(&TextureViewDescriptor::default()),
                     ),
                 },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: merge_opacity_1.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: merge_opacity_2.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::Sampler(lod_sampler),
+                },
             ],
         });
         merge_textures_bind
     }
 
-    fn get_merge_opacity_bind_group(&self, opacity_1: f32, opacity_2: f32) -> wgpu::BindGroup {
+    fn get_merge_opacity_data(
+        &self,
+        opacity_1: f32,
+        opacity_2: f32,
+    ) -> (wgpu::Buffer, wgpu::Buffer) {
         let merge_opacity_1 = self.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("texture_1 opacity"),
             contents: bytemuck::cast_slice(&[opacity_1]),
@@ -523,22 +545,22 @@ impl GpuContext {
             contents: bytemuck::cast_slice(&[opacity_2]),
             usage: BufferUsages::UNIFORM,
         });
-
-        let merge_opacity_bind = self.device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Images alpha value"),
-            layout: &self.merge_pipeline.get_bind_group_layout(0),
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: merge_opacity_1.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: merge_opacity_2.as_entire_binding(),
-                },
-            ],
-        });
-        merge_opacity_bind
+        (merge_opacity_1, merge_opacity_2)
+        // let merge_opacity_bind = self.device.create_bind_group(&BindGroupDescriptor {
+        //     label: Some("Images alpha value"),
+        //     layout: &self.merge_pipeline.get_bind_group_layout(0),
+        //     entries: &[
+        //         BindGroupEntry {
+        //             binding: 0,
+        //             resource: merge_opacity_1.as_entire_binding(),
+        //         },
+        //         BindGroupEntry {
+        //             binding: 1,
+        //             resource: merge_opacity_2.as_entire_binding(),
+        //         },
+        //     ],
+        // });
+        // merge_opacity_bind
     }
 
     fn get_horizontal_bind_group(
@@ -634,7 +656,11 @@ impl GpuContext {
         (vertical_pass_texture_1, vertical_bind_group_1)
     }
 
-    fn get_kernel_bind_group(&self, sigma: f32) -> wgpu::BindGroup {
+    fn get_settings_bind_group(
+        &self,
+        sigma: f32,
+        lod_data: &(wgpu::Buffer, wgpu::Sampler),
+    ) -> wgpu::BindGroup {
         let kernel = kernel(sigma);
         let kernel_size = kernel.size() as i32;
         let kernel_size_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
@@ -659,12 +685,20 @@ impl GpuContext {
                     binding: 1,
                     resource: kernel_buffer.as_entire_binding(),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: lod_data.0.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Sampler(&lod_data.1),
+                },
             ],
         });
         compute_constants_1
     }
 
-    fn get_lod_bind_group(&self, lod: f32) -> wgpu::BindGroup {
+    fn get_lod_settings(&self, lod: f32) -> (wgpu::Buffer, wgpu::Sampler) {
         let lod_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Image info"),
             contents: bytemuck::cast_slice(&[lod]),
@@ -681,20 +715,21 @@ impl GpuContext {
             mipmap_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
-        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: None,
-            layout: &self.blur_pipeline.get_bind_group_layout(2),
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: lod_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&sampler_buffer),
-                },
-            ],
-        })
+        (lod_buffer, sampler_buffer)
+        // self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        //     label: None,
+        //     layout: &self.blur_pipeline.get_bind_group_layout(2),
+        //     entries: &[
+        //         wgpu::BindGroupEntry {
+        //             binding: 0,
+        //             resource: lod_buffer.as_entire_binding(),
+        //         },
+        //         wgpu::BindGroupEntry {
+        //             binding: 1,
+        //             resource: wgpu::BindingResource::Sampler(&sampler_buffer),
+        //         },
+        //     ],
+        // })
     }
 
     pub fn texture_from_data(&self, data: &[u8], width: u32, height: u32) -> Texture {

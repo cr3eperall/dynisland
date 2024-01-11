@@ -34,6 +34,11 @@ pub struct App {
 impl App {
     pub fn initialize_server(mut self) -> Result<()> {
         //parse static scss file
+        gtk::StyleContext::add_provider_for_screen(
+            &gdk::Screen::default().unwrap(),
+            &self.css_provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
         self.load_css();
         let act_container = gtk::Box::builder()
             .orientation(gtk::Orientation::Horizontal)
@@ -138,7 +143,7 @@ impl App {
                         self.update_general_configs().await;
                         self.restart_producer_rt();
 
-                        self.reload_css();
+                        self.load_css();
                     }
                 }
             }
@@ -176,6 +181,19 @@ impl App {
             config::get_config_path().join("dynisland.scss"),
             &grass::Options::default(),
         );
+        if let Err(err) = css_content {
+            error!(
+                "{} {:?}",
+                "failed to parse css:".red(),
+                err.to_string().red()
+            );
+            return;
+        }
+
+        gtk::StyleContext::remove_provider_for_screen(
+            &gdk::Screen::default().unwrap(),
+            &self.css_provider,
+        );
         //setup static css style
         self.css_provider //TODO save previous state before trying to update
             .load_from_data(css_content.unwrap().as_bytes())
@@ -191,14 +209,6 @@ impl App {
             &self.css_provider,
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
-    }
-
-    pub fn reload_css(&mut self) {
-        gtk::StyleContext::remove_provider_for_screen(
-            &gdk::Screen::default().unwrap(),
-            &self.css_provider,
-        );
-        self.load_css();
     }
 
     pub fn load_modules(&mut self) {

@@ -55,7 +55,7 @@ pub type Producer = fn(
 /// This trait must be implemented by the module configuration struct
 ///
 /// This will be used by [ron] to create a [ron::Value] object from the configuration file, that will be parsed using [Module::parse_config]
-pub trait ModuleConfig: Any + Debug {}
+pub trait ModuleConfig: Any + Debug + DynClone {}
 
 /// This trait must be implemented by the main module struct
 ///

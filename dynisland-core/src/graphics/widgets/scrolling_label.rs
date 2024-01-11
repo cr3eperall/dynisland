@@ -23,6 +23,8 @@ use crate::{
     implement_get_set,
 };
 
+use super::Orientation;
+
 // #[derive(Copy, Clone, Debug)]
 // pub enum ScrollingLabelTransitionStateEnum {
 //     Stopped,
@@ -109,7 +111,7 @@ use crate::{
 // }
 
 #[derive(Clone, glib::Boxed, Debug)]
-#[boxed_type(name = "BoxedScrollingLabelLocalCssContext")]
+#[boxed_type(name = "BoxedScrollingLabelLocalTransitionContext")]
 pub struct ScrollingLabelLocalTransitionContext {
     transition_speed: ConfigVariable<u64>, //pixels per second //TODO set_by_module useless for now, because i can't set the speed or timeout from the general config file, currently this is only customizable if the modules include a setting for it
     transition_timeout: ConfigVariable<u64>, //millis
@@ -141,13 +143,6 @@ impl Default for ScrollingLabelLocalTransitionContext {
 wrapper! {
     pub struct ScrollingLabel(ObjectSubclass<ScrollingLabelPriv>)
     @extends gtk::Bin, gtk::Container, gtk::Widget;
-}
-
-#[derive(Clone, glib::Boxed, Debug)]
-#[boxed_type(name = "BoxedOrientation")]
-pub enum Orientation {
-    Horizontal,
-    Vertical,
 }
 
 #[derive(Properties)]
@@ -412,9 +407,9 @@ impl ScrollingLabel {
         }
         self.imp().inner_label.borrow().set_text(text);
 
+        let mut tm = self.imp().transition_manager.borrow_mut();
+        tm.set_value_no_anim("translate", 0.0);
         if self.transition_enabled() {
-            let mut tm = self.imp().transition_manager.borrow_mut();
-            tm.set_value_no_anim("translate", 0.0);
             tm.set_duration("translate", self.imp().get_transition_duration());
             tm.set_value("translate", self.imp().get_transition_size())
         }
@@ -771,15 +766,18 @@ impl WidgetImpl for ScrollingLabelPriv {
                     tm.set_duration("translate", self.get_transition_duration());
                     tm.set_value("translate", self.get_transition_size())
                 }
-                let dur_to_end = tm.time_to_animating("transition");
-                if dur_to_end <= Duration::from_millis(70) {
-                    self.obj().queue_draw();
-                } else {
-                    let wid = self.obj().clone();
-                    glib::MainContext::default().spawn_local(async move {
-                        glib::timeout_future(dur_to_end - Duration::from_millis(50)).await;
-                        wid.queue_draw(); // queue draw for future
-                    });
+
+                if tm.is_idle("translate") {
+                    let dur_to_end = tm.time_to_animating("transition");
+                    if dur_to_end <= Duration::from_millis(70) {
+                        self.obj().queue_draw();
+                    } else {
+                        let wid = self.obj().clone();
+                        glib::MainContext::default().spawn_local(async move {
+                            glib::timeout_future(dur_to_end - Duration::from_millis(50)).await;
+                            wid.queue_draw(); // queue draw for future
+                        });
+                    }
                 }
                 self.obj().propagate_draw(inner, cr);
             }

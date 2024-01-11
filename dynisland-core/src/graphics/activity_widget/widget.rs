@@ -672,52 +672,47 @@ impl ActivityWidget {
             .set_minimal_height(height, module)
     }
 
-    crate::implement_set_transition!(pub, transition_size);
-    crate::implement_set_transition!(pub, transition_bigger_blur, ["blur"]);
-    crate::implement_set_transition!(pub, transition_bigger_stretch, ["stretch-x", "stretch-y"]);
-    crate::implement_set_transition!(pub, transition_bigger_opacity, ["opacity"]);
-    crate::implement_set_transition!(pub, transition_smaller_blur);
-    crate::implement_set_transition!(pub, transition_smaller_stretch);
-    crate::implement_set_transition!(pub, transition_smaller_opacity);
-}
-
-#[macro_export]
-macro_rules! implement_set_transition{
-    ($vis:vis, $val:tt, $props:expr) => {
-        concat_idents::concat_idents!(name = set_, $val {
-            $vis fn name(&self, transition: Box<dyn EaseFunction>, module: bool) -> Result<()> {
-                self.imp()
-                    .local_css_context
-                    .borrow_mut()
-                    .name(dyn_clone::clone_box(transition.as_ref()), module)?;
-                let dur=Duration::from_millis(self.imp().local_css_context.borrow().get_transition_duration());
-                for prop in $props{
-                    self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("minimal-")+prop), dyn_clone::clone_box(transition.as_ref()));
-                    self.imp().transition_manager.borrow_mut().set_duration(&(String::from("minimal-")+prop), dur);
-
-                    self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("compact-")+prop), dyn_clone::clone_box(transition.as_ref()));
-                    self.imp().transition_manager.borrow_mut().set_duration(&(String::from("compact-")+prop), dur);
-
-                    self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("expanded-")+prop), dyn_clone::clone_box(transition.as_ref()));
-                    self.imp().transition_manager.borrow_mut().set_duration(&(String::from("expanded-")+prop), dur);
-
-                    self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("overlay-")+prop), dyn_clone::clone_box(transition.as_ref()));
-                    self.imp().transition_manager.borrow_mut().set_duration(&(String::from("overlay-")+prop), dur);
-                }
-                Ok(())
-            }
-        });
-    };
-    ($vis:vis, $val:tt) => {
-        concat_idents::concat_idents!(name = set_, $val {
-            $vis fn name(&self, transition: Box<dyn EaseFunction>, module: bool) -> Result<()> {
-                self.imp()
-                    .local_css_context
-                    .borrow_mut()
-                    .name(dyn_clone::clone_box(transition.as_ref()), module)
-            }
-        });
-    };
+    crate::implement_set_transition!(pub, local_css_context, transition_size);
+    crate::implement_set_transition!(
+        pub,
+        local_css_context,
+        transition_bigger_blur,
+        [
+            "minimal-blur",
+            "compact-blur",
+            "expanded-blur",
+            "overlay-blur"
+        ]
+    );
+    crate::implement_set_transition!(
+        pub,
+        local_css_context,
+        transition_bigger_stretch,
+        [
+            "minimal-stretch-x",
+            "minimal-stretch-y",
+            "compact-stretch-x",
+            "compact-stretch-y",
+            "expanded-stretch-x",
+            "expanded-stretch-y",
+            "overlay-stretch-x",
+            "overlay-stretch-y"
+        ]
+    );
+    crate::implement_set_transition!(
+        pub,
+        local_css_context,
+        transition_bigger_opacity,
+        [
+            "minimal-opacity",
+            "compact-opacity",
+            "expanded-opacity",
+            "overlay-opacity"
+        ]
+    );
+    crate::implement_set_transition!(pub, local_css_context, transition_smaller_blur);
+    crate::implement_set_transition!(pub, local_css_context, transition_smaller_stretch);
+    crate::implement_set_transition!(pub, local_css_context, transition_smaller_opacity);
 }
 
 // add/remove bg_widget and expose info to GTK debugger
