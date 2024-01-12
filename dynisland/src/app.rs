@@ -171,6 +171,15 @@ impl App {
             )
             .expect("error starting watcher");
 
+        std::thread::spawn(|| {
+            //TODO save results to file
+            dynisland_core::filters::filter::benchmark::update_benchmark();
+            info!(
+                "benchmark updated, limit: {}",
+                dynisland_core::filters::filter::benchmark::COMPUTE_BENCHMARK_LIMIT.blocking_lock()
+            );
+        });
+
         //start application
         gtk::main();
         Ok(())

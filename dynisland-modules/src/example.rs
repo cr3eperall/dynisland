@@ -288,23 +288,23 @@ fn update_config(config: &ExampleConfig, activities: ActivityMap) {
         .clone()
         .downcast::<RollingNumber>()
         .unwrap();
-    // let rn2 = compact_mode
-    //     .clone()
-    //     .downcast::<gtk::EventBox>()
-    //     .unwrap()
-    //     .children()
-    //     .first()
-    //     .unwrap()
-    //     .clone()
-    //     .downcast::<gtk::Box>()
-    //     .unwrap()
-    //     .children()
-    //     .get(1)
-    //     .unwrap()
-    //     .clone()
-    //     .downcast::<RollingNumber>()
-    //     .unwrap();
-    let rn_list = vec![rn1]; //,rn2
+    let rn2 = compact_mode
+        .clone()
+        .downcast::<gtk::EventBox>()
+        .unwrap()
+        .children()
+        .first()
+        .unwrap()
+        .clone()
+        .downcast::<gtk::Box>()
+        .unwrap()
+        .children()
+        .get(1)
+        .unwrap()
+        .clone()
+        .downcast::<RollingNumber>()
+        .unwrap();
+    let rn_list = vec![rn1, rn2]; //
     for rn in rn_list {
         rn.set_translate_prev_transition(Box::new(config.translate_prev), true)
             .unwrap();
@@ -752,23 +752,23 @@ impl ExampleModule {
                     .downcast::<RollingNumber>()
                     .unwrap()
                     .set_number(real_value);
-                // compact //FIXME WTF is this, i need to change it, maybe with a macro
-                //     .clone()
-                //     .downcast::<gtk::EventBox>()
-                //     .unwrap()
-                //     .children()
-                //     .first()
-                //     .unwrap()
-                //     .clone()
-                //     .downcast::<gtk::Box>()
-                //     .unwrap()
-                //     .children()
-                //     .get(1)
-                //     .unwrap()
-                //     .clone()
-                //     .downcast::<RollingNumber>()
-                //     .unwrap()
-                //     .set_number(real_value);
+                compact //FIXME WTF is this, i need to change it, maybe with a macro
+                    .clone()
+                    .downcast::<gtk::EventBox>()
+                    .unwrap()
+                    .children()
+                    .first()
+                    .unwrap()
+                    .clone()
+                    .downcast::<gtk::Box>()
+                    .unwrap()
+                    .children()
+                    .get(1)
+                    .unwrap()
+                    .clone()
+                    .downcast::<RollingNumber>()
+                    .unwrap()
+                    .set_number(real_value);
             })
             .unwrap();
 
@@ -914,13 +914,13 @@ impl ExampleModule {
         rn1.set_halign(gtk::Align::Center);
         compact.add(&rn1);
 
-        // let rn2 = RollingNumber::new();
-        // rn2.set_transition_duration(400, true).unwrap();
-        // rn2.set_transition_delay(150, true).unwrap();
-        // rn2.set_number('0');
-        // rn2.set_valign(gtk::Align::Center);
-        // rn2.set_halign(gtk::Align::Center);
-        // compact.add(&rn2);
+        let rn2 = RollingNumber::new();
+        rn2.set_transition_duration(400, true).unwrap();
+        rn2.set_transition_delay(150, true).unwrap();
+        rn2.set_number('0');
+        rn2.set_valign(gtk::Align::Center);
+        rn2.set_halign(gtk::Align::Center);
+        compact.add(&rn2);
 
         let compact = gtk::EventBox::builder()
             .height_request(40)

@@ -1,6 +1,9 @@
 // use std::{time::{Duration, Instant}, collections::VecDeque};
 
 use anyhow::{Context, Ok, Result};
+use gdk::cairo::ImageSurface;
+
+use self::benchmark::COMPUTE_BENCHMARK_LIMIT;
 // use log::debug;
 // use once_cell::sync::Lazy;
 // use tokio::sync::Mutex;
@@ -29,8 +32,8 @@ pub enum FilterBackend {
 pub fn apply_blur_and_merge_opacity_dual(
     //TODO implement downsampling
     // orig_surface: &mut gdk::cairo::Surface,
-    surface_1: &mut gdk::cairo::ImageSurface,
-    surface_2: &mut gdk::cairo::ImageSurface,
+    surface_1: &mut ImageSurface,
+    surface_2: &mut ImageSurface,
     sigma_1: f32,
     sigma_2: f32,
     opacity_1: f32,
@@ -124,14 +127,18 @@ pub fn apply_blur_and_merge_opacity_dual(
     Ok(())
 }
 
+pub fn apply_blur_auto(surface: &mut ImageSurface, sigma: f32) -> Result<()> {
+    let pixels = surface.width() * surface.height();
+    if pixels > *COMPUTE_BENCHMARK_LIMIT.blocking_lock() {
+        apply_blur(surface, sigma, FilterBackend::Gpu)
+    } else {
+        apply_blur(surface, sigma, FilterBackend::Cpu)
+    }
+}
+
 /// works with 4 byte colors
 #[allow(unreachable_code, unused_variables)]
-pub fn apply_blur(
-    surface: &mut gdk::cairo::ImageSurface,
-    sigma: f32,
-    backend: FilterBackend,
-) -> Result<()> {
-    unimplemented!("doesn't work anymore, needs to be removed");
+pub fn apply_blur(surface: &mut ImageSurface, sigma: f32, backend: FilterBackend) -> Result<()> {
     if sigma <= 0.0 {
         return Ok(());
     }
@@ -181,18 +188,26 @@ pub fn apply_blur(
             FilterBackend::Cpu => {
                 let n = kernel_size_for_sigma(sigma);
 
-                let mut surface_data = surface_data
+                let mut tmp_surface_data = surface_data
                     .chunks_exact(4)
                     .map(|val| val.try_into().unwrap())
                     .collect::<Vec<[u8; 4]>>();
+
                 // let start2=Instant::now();
                 super::cpu_filter::gaussian_blur(
-                    &mut surface_data,
+                    &mut tmp_surface_data,
                     width as usize,
                     height as usize,
                     sigma,
                     n.try_into().unwrap(),
                 );
+
+                for (i, val) in tmp_surface_data.iter().enumerate() {
+                    surface_data[i * 4] = val[0];
+                    surface_data[i * 4 + 1] = val[1];
+                    surface_data[i * 4 + 2] = val[2];
+                    surface_data[i * 4 + 3] = val[3];
+                }
                 // let dur2= start2.elapsed();
                 // {
                 //     const samples: u128=1000;
@@ -255,7 +270,7 @@ pub fn kernel_size_for_sigma(sigma: f32) -> u32 {
 
 // pub fn map_to_image(surface: &mut gdk::cairo::Surface, extents: Option<gdk::cairo::RectangleInt>) -> Result<(gtk::cairo::Surface, gtk::cairo::ImageSurface)> {
 //     unsafe {
-//         gdk::cairo::ImageSurface::from_raw_none(match extents {
+//         ImageSurface::from_raw_none(match extents {
 //             Some(ref e) => gdk::cairo::ffi::cairo_surface_map_to_image(surface.to_raw_none(), e.to_raw_none()),
 //             None => gdk::cairo::ffi::cairo_surface_map_to_image(surface.to_raw_none(), std::ptr::null()),
 //         })
@@ -266,7 +281,7 @@ pub fn kernel_size_for_sigma(sigma: f32) -> u32 {
 //     }
 // }
 
-// pub fn data_unsafe(surface: &mut gdk::cairo::ImageSurface) -> Result<UnsafeImageSurfaceData> {
+// pub fn data_unsafe(surface: &mut ImageSurface) -> Result<UnsafeImageSurfaceData> {
 //         // if ffi::cairo_surface_get_reference_count(self.to_raw_none()) > 1 {
 //         //     return Err(BorrowError::NonExclusive);
 //         // }
@@ -285,7 +300,7 @@ pub fn kernel_size_for_sigma(sigma: f32) -> u32 {
 
 // #[derive(Debug)]
 // pub struct UnsafeImageSurfaceData<'a> {
-//     surface: &'a mut gdk::cairo::ImageSurface,
+//     surface: &'a mut ImageSurface,
 //     slice: &'a mut [u8],
 //     dirty: bool,
 // }
@@ -294,7 +309,7 @@ pub fn kernel_size_for_sigma(sigma: f32) -> u32 {
 // unsafe impl<'a> Sync for UnsafeImageSurfaceData<'a> {}
 
 // impl<'a> UnsafeImageSurfaceData<'a> {
-//     fn new(surface: &'a mut gdk::cairo::ImageSurface) -> UnsafeImageSurfaceData<'a> {
+//     fn new(surface: &'a mut ImageSurface) -> UnsafeImageSurfaceData<'a> {
 //         unsafe {
 //             let ptr = gdk::cairo::ffi::cairo_image_surface_get_data(surface.to_raw_none());
 //             let len = (surface.stride() as usize) * (surface.height() as usize);
@@ -342,3 +357,105 @@ pub fn kernel_size_for_sigma(sigma: f32) -> u32 {
 //         write!(f, "ImageSurfaceData")
 //     }
 // }
+
+/// with small sizes, if we use the gpu, the cpu spends more time copying textures than if it had computed the blur by itself
+pub mod benchmark {
+    use std::{
+        collections::VecDeque,
+        time::{Duration, Instant},
+    };
+
+    use gdk::cairo::ImageSurface;
+
+    use crate::filters::filter;
+    use once_cell::sync::Lazy;
+    use tokio::sync::Mutex;
+
+    pub static COMPUTE_BENCHMARK_LIMIT: Lazy<Mutex<i32>> = Lazy::new(|| Mutex::new(0));
+
+    pub fn update_benchmark() {
+        fn get_is_sized(size: (i32, i32)) -> ImageSurface {
+            ImageSurface::create(gdk::cairo::Format::ARgb32, size.0, size.1).unwrap()
+        }
+        let mut test_images = [
+            &mut get_is_sized((20, 20)),
+            &mut get_is_sized((30, 30)),
+            &mut get_is_sized((40, 40)),
+            &mut get_is_sized((50, 50)),
+            &mut get_is_sized((60, 60)),
+            &mut get_is_sized((70, 70)),
+            &mut get_is_sized((80, 80)),
+            &mut get_is_sized((90, 90)),
+            &mut get_is_sized((100, 100)),
+        ];
+
+        // let mut results: Vec<(Duration, Duration)>=Vec::with_capacity(test_images.len());
+
+        for image in test_images.iter_mut() {
+            let cpu = measure_blur_cpu(image, 60, crate::graphics::activity_widget::BLUR_RADIUS);
+            let gpu = measure_blur_gpu(image, 60, crate::graphics::activity_widget::BLUR_RADIUS);
+            if gpu < cpu {
+                let max_size = image.width() * image.height();
+                *COMPUTE_BENCHMARK_LIMIT.blocking_lock() = max_size;
+                return;
+            }
+        }
+    }
+
+    fn measure_blur_cpu(image: &mut ImageSurface, samples: u32, sigma: f32) -> Duration {
+        let mut perf: VecDeque<u128> = VecDeque::with_capacity((samples + 1).try_into().unwrap());
+
+        for _ in 0..(samples as f32 * 1.5) as u32 {
+            let start = Instant::now();
+            filter::apply_blur(image, sigma, filter::FilterBackend::Cpu).unwrap();
+            let dur = start.elapsed();
+            perf.push_back(dur.as_micros());
+            if perf.len() > (samples).try_into().unwrap() {
+                perf.pop_front();
+            }
+        }
+        let mut vec: Vec<u128> = perf.iter().copied().collect();
+        vec.sort();
+        // let mut acc = 0u128;
+        // for el in vec.iter() {
+        //     acc += el;
+        // }
+        // let avg = Duration::from_micros((acc / samples as u128).try_into().unwrap());
+        // let best = Duration::from_micros((*vec.first().unwrap()).try_into().unwrap());
+        let p80 = Duration::from_micros(
+            (*vec.get((samples as f32 * 0.8) as usize).unwrap())
+                .try_into()
+                .unwrap(),
+        );
+
+        p80
+    }
+
+    fn measure_blur_gpu(image: &mut ImageSurface, samples: u32, sigma: f32) -> Duration {
+        let mut perf: VecDeque<u128> = VecDeque::with_capacity((samples + 1).try_into().unwrap());
+
+        for _ in 0..(samples as f32 * 1.5) as u32 {
+            let start = Instant::now();
+            filter::apply_blur(image, sigma, filter::FilterBackend::Gpu).unwrap();
+            let dur = start.elapsed();
+            perf.push_back(dur.as_micros());
+            if perf.len() > (samples).try_into().unwrap() {
+                perf.pop_front();
+            }
+        }
+        let mut vec: Vec<u128> = perf.iter().copied().collect();
+        vec.sort();
+        // let mut acc = 0u128;
+        // for el in vec.iter() {
+        //     acc += el;
+        // }
+        // let avg = Duration::from_micros((acc / samples as u128).try_into().unwrap());
+        // let best = Duration::from_micros((*vec.first().unwrap()).try_into().unwrap());
+        let p80 = Duration::from_micros(
+            (*vec.get((samples as f32 * 0.8) as usize).unwrap())
+                .try_into()
+                .unwrap(),
+        );
+        p80
+    }
+}

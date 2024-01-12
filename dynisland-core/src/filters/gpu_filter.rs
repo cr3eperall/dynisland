@@ -118,111 +118,35 @@ impl GpuContext {
         }
     }
 
-    //DOESN'T WORK ANYMORE
     pub fn gaussian_blur(&self, data: &mut [u8], width: usize, height: usize, sigma: f32) {
         let name = "gaussian blur";
-        let kernel = kernel(sigma);
-        let kernel_size = kernel.size() as i32;
+
+        //Blur
 
         let texture =
             self.texture_from_data(data, width.try_into().unwrap(), height.try_into().unwrap());
+        let texture_size = texture.size();
 
-        let settings = self.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Image info"),
-            contents: bytemuck::cast_slice(&[kernel_size]),
-            usage: BufferUsages::UNIFORM,
-        });
+        // let lod_1 = sigma * LOD_FACTOR;
+        let lod = 0.0;
+        let final_size = Extent3d {
+            width: (texture_size.width as f32 / f32::exp2(lod)).ceil() as u32,
+            height: (texture_size.height as f32 / f32::exp2(lod)).ceil() as u32,
+            depth_or_array_layers: 1,
+        };
 
-        let kernel = self.device.create_buffer_init(&BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&kernel.packed_data()[..]),
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-        });
+        let lod_data_1 = self.get_lod_settings(lod);
 
-        let compute_constants = self.device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Compute constants"),
-            layout: &self.blur_pipeline.get_bind_group_layout(0),
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: settings.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: kernel.as_entire_binding(),
-                },
-            ],
-        });
+        let settings_binding = self.get_settings_bind_group(sigma, &lod_data_1);
 
-        let vertical_pass_texture = self.device.create_texture(&TextureDescriptor {
-            label: None,
-            size: texture.size(),
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Unorm,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_SRC
-                | TextureUsages::STORAGE_BINDING,
-            view_formats: &[TextureFormat::Rgba8Unorm],
-        });
-        let horizontal_pass_texture = self.device.create_texture(&TextureDescriptor {
-            label: None,
-            size: texture.size(),
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Unorm,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_SRC
-                | TextureUsages::STORAGE_BINDING,
-            view_formats: &[TextureFormat::Rgba8Unorm],
-        });
+        let (vertical_pass_texture, vertical_bind_group) =
+            self.get_vertical_bind_group(&texture, final_size.height);
 
-        let vertical_bind_group = self.device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Texture bind group"),
-            layout: &self.blur_pipeline.get_bind_group_layout(1),
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(
-                        &texture.create_view(&TextureViewDescriptor::default()),
-                    ),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(
-                        &vertical_pass_texture.create_view(&TextureViewDescriptor::default()),
-                    ),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: self.vertical.as_entire_binding(),
-                },
-            ],
-        });
-        let horizontal_bind_group = self.device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Texture bind group"),
-            layout: &self.blur_pipeline.get_bind_group_layout(1),
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(
-                        &vertical_pass_texture.create_view(&TextureViewDescriptor::default()),
-                    ),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(
-                        &horizontal_pass_texture.create_view(&TextureViewDescriptor::default()),
-                    ),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: self.horizontal.as_entire_binding(),
-                },
-            ],
-        });
+        let (horizontal_pass_texture, horizontal_bind_group) = self.get_horizontal_bind_group(
+            vertical_pass_texture,
+            final_size.width,
+            final_size.height,
+        );
 
         let mut encoder = self
             .device
@@ -232,50 +156,21 @@ impl GpuContext {
                 label: Some(format!("{} pass", name).as_str()),
                 timestamp_writes: None,
             });
+            //texture_1 blur
             compute_pass.set_pipeline(&self.blur_pipeline);
-            compute_pass.set_bind_group(0, &compute_constants, &[]);
+            compute_pass.set_bind_group(0, &settings_binding, &[]);
             compute_pass.set_bind_group(1, &vertical_bind_group, &[]);
+            // compute_pass.set_bind_group(2, &lod_data_1, &[]);
             let (dispatch_with, dispatch_height) =
-                compute_work_group_count((texture.size().width, texture.size().height), (128, 1));
-            compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
+                compute_work_group_count((texture_size.width, final_size.height), (128, 1));
+            compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1); //TODO maybe dispatch texture_1 and texture_2 at the same time with 2 layers
             compute_pass.set_bind_group(1, &horizontal_bind_group, &[]);
             let (dispatch_height, dispatch_with) =
-                compute_work_group_count((texture.size().width, texture.size().height), (1, 128));
+                compute_work_group_count((final_size.width, final_size.height), (1, 128));
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
         }
-
-        // Get the result.
-
-        let padded_bytes_per_row = padded_bytes_per_row(texture.size().width);
-        let unpadded_bytes_per_row = texture.size().width as usize * 4;
-
-        let output_buffer_size = padded_bytes_per_row as u64
-            * texture.size().height as u64
-            * std::mem::size_of::<u8>() as u64;
-        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: output_buffer_size,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            mapped_at_creation: false,
-        });
-
-        encoder.copy_texture_to_buffer(
-            wgpu::ImageCopyTexture {
-                aspect: wgpu::TextureAspect::All,
-                texture: &horizontal_pass_texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-            },
-            wgpu::ImageCopyBuffer {
-                buffer: &output_buffer,
-                layout: wgpu::ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(padded_bytes_per_row as u32),
-                    rows_per_image: Some(texture.size().height),
-                },
-            },
-            texture.size(),
-        );
+        let output_buffer =
+            self.get_output_buffer(&mut encoder, texture_size, horizontal_pass_texture);
 
         //execute
         self.queue.submit(Some(encoder.finish()));
@@ -285,14 +180,7 @@ impl GpuContext {
 
         self.device.poll(wgpu::Maintain::Wait);
 
-        let padded_data = buffer_slice.get_mapped_range();
-
-        for (padded, pixels) in padded_data
-            .chunks_exact(padded_bytes_per_row)
-            .zip(data.chunks_exact_mut(unpadded_bytes_per_row))
-        {
-            pixels.copy_from_slice(&padded[..unpadded_bytes_per_row]);
-        }
+        copy_buffer_to_slice(buffer_slice, texture_size, data);
     }
 
     #[allow(clippy::too_many_arguments)]

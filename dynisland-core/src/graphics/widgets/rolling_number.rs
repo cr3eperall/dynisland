@@ -22,7 +22,7 @@ use log::error;
 const BLUR_RADIUS: f32 = 4.0;
 const MIN_STRETCH: f64 = 0.5;
 const SIZE_MULT_FACTOR: f64 = 1.5;
-const TRANSLATE_CORRECTIVE_FACTOR: f64 = -1.0;
+const TRANSLATE_CORRECTIVE_FACTOR: f64 = -1.5;
 
 #[derive(Clone, glib::Boxed, Debug)]
 #[boxed_type(name = "BoxedRollingNumberLocalTransitionContext")]
@@ -491,8 +491,8 @@ impl WidgetImpl for RollingNumberPriv {
                     );
 
                     tmp_cr.translate(
-                        TRANSLATE_CORRECTIVE_FACTOR + translate_prev_x + (prev_scaled_size.0 / 2.0),
-                        TRANSLATE_CORRECTIVE_FACTOR + translate_prev_y + (prev_scaled_size.1 / 2.0),
+                        translate_prev_x + (prev_scaled_size.0 / 2.0),
+                        translate_prev_y + (prev_scaled_size.1 / 2.0),
                     ); //FIXME center label
 
                     tmp_cr.scale(stretch_prev, stretch_prev);
@@ -512,8 +512,8 @@ impl WidgetImpl for RollingNumberPriv {
                     );
 
                     tmp_cr.translate(
-                        TRANSLATE_CORRECTIVE_FACTOR + translate_next_x + (next_size.0 / 2.0),
-                        TRANSLATE_CORRECTIVE_FACTOR + translate_next_y + (next_size.1 / 2.0),
+                        translate_next_x + (next_size.0 / 2.0),
+                        translate_next_y + (next_size.1 / 2.0),
                     ); //FIXME maybe center label
 
                     tmp_cr.scale(stretch_next, stretch_next);
@@ -521,22 +521,44 @@ impl WidgetImpl for RollingNumberPriv {
                     self.obj().propagate_draw(next_inner, &tmp_cr);
                 }
 
-                filter::apply_blur_and_merge_opacity_dual(
-                    &mut prev_surface,
-                    &mut next_surface,
-                    blur_prev,
-                    blur_next,
-                    opacity_prev,
-                    opacity_next,
-                    filter::FilterBackend::Gpu,
-                )
-                .with_context(|| "failed to apply double blur + merge to tmp surface")?;
+                let size = self_w * self_h;
+                if size > *filter::benchmark::COMPUTE_BENCHMARK_LIMIT.blocking_lock() {
+                    filter::apply_blur_and_merge_opacity_dual(
+                        &mut prev_surface,
+                        &mut next_surface,
+                        blur_prev,
+                        blur_next,
+                        opacity_prev,
+                        opacity_next,
+                        filter::FilterBackend::Gpu,
+                    )
+                    .with_context(|| "failed to apply double blur + merge to tmp surface")?;
 
-                cr.set_source_surface(&prev_surface, 0.0, 0.0)
+                    cr.set_source_surface(
+                        &prev_surface,
+                        TRANSLATE_CORRECTIVE_FACTOR,
+                        TRANSLATE_CORRECTIVE_FACTOR,
+                    )
                     .with_context(|| "failed to set source surface")?;
 
-                cr.paint()
-                    .with_context(|| "failed to paint surface to context")?;
+                    cr.paint()
+                        .with_context(|| "failed to paint surface to context")?;
+                } else {
+                    filter::apply_blur_auto(&mut prev_surface, blur_prev + 0.5)
+                        .with_context(|| "failed to apply blur to tmp surface")?;
+                    filter::apply_blur_auto(&mut next_surface, blur_next + 0.5)
+                        .with_context(|| "failed to apply blur to tmp surface")?;
+
+                    cr.set_source_surface(prev_surface, 0.0, 0.0)
+                        .with_context(|| "failed to set source surface")?;
+                    cr.paint_with_alpha(opacity_prev.into())
+                        .with_context(|| "failed to paint surface to context")?;
+
+                    cr.set_source_surface(next_surface, 0.0, 0.0)
+                        .with_context(|| "failed to set source surface")?;
+                    cr.paint_with_alpha(opacity_next.into())
+                        .with_context(|| "failed to paint surface to context")?;
+                }
 
                 self.obj().queue_draw();
             } else if tm.is_idle("translate-prev") {

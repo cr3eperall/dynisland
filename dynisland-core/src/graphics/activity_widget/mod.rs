@@ -2,7 +2,7 @@ pub mod allocate_and_draw;
 pub mod local_css_context;
 pub mod widget;
 
-const BLUR_RADIUS: f32 = 6.0;
+pub(crate) const BLUR_RADIUS: f32 = 6.0;
 
 const FILTER_BACKEND: crate::filters::filter::FilterBackend =
     crate::filters::filter::FilterBackend::Gpu; //TODO move to config file, if i implement everything on the cpu
