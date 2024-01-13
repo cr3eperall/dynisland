@@ -221,12 +221,18 @@ impl App {
     }
 
     pub fn load_modules(&mut self) {
+        self.config = config::get_config();
         for module_new in MODULES.iter() {
             let module = module_new(self.app_send.as_ref().unwrap().clone(), None);
-
-            self.module_map
-                .blocking_lock()
-                .insert(module.get_name().to_string(), module);
+            if self.config.loaded_modules.contains(&module.get_name().to_string()) || self.config.loaded_modules.contains(&"all".to_string()) {
+                // info!("loading module {}", module.get_name());
+                self.module_map
+                    .blocking_lock()
+                    .insert(module.get_name().to_string(), module);
+            } else {
+                info!("skipping module {}", module.get_name());
+                continue;
+            }
         }
         // let example_mod =
         //     example::ExampleModule::new(self.app_send.as_ref().unwrap().clone(), None);

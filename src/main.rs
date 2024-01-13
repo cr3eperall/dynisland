@@ -7,6 +7,8 @@ extern crate dynisland_modules; //need this to force the modules to be linked
 
 // [ ] TODO remove some unnecessary arc and mutexes
 // [ ] TODO remove some unwraps and handle errors better
+// [ ] TODO add docs
+// [ ] TODO remove some unnecessary clones
 
 fn main() -> Result<()> {
     //init GTK
