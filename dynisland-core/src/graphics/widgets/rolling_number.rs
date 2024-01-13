@@ -493,7 +493,7 @@ impl WidgetImpl for RollingNumberPriv {
                     tmp_cr.translate(
                         translate_prev_x + (prev_scaled_size.0 / 2.0),
                         translate_prev_y + (prev_scaled_size.1 / 2.0),
-                    ); //FIXME center label
+                    );
 
                     tmp_cr.scale(stretch_prev, stretch_prev);
 
@@ -514,7 +514,7 @@ impl WidgetImpl for RollingNumberPriv {
                     tmp_cr.translate(
                         translate_next_x + (next_size.0 / 2.0),
                         translate_next_y + (next_size.1 / 2.0),
-                    ); //FIXME maybe center label
+                    );
 
                     tmp_cr.scale(stretch_next, stretch_next);
 
@@ -576,7 +576,7 @@ impl WidgetImpl for RollingNumberPriv {
                 self.obj().propagate_draw(prev_inner, cr);
             } else {
                 // debug!("Completed, {}", *self.first_is_prev.borrow());
-                self.obj().propagate_draw(next_inner, cr); //FIXME switch to prev_inner / wait delay before changing prev to next
+                self.obj().propagate_draw(next_inner, cr);
             }
 
             gtk::render_frame(

@@ -10,8 +10,12 @@ pub const CONFIG_REL_PATH: &str = "dynisland/"; //TODO add cli override
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default = "HashMap::new")]
     pub module_config: HashMap<String, Value>,
+    #[serde(default = "GeneralConfig::default")]
     pub general_config: GeneralConfig,
+    #[serde(default = "Vec::new")]
+    pub loaded_modules: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -88,23 +92,30 @@ fn t_so_default() -> Bezier {
     soy::cubic_bezier(0.2, 0.55, 0.15, 1.0)
 }
 
+impl Default for GeneralConfig{
+    fn default() -> Self {
+        Self {
+            minimal_height: min_height(),
+            transition_duration: t_d_default(),
+            transition_size: t_s_default(),
+            transition_bigger_blur: t_bb_default(),
+            transition_bigger_stretch: t_bs_default(),
+            transition_bigger_opacity: t_bo_default(),
+            transition_smaller_blur: t_sb_default(),
+            transition_smaller_stretch: t_ss_default(),
+            transition_smaller_opacity: t_so_default(),
+            //TODO find a way to add scrolling label to settings
+        }
+    }
+}
+
 impl Default for Config {
     fn default() -> Self {
         let map = HashMap::<String, Value>::new();
         Self {
             module_config: map,
-            general_config: GeneralConfig {
-                minimal_height: min_height(),
-                transition_duration: t_d_default(),
-                transition_size: t_s_default(),
-                transition_bigger_blur: t_bb_default(),
-                transition_bigger_stretch: t_bs_default(),
-                transition_bigger_opacity: t_bo_default(),
-                transition_smaller_blur: t_sb_default(),
-                transition_smaller_stretch: t_ss_default(),
-                transition_smaller_opacity: t_so_default(),
-                //TODO find a way to add scrolling label to settings
-            },
+            general_config: GeneralConfig::default(),
+            loaded_modules: vec!["all".to_string()],
         }
     }
 }
