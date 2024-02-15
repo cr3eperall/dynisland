@@ -40,7 +40,7 @@ impl ActivityLayoutManagerPriv {
         let (x, width) = match child.halign() {
             gtk::Align::Baseline | gtk::Align::Start => (0.0, child_width),
             gtk::Align::End => ((parent_width - child_width) as f32, child_width),
-            gtk::Align::Fill => (0.0, parent_width),
+            gtk::Align::Fill => (if child_width>parent_width {(parent_width - child_width) as f32 / 2.0} else {0.0}, parent_width.max(child_width)),
             _ => {
                 // center
                 ((parent_width - child_width) as f32 / 2.0, child_width)
@@ -49,7 +49,7 @@ impl ActivityLayoutManagerPriv {
         let (y, height) = match child.valign() {
             gtk::Align::Baseline | gtk::Align::Start => (0.0, child_height),
             gtk::Align::End => ((parent_height - child_height) as f32, child_height),
-            gtk::Align::Fill => (0.0, parent_height),
+            gtk::Align::Fill => (if child_height>parent_height {(parent_height - child_height) as f32 / 2.0} else {0.0}, parent_height.max(child_height)),
             _ => {
                 // center
                 ((parent_height - child_height) as f32 / 2.0, child_height)
