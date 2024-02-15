@@ -11,15 +11,15 @@ dynisland-core = { path = "../dynisland-core"}
 css-anim = {path = "../../css-anim", version = "*"}
 
 anyhow = "1.0.75"
-gtk = "0.18.1"
-gdk = "0.18.0"
-glib = "0.18.1"
+gtk = { version = "0.8.0", package = "gtk4" }
+gdk = { version = "0.8.0", package = "gdk4" }
+glib = "0.19.2"
 tokio = { version = "1.32.0", features = ["rt", "time", "sync", "macros"] }
-glib-macros = "0.18.0"
+glib-macros = "0.19.2"
 dyn-clone = "1.0.13"
 async-trait = "0.1.73"
 ron = "0.8.1"
 serde = { version = "1.0.188", features = ["serde_derive"] }
 linkme = "0.3.17"
-env_logger = "0.10.1"
+# env_logger = "0.10.1"
 log = "0.4.20"

@@ -19,7 +19,7 @@ impl<T: DynClone> ConfigVariable<T> {
 }
 
 #[macro_export]
-macro_rules! implement_get_set {
+macro_rules! implement_config_get_set {
     ($vis:vis, $val:tt, $type:ty) => {
         concat_idents::concat_idents!(name = get_, $val {
             $vis fn name(&self)-> $type{
@@ -32,7 +32,7 @@ macro_rules! implement_get_set {
             }
         });
         concat_idents::concat_idents!(name = set_, $val {
-            $vis fn name(&mut self, value: $type, module: bool) -> Result<()> {
+            $vis fn name(&mut self, value: $type, module: bool){
                 // trace!("tried to set value {:?}", value);
                 // if self.$val.value.eq(&value) {
                 //     return Ok(());
@@ -40,10 +40,9 @@ macro_rules! implement_get_set {
                 if module {
                     self.$val.set_by_module = true;
                 } else if self.$val.set_by_module {
-                    return Ok(());
+                    return
                 }
                 self.$val.value = value;
-                Ok(())
             }
         });
     };
@@ -59,7 +58,7 @@ macro_rules! implement_get_set {
             }
         });
         concat_idents::concat_idents!(name = set_, $val {
-            $vis fn name(&mut $_self, value: $type, module: bool) -> Result<()> {
+            $vis fn name(&mut $_self, value: $type, module: bool) {
                 // trace!("tried to set value {:?}", value);
                 // if self.$val.value.eq(&value) {
                 //     return Ok(());
@@ -67,7 +66,7 @@ macro_rules! implement_get_set {
                 if module {
                     $_self.$val.set_by_module = true;
                 } else if $_self.$val.set_by_module {
-                    return Ok(());
+                    return
                 }
                 $_self.$val.value = value;
                 $body

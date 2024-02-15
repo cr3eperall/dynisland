@@ -17,7 +17,7 @@ use tokio::{
     sync::{mpsc::UnboundedSender, Mutex},
 };
 
-use crate::graphics::activity_widget::widget::ActivityWidget;
+use crate::graphics::activity_widget::ActivityWidget;
 
 /// Slice of loaded modules
 #[distributed_slice]

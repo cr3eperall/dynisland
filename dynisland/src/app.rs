@@ -22,7 +22,8 @@ pub enum BackendServerCommand {
 }
 
 pub struct App {
-    pub window: gtk::Window,
+    pub application: gtk::Application,
+    // pub window: gtk::Window,
     pub module_map: Rc<Mutex<HashMap<String, Box<dyn Module>>>>,
     pub producers_handle: Handle,
     pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
@@ -33,12 +34,22 @@ pub struct App {
 
 impl App {
     pub fn initialize_server(mut self) -> Result<()> {
-        //parse static scss file
-        gtk::StyleContext::add_provider_for_screen(
-            &gdk::Screen::default().unwrap(),
-            &self.css_provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        //default css
+        let fallback_provider = gtk::CssProvider::new();
+        fallback_provider.load_from_data(include_str!("../default.css"));
+        gtk::style_context_add_provider_for_display(
+            &gdk::Display::default().unwrap(),
+            &fallback_provider,
+            gtk::STYLE_PROVIDER_PRIORITY_SETTINGS,
         );
+
+        //init css provider
+        gtk::style_context_add_provider_for_display(
+            &gdk::Display::default().unwrap(),
+            &self.css_provider,
+            gtk::STYLE_PROVIDER_PRIORITY_USER,
+        );
+        //load user's scss
         self.load_css();
         let act_container = gtk::Box::builder()
             .orientation(gtk::Orientation::Horizontal)
@@ -46,14 +57,6 @@ impl App {
             .valign(gtk::Align::Start)
             .margin_top(10)
             .build();
-
-        // gtk::Window::set_interactive_debugging(true);
-
-        self.window.add(&act_container);
-
-        //show window
-        self.window.connect_destroy(|_| std::process::exit(0));
-        self.window.show_all();
 
         let (app_send, mut app_recv) = unbounded_channel::<UIServerCommand>();
 
@@ -73,6 +76,19 @@ impl App {
         //     app_send1.send(UIServerCommand::ReloadConfig()).unwrap();
         // });
 
+        let act_container1 = act_container.clone();
+        self.application.connect_activate(move |app| {
+            let window = gtk::ApplicationWindow::new(app);
+            window.set_child(Some(&act_container1));
+
+            // gtk::Window::set_interactive_debugging(true);
+
+            //show window
+            window.connect_destroy(|_| std::process::exit(0));
+            window.present();
+
+            // crate::start_fps_counter(&window, log::Level::Trace, Duration::from_millis(200));
+        });
         //UI command consumer
         glib::MainContext::default().spawn_local(async move {
             // TODO check if there are too many tasks on the UI thread and it begins to lag
@@ -96,8 +112,8 @@ impl App {
                         info!("registered producer {}", module.get_name());
                     }
                     UIServerCommand::AddActivity(module_identifier, activity) => {
-                        act_container.add(&activity.lock().await.get_activity_widget()); //add to window
-                        act_container.show_all();
+                        act_container.append(&activity.lock().await.get_activity_widget()); //add to window
+                        act_container.show();
                         Self::update_general_configs_on_activity(
                             &self.config.general_config,
                             &activity,
@@ -131,7 +147,7 @@ impl App {
         });
 
         let (server_send, mut server_recv) = unbounded_channel::<BackendServerCommand>();
-
+        let app = self.application.clone();
         //server command consumer
         glib::MainContext::default().spawn_local(async move {
             while let Some(command) = server_recv.recv().await {
@@ -170,18 +186,8 @@ impl App {
                 notify::RecursiveMode::NonRecursive,
             )
             .expect("error starting watcher");
-
-        std::thread::spawn(|| {
-            //TODO save results to file
-            dynisland_core::filters::filter::benchmark::update_benchmark();
-            info!(
-                "benchmark updated, limit: {}",
-                dynisland_core::filters::filter::benchmark::COMPUTE_BENCHMARK_LIMIT.blocking_lock()
-            );
-        });
-
         //start application
-        gtk::main();
+        app.run();
         Ok(())
     }
 
@@ -199,24 +205,17 @@ impl App {
             return;
         }
 
-        gtk::StyleContext::remove_provider_for_screen(
-            &gdk::Screen::default().unwrap(),
+        gtk::style_context_remove_provider_for_display(
+            &gdk::Display::default().unwrap(),
             &self.css_provider,
         );
         //setup static css style
         self.css_provider //TODO save previous state before trying to update
-            .load_from_data(css_content.unwrap().as_bytes())
-            .unwrap_or_else(|err| {
-                error!(
-                    "{} {:?}",
-                    "failed to load css:".red(),
-                    err.to_string().red()
-                )
-            });
-        gtk::StyleContext::add_provider_for_screen(
-            &gdk::Screen::default().unwrap(),
+            .load_from_data(&css_content.unwrap());
+        gtk::style_context_add_provider_for_display(
+            &gdk::Display::default().unwrap(),
             &self.css_provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            gtk::STYLE_PROVIDER_PRIORITY_USER,
         );
     }
 
@@ -224,7 +223,12 @@ impl App {
         self.config = config::get_config();
         for module_new in MODULES.iter() {
             let module = module_new(self.app_send.as_ref().unwrap().clone(), None);
-            if self.config.loaded_modules.contains(&module.get_name().to_string()) || self.config.loaded_modules.contains(&"all".to_string()) {
+            if self
+                .config
+                .loaded_modules
+                .contains(&module.get_name().to_string())
+                || self.config.loaded_modules.contains(&"all".to_string())
+            {
                 // info!("loading module {}", module.get_name());
                 self.module_map
                     .blocking_lock()
@@ -290,40 +294,10 @@ impl App {
         let activity = activity.lock().await;
         activity
             .get_activity_widget()
-            .set_minimal_height(config.minimal_height as i32, false)
-            .expect("failed to set minimal-height");
+            .set_minimal_height(config.minimal_height as i32, false);
         activity
             .get_activity_widget()
-            .set_transition_duration(config.transition_duration, false)
-            .expect("failed to set transition-duration");
-        activity
-            .get_activity_widget()
-            .set_transition_size(Box::new(config.transition_size), false)
-            .expect("failed to set transition-size");
-        activity
-            .get_activity_widget()
-            .set_transition_bigger_blur(Box::new(config.transition_bigger_blur), false)
-            .expect("failed to set transition-bigger-blur");
-        activity
-            .get_activity_widget()
-            .set_transition_bigger_stretch(Box::new(config.transition_bigger_stretch), false)
-            .expect("failed to set transition-bigger-stretch");
-        activity
-            .get_activity_widget()
-            .set_transition_bigger_opacity(Box::new(config.transition_bigger_opacity), false)
-            .expect("failed to set transition-bigger-opacity");
-        activity
-            .get_activity_widget()
-            .set_transition_smaller_blur(Box::new(config.transition_smaller_blur), false)
-            .expect("failed to set transition-smaller-blur");
-        activity
-            .get_activity_widget()
-            .set_transition_smaller_stretch(Box::new(config.transition_smaller_stretch), false)
-            .expect("failed to set transition-smaller-stretch");
-        activity
-            .get_activity_widget()
-            .set_transition_smaller_opacity(Box::new(config.transition_smaller_opacity), false)
-            .expect("failed to set transition-smaller-opacity");
+            .set_blur_radius(config.blur_radius, false);
     }
 
     fn init_loaded_modules(&self) {
@@ -357,8 +331,10 @@ impl App {
 impl Default for App {
     fn default() -> Self {
         let (hdl, shutdown) = get_new_tokio_rt();
+        let app =
+            gtk::Application::new(Some("com.github.cr3eperall.dynisland"), Default::default());
         App {
-            window: get_window(),
+            application: app,
             module_map: Rc::new(Mutex::new(HashMap::new())),
             producers_handle: hdl,
             producers_shutdown: shutdown,
@@ -392,8 +368,6 @@ impl Default for App {
 pub fn get_window() -> gtk::Window {
     gtk::Window::builder()
         .title("test")
-        // .type_(gtk::WindowType::Popup)
-        .has_focus(true)
         .height_request(500)
         .width_request(800)
         .build()

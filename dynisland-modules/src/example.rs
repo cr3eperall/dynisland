@@ -9,9 +9,8 @@ use std::{
 use anyhow::{Context, Ok, Result};
 use async_trait::async_trait;
 use css_anim::soy::Bezier;
-use gtk::prelude::*;
+use gtk::{prelude::*, GestureClick, Label};
 use linkme::distributed_slice;
-use log::debug;
 use ron::Value;
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -25,10 +24,7 @@ use dynisland_core::{
         UIServerCommand, MODULES,
     },
     cast_dyn_any,
-    graphics::{
-        activity_widget::widget::{ActivityMode, ActivityWidget},
-        widgets::{rolling_number::RollingNumber, scrolling_label::ScrollingLabel, Orientation},
-    },
+    graphics::activity_widget::{imp::ActivityMode, ActivityWidget},
 };
 
 //add to modules to be loaded
@@ -263,68 +259,68 @@ impl Module for ExampleModule {
     }
 }
 
-fn update_config(config: &ExampleConfig, activities: ActivityMap) {
-    let compact_mode = activities
-        .blocking_lock()
-        .get("exampleActivity1")
-        .unwrap()
-        .blocking_lock()
-        .get_activity_widget()
-        .compact_mode()
-        .unwrap();
-    let rn1 = compact_mode
-        .clone()
-        .downcast::<gtk::EventBox>()
-        .unwrap()
-        .children()
-        .first()
-        .unwrap()
-        .clone()
-        .downcast::<gtk::Box>()
-        .unwrap()
-        .children()
-        .first()
-        .unwrap()
-        .clone()
-        .downcast::<RollingNumber>()
-        .unwrap();
-    let rn2 = compact_mode
-        .clone()
-        .downcast::<gtk::EventBox>()
-        .unwrap()
-        .children()
-        .first()
-        .unwrap()
-        .clone()
-        .downcast::<gtk::Box>()
-        .unwrap()
-        .children()
-        .get(1)
-        .unwrap()
-        .clone()
-        .downcast::<RollingNumber>()
-        .unwrap();
-    let rn_list = vec![rn1, rn2]; //
-    for rn in rn_list {
-        rn.set_translate_prev_transition(Box::new(config.translate_prev), true)
-            .unwrap();
-        rn.set_scale_prev_transition(Box::new(config.scale_prev), true)
-            .unwrap();
-        rn.set_opacity_prev_transition(Box::new(config.opacity_prev), true)
-            .unwrap();
-        rn.set_blur_prev_transition(Box::new(config.blur_prev), true)
-            .unwrap();
-        rn.set_translate_next_transition(Box::new(config.translate_next), true)
-            .unwrap();
-        rn.set_scale_next_transition(Box::new(config.scale_next), true)
-            .unwrap();
-        rn.set_opacity_next_transition(Box::new(config.opacity_next), true)
-            .unwrap();
-        rn.set_blur_next_transition(Box::new(config.blur_next), true)
-            .unwrap();
-        rn.set_transition_duration(config.duration, true).unwrap();
-    }
-}
+// fn update_config(config: &ExampleConfig, activities: ActivityMap) {
+//     let compact_mode = activities
+//         .blocking_lock()
+//         .get("exampleActivity1")
+//         .unwrap()
+//         .blocking_lock()
+//         .get_activity_widget()
+//         .compact_mode()
+//         .unwrap();
+//     let rn1 = compact_mode
+//         .clone()
+//         .downcast::<gtk::EventBox>()
+//         .unwrap()
+//         .children()
+//         .first()
+//         .unwrap()
+//         .clone()
+//         .downcast::<gtk::Box>()
+//         .unwrap()
+//         .children()
+//         .first()
+//         .unwrap()
+//         .clone()
+//         .downcast::<RollingNumber>()
+//         .unwrap();
+//     let rn2 = compact_mode
+//         .clone()
+//         .downcast::<gtk::EventBox>()
+//         .unwrap()
+//         .children()
+//         .first()
+//         .unwrap()
+//         .clone()
+//         .downcast::<gtk::Box>()
+//         .unwrap()
+//         .children()
+//         .get(1)
+//         .unwrap()
+//         .clone()
+//         .downcast::<RollingNumber>()
+//         .unwrap();
+//     let rn_list = vec![rn1, rn2]; //
+//     for rn in rn_list {
+//         rn.set_translate_prev_transition(Box::new(config.translate_prev), true)
+//             .unwrap();
+//         rn.set_scale_prev_transition(Box::new(config.scale_prev), true)
+//             .unwrap();
+//         rn.set_opacity_prev_transition(Box::new(config.opacity_prev), true)
+//             .unwrap();
+//         rn.set_blur_prev_transition(Box::new(config.blur_prev), true)
+//             .unwrap();
+//         rn.set_translate_next_transition(Box::new(config.translate_next), true)
+//             .unwrap();
+//         rn.set_scale_next_transition(Box::new(config.scale_next), true)
+//             .unwrap();
+//         rn.set_opacity_next_transition(Box::new(config.opacity_next), true)
+//             .unwrap();
+//         rn.set_blur_next_transition(Box::new(config.blur_next), true)
+//             .unwrap();
+//         rn.set_transition_duration(config.duration, true).unwrap();
+//     }
+// }
 
 impl ExampleModule {
     //TODO add reference to module and recieve messages from main
@@ -338,7 +334,7 @@ impl ExampleModule {
     ) {
         //data producer
         let config: &ExampleConfig = cast_dyn_any!(config, ExampleConfig).unwrap();
-        update_config(config, activities.clone());
+        // update_config(config, activities.clone());
         //TODO shouldn't be blocking locks, maybe execute async with glib::MainContext
         let act = activities.blocking_lock();
         let mode = act
@@ -373,18 +369,18 @@ impl ExampleModule {
             .unwrap();
         // label.blocking_lock().set(config.string.clone()).unwrap();
 
-        if let Some(widget) = act
-            .get("exampleActivity1")
-            .unwrap()
-            .blocking_lock()
-            .get_activity_widget()
-            .current_widget()
-        {
-            //raise window associated to widget if it has one, this enables events on the active mode widget
-            if let Some(window) = widget.window() {
-                window.raise();
-            }
-        }
+        // if let Some(widget) = act
+        //     .get("exampleActivity1")
+        //     .unwrap()
+        //     .blocking_lock()
+        //     .get_activity_widget()
+        //     .current_widget()
+        // {
+        //     //raise window associated to widget if it has one, this enables events on the active mode widget
+        //     if let Some(window) = widget.window() {
+        //         window.raise();
+        //     }
+        // }
 
         // let activity = Arc::new(Mutex::new(Self::get_activity(
         //     prop_send.clone(),
@@ -401,79 +397,79 @@ impl ExampleModule {
         // debug!("starting task");
         rt.spawn(async move {
             // debug!("task started");
+            mode.lock().await.set(ActivityMode::Minimal).unwrap();
+            // loop {
+            // rolling_number.lock().await.set('0').unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
+            // rolling_number.lock().await.set('1').unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
+            // rolling_number.lock().await.set('2').unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
+            // rolling_number.lock().await.set('3').unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
+            // rolling_number.lock().await.set('4').unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
+            // scrolling_enabled.lock().await.set(false).unwrap();
+            // scrolling_text
+            //     .lock()
+            //     .await
+            //     .set("Hello long text, very long text. Hello long text, very long text.    end".to_string())
+            //     .unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(6000)).await;
+            // scrolling_enabled.lock().await.set(true).unwrap();
+            // scrolling_text
+            //     .lock()
+            //     .await
+            //     .set("Hello shorterer e e e e text e.    end".to_string())
+            //     .unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
             // mode.lock().await.set(ActivityMode::Minimal).unwrap();
-            loop {
-                rolling_number.lock().await.set('0').unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
-                rolling_number.lock().await.set('1').unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
-                rolling_number.lock().await.set('2').unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
-                rolling_number.lock().await.set('3').unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
-                rolling_number.lock().await.set('4').unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(config.duration + 500)).await;
-                // scrolling_enabled.lock().await.set(false).unwrap();
-                // scrolling_text
-                //     .lock()
-                //     .await
-                //     .set("Hello long text, very long text. Hello long text, very long text.    end".to_string())
-                //     .unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(6000)).await;
-                // scrolling_enabled.lock().await.set(true).unwrap();
-                // scrolling_text
-                //     .lock()
-                //     .await
-                //     .set("Hello shorterer e e e e text e.    end".to_string())
-                //     .unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(17000)).await;
-                // mode.lock().await.set(ActivityMode::Minimal).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            // tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
 
-                // mode.lock().await.set(ActivityMode::Compact).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
-                // let old_label_val;
-                // {
-                //     let label_val = label.lock().await;
-                //     let str_val: &String = cast_dyn_any!(label_val.get(), String).unwrap();
-                //     old_label_val = str_val.clone();
-                // }
+            // mode.lock().await.set(ActivityMode::Compact).unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
+            // let old_label_val;
+            // {
+            //     let label_val = label.lock().await;
+            //     let str_val: &String = cast_dyn_any!(label_val.get(), String).unwrap();
+            //     old_label_val = str_val.clone();
+            // }
 
-                // tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-                // label.lock().await.set("sdkjvksdv1 tryt etvcbssrfh".to_string()).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
-                // label.lock().await.set("fghn".to_string()).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+            // tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+            // label.lock().await.set("sdkjvksdv1 tryt etvcbssrfh".to_string()).unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+            // label.lock().await.set("fghn".to_string()).unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
 
-                // label.lock().await.set(old_label_val).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+            // label.lock().await.set(old_label_val).unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
 
-                // prop_send
-                //     .send(PropertyUpdate {
-                //         activity_id: "*".to_string(),
-                //         property_name: "mode".to_string(),
-                //         value: Box::new(ActivityMode::Compact),
-                //     })
-                //     .unwrap();
-                // mode.lock().await.set(ActivityMode::Expanded).unwrap();
+            // prop_send
+            //     .send(PropertyUpdate {
+            //         activity_id: "*".to_string(),
+            //         property_name: "mode".to_string(),
+            //         value: Box::new(ActivityMode::Compact),
+            //     })
+            //     .unwrap();
+            // mode.lock().await.set(ActivityMode::Expanded).unwrap();
 
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                // prop_send
-                //     .send(PropertyUpdate {
-                //         activity_id: "*".to_string(),
-                //         property_name: "mode".to_string(),
-                //         value: Box::new(ActivityMode::Expanded),
-                //     })
-                //     .unwrap();
-                // mode.lock().await.set(ActivityMode::Compact).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                // mode.lock().await.set(ActivityMode::Expanded).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                // mode.lock().await.set(ActivityMode::Overlay).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-                // mode.lock().await.set(ActivityMode::Expanded).unwrap();
-                // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
-            }
+            // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            // prop_send
+            //     .send(PropertyUpdate {
+            //         activity_id: "*".to_string(),
+            //         property_name: "mode".to_string(),
+            //         value: Box::new(ActivityMode::Expanded),
+            //     })
+            //     .unwrap();
+            // mode.lock().await.set(ActivityMode::Compact).unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            // mode.lock().await.set(ActivityMode::Expanded).unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            // mode.lock().await.set(ActivityMode::Overlay).unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            // mode.lock().await.set(ActivityMode::Expanded).unwrap();
+            // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+            // }
         });
     }
 
@@ -487,14 +483,14 @@ impl ExampleModule {
         let mut activity_widget = activity.get_activity_widget();
         Self::set_act_widget(&mut activity_widget);
         //get widgets
-        let background = Self::get_bg();
+        // let background = Self::get_bg();
         let minimal = Self::get_minimal();
         let compact = Self::get_compact();
         let expanded = Self::get_expanded();
         let overlay = Self::get_overlay();
 
         //load widgets in the activity widget
-        activity_widget.add(&background);
+        // activity_widget.add(&background);
         activity_widget.set_minimal_mode(&minimal);
         activity_widget.set_compact_mode(&compact);
         activity_widget.set_expanded_mode(&expanded);
@@ -525,204 +521,218 @@ impl ExampleModule {
 
         let mode = activity.get_property("mode").unwrap();
 
-        let minimal_cl = minimal.clone();
-        activity
-            .subscribe_to_property("scrolling-transition-enabled", move |new_value| {
-                let real_value = cast_dyn_any!(new_value, bool).unwrap();
-                debug!("enabled changed:{real_value}");
-                minimal_cl
-                    .clone()
-                    .downcast::<gtk::EventBox>()
-                    .unwrap()
-                    .children()
-                    .first()
-                    .unwrap()
-                    .clone()
-                    .downcast::<gtk::Box>()
-                    .unwrap()
-                    .children()
-                    .first()
-                    .unwrap()
-                    .clone()
-                    .downcast::<ScrollingLabel>()
-                    .unwrap()
-                    .set_transition_enabled(real_value);
-            })
-            .unwrap();
+        // let minimal_cl = minimal.clone();
+        // activity
+        //     .subscribe_to_property("scrolling-transition-enabled", move |new_value| {
+        //         let real_value = cast_dyn_any!(new_value, bool).unwrap();
+        //         debug!("enabled changed:{real_value}");
+        //         minimal_cl
+        //             .clone()
+        //             .downcast::<gtk::EventBox>()
+        //             .unwrap()
+        //             .children()
+        //             .first()
+        //             .unwrap()
+        //             .clone()
+        //             .downcast::<gtk::Box>()
+        //             .unwrap()
+        //             .children()
+        //             .first()
+        //             .unwrap()
+        //             .clone()
+        //             .downcast::<ScrollingLabel>()
+        //             .unwrap()
+        //             .set_transition_enabled(real_value);
+        //     })
+        //     .unwrap();
 
-        let minimal_cl = minimal.clone();
-        activity
-            .subscribe_to_property("scrolling-label-text", move |new_value| {
-                let real_value = cast_dyn_any!(new_value, String).unwrap();
-                debug!("text changed:{real_value}");
-                minimal_cl
-                    .clone()
-                    .downcast::<gtk::EventBox>()
-                    .unwrap()
-                    .children()
-                    .first()
-                    .unwrap()
-                    .clone()
-                    .downcast::<gtk::Box>()
-                    .unwrap()
-                    .children()
-                    .first()
-                    .unwrap()
-                    .clone()
-                    .downcast::<ScrollingLabel>()
-                    .unwrap()
-                    .set_text(real_value.as_str());
-            })
-            .unwrap();
+        // let minimal_cl = minimal.clone();
+        // activity
+        //     .subscribe_to_property("scrolling-label-text", move |new_value| {
+        //         let real_value = cast_dyn_any!(new_value, String).unwrap();
+        //         debug!("text changed:{real_value}");
+        //         minimal_cl
+        //             .clone()
+        //             .downcast::<gtk::EventBox>()
+        //             .unwrap()
+        //             .children()
+        //             .first()
+        //             .unwrap()
+        //             .clone()
+        //             .downcast::<gtk::Box>()
+        //             .unwrap()
+        //             .children()
+        //             .first()
+        //             .unwrap()
+        //             .clone()
+        //             .downcast::<ScrollingLabel>()
+        //             .unwrap()
+        //             .set_text(real_value.as_str());
+        //     })
+        //     .unwrap();
 
-        minimal.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        // minimal.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        // let m1 = mode.clone();
+        // minimal.connect_button_release_event(move |_wid, ev| {
+        //     if let gdk::EventType::ButtonRelease = ev.event_type() {
+        //         debug!("min");
+        //         let m1 = m1.clone();
+        //         match ev.button() {
+        //             gdk::BUTTON_PRIMARY => {
+        //                 glib::MainContext::default().spawn_local(async move {
+        //                     m1.lock().await.set(ActivityMode::Compact).unwrap();
+        //                 });
+        //             }
+        //             gdk::BUTTON_SECONDARY => {
+        //                 glib::MainContext::default().spawn_local(async move {
+        //                     m1.lock().await.set(ActivityMode::Overlay).unwrap();
+        //                 });
+        //             }
+        //             _ => {}
+        //         }
+        //     }
+        //     glib::Propagation::Proceed
+        // });
+
+        // compact.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        // let m1 = mode.clone();
+        // compact.connect_button_release_event(move |_wid, ev| {
+        //     if let gdk::EventType::ButtonRelease = ev.event_type() {
+        //         debug!("comp");
+        //         let m1 = m1.clone();
+        //         match ev.button() {
+        //             gdk::BUTTON_PRIMARY => {
+        //                 glib::MainContext::default().spawn_local(async move {
+        //                     m1.lock().await.set(ActivityMode::Expanded).unwrap();
+        //                 });
+        //             }
+        //             gdk::BUTTON_SECONDARY => {
+        //                 glib::MainContext::default().spawn_local(async move {
+        //                     m1.lock().await.set(ActivityMode::Minimal).unwrap();
+        //                 });
+        //             }
+        //             _ => {}
+        //         }
+        //     }
+        //     glib::Propagation::Proceed
+        // });
+
+        // expanded.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        // let m1 = mode.clone();
+        // expanded.connect_button_release_event(move |_wid, ev| {
+        //     if let gdk::EventType::ButtonRelease = ev.event_type() {
+        //         debug!("exp");
+        //         let m1 = m1.clone();
+        //         match ev.button() {
+        //             gdk::BUTTON_PRIMARY => {
+        //                 glib::MainContext::default().spawn_local(async move {
+        //                     m1.lock().await.set(ActivityMode::Overlay).unwrap();
+        //                 });
+        //             }
+        //             gdk::BUTTON_SECONDARY => {
+        //                 glib::MainContext::default().spawn_local(async move {
+        //                     m1.lock().await.set(ActivityMode::Compact).unwrap();
+        //                 });
+        //             }
+        //             _ => {}
+        //         }
+        //     }
+        //     glib::Propagation::Proceed
+        // });
+
+        // overlay.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        // let m1 = mode.clone();
+        // overlay.connect_button_release_event(move |_wid, ev| {
+        //     if let gdk::EventType::ButtonRelease = ev.event_type() {
+        //         debug!("exp");
+        //         let m1 = m1.clone();
+        //         match ev.button() {
+        //             gdk::BUTTON_PRIMARY => {
+        //                 glib::MainContext::default().spawn_local(async move {
+        //                     m1.lock().await.set(ActivityMode::Minimal).unwrap();
+        //                 });
+        //             }
+        //             gdk::BUTTON_SECONDARY => {
+        //                 glib::MainContext::default().spawn_local(async move {
+        //                     m1.lock().await.set(ActivityMode::Expanded).unwrap();
+        //                 });
+        //             }
+        //             _ => {}
+        //         }
+        //     }
+        //     glib::Propagation::Proceed
+        // });
+
+        // let gesture = gtk::GestureClick::new();
+        // gesture.set_button(gdk::BUTTON_SECONDARY);
+        // gesture.connect_released(|gesture, _, _, _| {
+        //     gesture.set_state(gtk::EventSequenceState::Claimed);
+        //     println!("Button pressed!");
+        // });
+        // activity_widget.add_controller(gesture);
+
+        let press_gesture = gtk::GestureClick::new();
+        press_gesture.set_button(gdk::BUTTON_PRIMARY);
+
         let m1 = mode.clone();
-        minimal.connect_button_release_event(move |_wid, ev| {
-            if let gdk::EventType::ButtonRelease = ev.event_type() {
-                debug!("min");
-                let m1 = m1.clone();
-                match ev.button() {
-                    gdk::BUTTON_PRIMARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            m1.lock().await.set(ActivityMode::Compact).unwrap();
-                        });
+        press_gesture.connect_released(move |gest, _, _, _| {
+            // debug!("primary");
+            gest.set_state(gtk::EventSequenceState::Claimed);
+            let m1 = m1.clone();
+            glib::MainContext::default().spawn_local(async move {
+                let mode_g = m1.lock().await;
+                let mode = *cast_dyn_any!(mode_g.get(), ActivityMode).unwrap();
+                drop(mode_g);
+
+                match mode {
+                    ActivityMode::Minimal => {
+                        m1.lock().await.set(ActivityMode::Compact).unwrap();
                     }
-                    gdk::BUTTON_SECONDARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            m1.lock().await.set(ActivityMode::Overlay).unwrap();
-                        });
+                    ActivityMode::Compact => {
+                        m1.lock().await.set(ActivityMode::Expanded).unwrap();
                     }
-                    _ => {}
+                    ActivityMode::Expanded => {
+                        m1.lock().await.set(ActivityMode::Overlay).unwrap();
+                    }
+                    ActivityMode::Overlay => {
+                        m1.lock().await.set(ActivityMode::Minimal).unwrap();
+                    }
                 }
-            }
-            glib::Propagation::Proceed
+            });
         });
 
-        compact.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
+        activity_widget.add_controller(press_gesture);
+
         let m1 = mode.clone();
-        compact.connect_button_release_event(move |_wid, ev| {
-            if let gdk::EventType::ButtonRelease = ev.event_type() {
-                debug!("comp");
-                let m1 = m1.clone();
-                match ev.button() {
-                    gdk::BUTTON_PRIMARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            m1.lock().await.set(ActivityMode::Expanded).unwrap();
-                        });
+        let release_gesture = GestureClick::new();
+        release_gesture.set_button(gdk::BUTTON_SECONDARY);
+        release_gesture.connect_released(move |gest, _, _, _| {
+            // debug!("secondary");
+            gest.set_state(gtk::EventSequenceState::Claimed);
+            let m1 = m1.clone();
+            glib::MainContext::default().spawn_local(async move {
+                let mode_g = m1.lock().await;
+                let mode = *cast_dyn_any!(mode_g.get(), ActivityMode).unwrap();
+                drop(mode_g);
+
+                match mode {
+                    ActivityMode::Minimal => {
+                        m1.lock().await.set(ActivityMode::Overlay).unwrap();
                     }
-                    gdk::BUTTON_SECONDARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            m1.lock().await.set(ActivityMode::Minimal).unwrap();
-                        });
+                    ActivityMode::Compact => {
+                        m1.lock().await.set(ActivityMode::Minimal).unwrap();
                     }
-                    _ => {}
+                    ActivityMode::Expanded => {
+                        m1.lock().await.set(ActivityMode::Compact).unwrap();
+                    }
+                    ActivityMode::Overlay => {
+                        m1.lock().await.set(ActivityMode::Expanded).unwrap();
+                    }
                 }
-            }
-            glib::Propagation::Proceed
+            });
         });
 
-        expanded.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
-        let m1 = mode.clone();
-        expanded.connect_button_release_event(move |_wid, ev| {
-            if let gdk::EventType::ButtonRelease = ev.event_type() {
-                debug!("exp");
-                let m1 = m1.clone();
-                match ev.button() {
-                    gdk::BUTTON_PRIMARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            m1.lock().await.set(ActivityMode::Overlay).unwrap();
-                        });
-                    }
-                    gdk::BUTTON_SECONDARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            m1.lock().await.set(ActivityMode::Compact).unwrap();
-                        });
-                    }
-                    _ => {}
-                }
-            }
-            glib::Propagation::Proceed
-        });
-
-        overlay.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
-        let m1 = mode.clone();
-        overlay.connect_button_release_event(move |_wid, ev| {
-            if let gdk::EventType::ButtonRelease = ev.event_type() {
-                debug!("exp");
-                let m1 = m1.clone();
-                match ev.button() {
-                    gdk::BUTTON_PRIMARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            m1.lock().await.set(ActivityMode::Minimal).unwrap();
-                        });
-                    }
-                    gdk::BUTTON_SECONDARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            m1.lock().await.set(ActivityMode::Expanded).unwrap();
-                        });
-                    }
-                    _ => {}
-                }
-            }
-            glib::Propagation::Proceed
-        });
-
-        background.add_events(gdk::EventMask::BUTTON_RELEASE_MASK);
-        let m1 = mode.clone();
-        background.connect_button_release_event(move |_wid, ev| {
-            if let gdk::EventType::ButtonRelease = ev.event_type() {
-                // debug!("bg");
-                let m1 = m1.clone();
-                match ev.button() {
-                    gdk::BUTTON_PRIMARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            let mode_g = m1.lock().await;
-                            let mode = *cast_dyn_any!(mode_g.get(), ActivityMode).unwrap();
-                            drop(mode_g);
-
-                            match mode {
-                                ActivityMode::Minimal => {
-                                    m1.lock().await.set(ActivityMode::Compact).unwrap();
-                                }
-                                ActivityMode::Compact => {
-                                    m1.lock().await.set(ActivityMode::Expanded).unwrap();
-                                }
-                                ActivityMode::Expanded => {
-                                    m1.lock().await.set(ActivityMode::Overlay).unwrap();
-                                }
-                                ActivityMode::Overlay => {
-                                    m1.lock().await.set(ActivityMode::Minimal).unwrap();
-                                }
-                            }
-                        });
-                    }
-                    gdk::BUTTON_SECONDARY => {
-                        glib::MainContext::default().spawn_local(async move {
-                            let mode_g = m1.lock().await;
-                            let mode = *cast_dyn_any!(mode_g.get(), ActivityMode).unwrap();
-                            drop(mode_g);
-
-                            match mode {
-                                ActivityMode::Minimal => {
-                                    m1.lock().await.set(ActivityMode::Overlay).unwrap();
-                                }
-                                ActivityMode::Compact => {
-                                    m1.lock().await.set(ActivityMode::Minimal).unwrap();
-                                }
-                                ActivityMode::Expanded => {
-                                    m1.lock().await.set(ActivityMode::Compact).unwrap();
-                                }
-                                ActivityMode::Overlay => {
-                                    m1.lock().await.set(ActivityMode::Expanded).unwrap();
-                                }
-                            }
-                        });
-                    }
-                    _ => {}
-                }
-            }
-            glib::Propagation::Proceed
-        });
+        activity_widget.add_controller(release_gesture);
 
         //set mode when updated
         activity
@@ -732,45 +742,45 @@ impl ExampleModule {
             })
             .unwrap();
 
-        activity
-            .subscribe_to_property("rolling-number", move |new_value| {
-                let real_value = cast_dyn_any!(new_value, char).unwrap();
-                compact //FIXME WTF is this, i need to change it, maybe with a macro
-                    .clone()
-                    .downcast::<gtk::EventBox>()
-                    .unwrap()
-                    .children()
-                    .first()
-                    .unwrap()
-                    .clone()
-                    .downcast::<gtk::Box>()
-                    .unwrap()
-                    .children()
-                    .first()
-                    .unwrap()
-                    .clone()
-                    .downcast::<RollingNumber>()
-                    .unwrap()
-                    .set_number(real_value);
-                compact //FIXME WTF is this, i need to change it, maybe with a macro
-                    .clone()
-                    .downcast::<gtk::EventBox>()
-                    .unwrap()
-                    .children()
-                    .first()
-                    .unwrap()
-                    .clone()
-                    .downcast::<gtk::Box>()
-                    .unwrap()
-                    .children()
-                    .get(1)
-                    .unwrap()
-                    .clone()
-                    .downcast::<RollingNumber>()
-                    .unwrap()
-                    .set_number(real_value);
-            })
-            .unwrap();
+        // activity
+        //     .subscribe_to_property("rolling-number", move |new_value| {
+        //         let real_value = cast_dyn_any!(new_value, char).unwrap();
+        //         compact //FIXME WTF is this, i need to change it, maybe with a macro
+        //             .clone()
+        //             .downcast::<gtk::EventBox>()
+        //             .unwrap()
+        //             .children()
+        //             .first()
+        //             .unwrap()
+        //             .clone()
+        //             .downcast::<gtk::Box>()
+        //             .unwrap()
+        //             .children()
+        //             .first()
+        //             .unwrap()
+        //             .clone()
+        //             .downcast::<RollingNumber>()
+        //             .unwrap()
+        //             .set_number(real_value);
+        //         compact //FIXME WTF is this, i need to change it, maybe with a macro
+        //             .clone()
+        //             .downcast::<gtk::EventBox>()
+        //             .unwrap()
+        //             .children()
+        //             .first()
+        //             .unwrap()
+        //             .clone()
+        //             .downcast::<gtk::Box>()
+        //             .unwrap()
+        //             .children()
+        //             .get(1)
+        //             .unwrap()
+        //             .clone()
+        //             .downcast::<RollingNumber>()
+        //             .unwrap()
+        //             .set_number(real_value);
+        //     })
+        //     .unwrap();
 
         // //set label when updated
         // activity
@@ -808,49 +818,48 @@ impl ExampleModule {
         // activity_widget.style_context().add_class("overlay");
     }
 
-    fn get_bg() -> gtk::Widget {
-        let background = gtk::Label::builder()
-            .label("")
-            .halign(gtk::Align::Start)
-            .valign(gtk::Align::Start)
-            .build();
-        let background = gtk::Box::builder()
-            // .height_request(40)
-            // .width_request(100)
-            .valign(gtk::Align::Start)
-            .halign(gtk::Align::Center)
-            .vexpand(true)
-            .hexpand(true)
-            // .above_child(false) //Allows events on children (like buttons)
-            .child(&background)
-            .build();
+    // fn get_bg() -> gtk::Widget {
+    //     let background = gtk::Label::builder()
+    //         .label("")
+    //         .halign(gtk::Align::Start)
+    //         .valign(gtk::Align::Start)
+    //         .build();
+    //     let background = gtk::Box::builder()
+    //         // .height_request(40)
+    //         // .width_request(100)
+    //         .valign(gtk::Align::Start)
+    //         .halign(gtk::Align::Center)
+    //         .vexpand(true)
+    //         .hexpand(true)
+    //         // .above_child(false) //Allows events on children (like buttons)
+    //         .child(&background)
+    //         .build();
 
-        let background = gtk::EventBox::builder()
-            // .height_request(40)
-            // .width_request(100)
-            .valign(gtk::Align::Start)
-            .halign(gtk::Align::Center)
-            .vexpand(false)
-            .hexpand(false)
-            .above_child(false) //Allows events on children (like buttons)
-            .child(&background)
-            .build();
+    //     let background = gtk::EventBox::builder()
+    //         // .height_request(40)
+    //         // .width_request(100)
+    //         .valign(gtk::Align::Start)
+    //         .halign(gtk::Align::Center)
+    //         .vexpand(false)
+    //         .hexpand(false)
+    //         .above_child(false) //Allows events on children (like buttons)
+    //         .child(&background)
+    //         .build();
 
-        background.upcast()
-    }
+    //     background.upcast()
+    // }
 
     fn get_minimal() -> gtk::Widget {
         let minimal = gtk::Box::builder()
             // .height_request(40)
             .width_request(140)
-            .valign(gtk::Align::Center)
-            .halign(gtk::Align::Center)
+            .valign(gtk::Align::Fill)
+            .halign(gtk::Align::Fill)
             .vexpand(false)
             .hexpand(false)
+            .overflow(gtk::Overflow::Hidden)
             .homogeneous(true)
             .build();
-        minimal.set_margin_start(20);
-        minimal.set_margin_end(20);
 
         // let btn = gtk::Label::builder()
         //     .label("m")
@@ -860,32 +869,41 @@ impl ExampleModule {
         //     .build();
         // minimal.add(&btn);
 
-        let scroll_label = ScrollingLabel::new();
-        scroll_label.set_max_height(40);
-        scroll_label.set_max_width(140); // ?? should be width+internal margins for vertical
-        scroll_label.set_orientation(Orientation::Horizontal);
-        scroll_label.set_transition_roll(true);
-        scroll_label.set_text("valueasdfvasdfasdfasdfasfd");
-        scroll_label.set_transition_speed(30, true).unwrap();
-        scroll_label.set_timeout_duration(2000, true).unwrap();
+        // let scroll_label = ScrollingLabel::new();
+        let scroll_label = Label::new(Some("valueasdfvasdfasdfasdfasfd"));
+        scroll_label.set_hexpand(false);
+        scroll_label.set_vexpand(false);
+        scroll_label.set_valign(gtk::Align::Center);
+        scroll_label.set_halign(gtk::Align::Center);
+        scroll_label.set_width_request(100);
+        scroll_label.set_height_request(40);
+        scroll_label.set_margin_start(20);
+        scroll_label.set_margin_end(20);
+        // scroll_label.set_max_height(40);
+        // scroll_label.set_max_width(140); // ?? should be width+internal margins for vertical
+        // scroll_label.set_orientation(Orientation::Horizontal);
+        // scroll_label.set_transition_roll(true);
+        // scroll_label.set_text("valueasdfvasdfasdfasdfasfd");
+        // scroll_label.set_transition_speed(30, true).unwrap();
+        // scroll_label.set_timeout_duration(2000, true).unwrap();
         // scroll_label.set_transition(Box::new(Bezier::from_str("ease-in-out").unwrap()), true).unwrap();
 
-        scroll_label.inner_label().set_margin_start(10);
-        scroll_label.inner_label().set_margin_end(30);
+        // scroll_label.inner_label().set_margin_start(10);
+        // scroll_label.inner_label().set_margin_end(30);
 
-        minimal.add(&scroll_label);
+        minimal.append(&scroll_label);
 
-        let minimal = gtk::EventBox::builder()
-            .height_request(40)
-            // .width_request(100)
-            .valign(gtk::Align::Center)
-            .halign(gtk::Align::Center)
-            .vexpand(false)
-            .hexpand(false)
-            .above_child(false) //Allows events on children (like buttons)
-            .child(&minimal)
-            .build();
-        // minimal.parent_window().unwrap().set_keep_above(true);
+        // let minimal = gtk::EventBox::builder()
+        //     .height_request(40)
+        //     // .width_request(100)
+        //     .valign(gtk::Align::Center)
+        //     .halign(gtk::Align::Center)
+        //     .vexpand(false)
+        //     .hexpand(false)
+        //     .above_child(false) //Allows events on children (like buttons)
+        //     .child(&minimal)
+        //     .build();
+        // // minimal.parent_window().unwrap().set_keep_above(true);
         minimal.upcast()
     }
 
@@ -907,30 +925,38 @@ impl ExampleModule {
         //         .hexpand(true)
         //         .build(),
         // );
-        let rn1 = RollingNumber::new();
-        rn1.set_transition_duration(400, true).unwrap();
-        rn1.set_number('0');
-        rn1.set_valign(gtk::Align::Center);
-        rn1.set_halign(gtk::Align::Center);
-        compact.add(&rn1);
+        // let rn1 = RollingNumber::new();
+        // rn1.set_transition_duration(400, true).unwrap();
+        // rn1.set_number('0');
+        // rn1.set_valign(gtk::Align::Center);
+        // rn1.set_halign(gtk::Align::Center);
+        // compact.append(&rn1);
 
-        let rn2 = RollingNumber::new();
-        rn2.set_transition_duration(400, true).unwrap();
-        rn2.set_transition_delay(150, true).unwrap();
-        rn2.set_number('0');
-        rn2.set_valign(gtk::Align::Center);
-        rn2.set_halign(gtk::Align::Center);
-        compact.add(&rn2);
+        // let rn2 = RollingNumber::new();
+        // rn2.set_transition_duration(400, true).unwrap();
+        // rn2.set_transition_delay(150, true).unwrap();
+        // rn2.set_number('0');
+        // rn2.set_valign(gtk::Align::Center);
+        // rn2.set_halign(gtk::Align::Center);
+        // compact.append(&rn2);
 
-        let compact = gtk::EventBox::builder()
-            .height_request(40)
-            .width_request(280)
-            .valign(gtk::Align::Center)
-            .halign(gtk::Align::Center)
-            .vexpand(true)
-            .hexpand(false)
-            .child(&compact)
-            .build();
+        compact.append(
+            &Label::builder()
+                .label("Compact")
+                .halign(gtk::Align::Center)
+                .valign(gtk::Align::Center)
+                .build(),
+        );
+
+        // let compact = gtk::EventBox::builder()
+        //     .height_request(40)
+        //     .width_request(280)
+        //     .valign(gtk::Align::Center)
+        //     .halign(gtk::Align::Center)
+        //     .vexpand(true)
+        //     .hexpand(false)
+        //     .child(&compact)
+        //     .build();
         compact.upcast()
     }
 
@@ -944,7 +970,7 @@ impl ExampleModule {
             .hexpand(false)
             .build();
 
-        expanded.add(
+        expanded.append(
             &gtk::Label::builder()
                 .label("Expanded label,\n Hello Hello")
                 .halign(gtk::Align::Center)
@@ -952,15 +978,15 @@ impl ExampleModule {
                 .hexpand(true)
                 .build(),
         );
-        let expanded = gtk::EventBox::builder()
-            .height_request(400)
-            .width_request(500)
-            .valign(gtk::Align::Center)
-            .halign(gtk::Align::Center)
-            .vexpand(false)
-            .hexpand(false)
-            .child(&expanded)
-            .build();
+        // let expanded = gtk::EventBox::builder()
+        //     .height_request(400)
+        //     .width_request(500)
+        //     .valign(gtk::Align::Center)
+        //     .halign(gtk::Align::Center)
+        //     .vexpand(false)
+        //     .hexpand(false)
+        //     .child(&expanded)
+        //     .build();
         expanded.upcast()
     }
 
@@ -974,7 +1000,7 @@ impl ExampleModule {
             .hexpand(false)
             .build();
 
-        expanded.add(
+        expanded.append(
             &gtk::Label::builder()
                 .label("Overlay label,\n Hello Hello \n Hello Hello")
                 .halign(gtk::Align::Center)
