@@ -1,0 +1,11 @@
+activity-widget .mode-minimal, activity-widget .mode-compact, activity-widget .mode-expanded, activity-widget .mode-overlay{
+    transition-property: transform, opacity, filter;
+    transition-duration: 1s, 1s, 1s;
+    transition-timing-function: ease-in-out, ease-in-out, ease-in-out;
+}
+
+activity-widget .activity-background , activity-widget .activity-background * {
+    transition-property: min-width, min-height;
+    transition-duration: 1s, 1s;
+    transition-timing-function: ease-in-out, ease-in-out;
+}
