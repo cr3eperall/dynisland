@@ -30,7 +30,7 @@ impl ActivityWidget {
         gtk::style_context_add_provider_for_display(
             &gdk::Display::default().unwrap(),
             &wid.local_css_context().get_css_provider(),
-            1000, //needs to be higher than user proprity
+            gtk::STYLE_PROVIDER_PRIORITY_USER, //needs to be higher than user proprity //TODO return to 1000
         );
         wid
     }
@@ -39,11 +39,11 @@ impl ActivityWidget {
         let priv_ = self.imp();
         if let Some(content) = &*priv_.minimal_mode_widget.borrow() {
             content.unparent();
-            content.style_context().remove_class("mode-minimal");
+            content.remove_css_class("mode-minimal");
         }
 
         widget.set_parent(self);
-        widget.style_context().add_class("mode-minimal");
+        widget.add_css_class("mode-minimal");
         widget.set_overflow(gtk::Overflow::Hidden);
         priv_.minimal_mode_widget.replace(Some(widget.clone()));
         let min_height = self.local_css_context().get_minimal_height();
@@ -54,18 +54,11 @@ impl ActivityWidget {
                 .borrow_mut()
                 .set_size(widget_size);
 
-            // TODO fix
-            // match widget.window() {
-            //     //raise window associated to widget if it has one, this enables events on the active mode widget
-            //     Some(window) => window.raise(),
-            //     None => {
-            //         // debug!("no window");
-            //     }
-            // }
+            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
         } else {
             let current_size = self
                 .imp()
-                .get_final_allocation_for_mode(self.mode(), min_height);
+                .get_final_widget_size_for_mode(self.mode(), min_height);
             self.local_css_context().set_stretch(
                 ActivityMode::Minimal,
                 (
@@ -81,10 +74,10 @@ impl ActivityWidget {
         let priv_ = self.imp();
         if let Some(content) = &*priv_.compact_mode_widget.borrow() {
             content.unparent();
-            content.style_context().remove_class("mode-compact");
+            content.remove_css_class("mode-compact");
         }
         widget.set_parent(self);
-        widget.style_context().add_class("mode-compact");
+        widget.add_css_class("mode-compact");
         widget.set_overflow(gtk::Overflow::Hidden);
         priv_.compact_mode_widget.replace(Some(widget.clone()));
         let min_height = self.local_css_context().get_minimal_height();
@@ -99,18 +92,11 @@ impl ActivityWidget {
                 .borrow_mut()
                 .set_size(widget_size);
 
-            // TODO fix
-            // match widget.window() {
-            //     //raise window associated to widget if it has one, this enables events on the active mode widget
-            //     Some(window) => window.raise(),
-            //     None => {
-            //         // debug!("no window");
-            //     }
-            // }
+            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
         } else {
             let current_size = self
                 .imp()
-                .get_final_allocation_for_mode(self.mode(), min_height);
+                .get_final_widget_size_for_mode(self.mode(), min_height);
             self.local_css_context().set_stretch(
                 ActivityMode::Compact,
                 (
@@ -126,10 +112,10 @@ impl ActivityWidget {
         let priv_ = self.imp();
         if let Some(content) = &*priv_.expanded_mode_widget.borrow() {
             content.unparent();
-            content.style_context().remove_class("mode-expanded");
+            content.remove_css_class("mode-expanded");
         }
         widget.set_parent(self);
-        widget.style_context().add_class("mode-expanded");
+        widget.add_css_class("mode-expanded");
         widget.set_overflow(gtk::Overflow::Hidden);
         priv_.expanded_mode_widget.replace(Some(widget.clone()));
         let min_height = self.local_css_context().get_minimal_height();
@@ -144,18 +130,11 @@ impl ActivityWidget {
                 .borrow_mut()
                 .set_size(widget_size);
 
-            // TODO fix
-            // match widget.window() {
-            //     //raise window associated to widget if it has one, this enables events on the active mode widget
-            //     Some(window) => window.raise(),
-            //     None => {
-            //         // debug!("no window");
-            //     }
-            // }
+            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
         } else {
             let current_size = self
                 .imp()
-                .get_final_allocation_for_mode(self.mode(), min_height);
+                .get_final_widget_size_for_mode(self.mode(), min_height);
             self.local_css_context().set_stretch(
                 ActivityMode::Expanded,
                 (
@@ -171,10 +150,10 @@ impl ActivityWidget {
         let priv_ = self.imp();
         if let Some(content) = &*priv_.overlay_mode_widget.borrow() {
             content.unparent();
-            content.style_context().remove_class("mode-overlay");
+            content.remove_css_class("mode-overlay");
         }
         widget.set_parent(self);
-        widget.style_context().add_class("mode-overlay");
+        widget.add_css_class("mode-overlay");
         widget.set_overflow(gtk::Overflow::Hidden);
         priv_.overlay_mode_widget.replace(Some(widget.clone()));
         let min_height = self.local_css_context().get_minimal_height();
@@ -189,18 +168,11 @@ impl ActivityWidget {
                 .borrow_mut()
                 .set_size(widget_size);
 
-            // TODO fix
-            // match widget.window() {
-            //     //raise window associated to widget if it has one, this enables events on the active mode widget
-            //     Some(window) => window.raise(),
-            //     None => {
-            //         // debug!("no window");
-            //     }
-            // }
+            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
         } else {
             let current_size = self
                 .imp()
-                .get_final_allocation_for_mode(self.mode(), min_height);
+                .get_final_widget_size_for_mode(self.mode(), min_height);
             self.local_css_context().set_stretch(
                 ActivityMode::Overlay,
                 (
@@ -264,12 +236,13 @@ impl ActivityWidget {
     }
 }
 
+
 pub mod util {
-    use gtk::prelude::WidgetExt;
+    use gtk::{graphene::Point, gsk::Transform, prelude::WidgetExt};
 
     use super::imp::ActivityMode;
 
-    pub(super) fn get_final_widget_size(
+    pub(super) fn get_final_widget_size( //checked
         widget: &gtk::Widget,
         mode: ActivityMode,
         minimal_height: i32,
@@ -293,6 +266,53 @@ pub mod util {
             measured_width.1
         };
         (width.max(minimal_height), height.max(minimal_height))
+    }
+
+    pub(super) fn get_child_aligned_allocation(
+        parent_allocation: (i32, i32, i32),
+        child: &gtk::Widget,
+        mode: ActivityMode,
+        minimal_height: i32,
+    ) -> (i32, i32, Option<Transform>) {
+        let parent_width = parent_allocation.0;
+        let parent_height = parent_allocation.1;
+        let _parent_baseline = parent_allocation.2;
+
+        let force_height = matches!(mode, ActivityMode::Minimal | ActivityMode::Compact);
+        let (child_width_min, child_width_nat, _, _) = child.measure(
+            gtk::Orientation::Horizontal,
+            if force_height { minimal_height } else { -1 },
+        );
+        let (child_height_min, child_height_nat, _, _) =
+            child.measure(gtk::Orientation::Vertical, -1);
+
+        let child_width = parent_width.clamp(child_width_min, child_width_nat);
+        let child_height = parent_height.clamp(child_height_min, child_height_nat);
+
+        let (x, width) = match child.halign() {
+            gtk::Align::Baseline | gtk::Align::Start => (0.0, child_width),
+            gtk::Align::End => ((parent_width - child_width) as f32, child_width),
+            gtk::Align::Fill => (if child_width>parent_width {(parent_width - child_width) as f32 / 2.0} else {0.0}, parent_width.max(child_width)),
+            _ => {
+                // center
+                ((parent_width - child_width) as f32 / 2.0, child_width)
+            }
+        };
+        let (y, height) = match child.valign() {
+            gtk::Align::Baseline | gtk::Align::Start => (0.0, child_height),
+            gtk::Align::End => ((parent_height - child_height) as f32, child_height),
+            gtk::Align::Fill => (if child_height>parent_height {(parent_height - child_height) as f32 / 2.0} else {0.0}, parent_height.max(child_height)),
+            _ => {
+                // center
+                ((parent_height - child_height) as f32 / 2.0, child_height)
+            }
+        };
+        let opt_transform = if x != 0.0 || y != 0.0 {
+            Some(Transform::new().translate(&Point::new(x, y)))
+        } else {
+            None
+        };
+        (width, height, opt_transform)
     }
 
     pub(super) fn get_property_slice_for_mode_f64(

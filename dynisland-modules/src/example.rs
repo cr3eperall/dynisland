@@ -675,9 +675,9 @@ impl ExampleModule {
         press_gesture.set_button(gdk::BUTTON_PRIMARY);
 
         let m1 = mode.clone();
-        press_gesture.connect_released(move |gest, _, _, _| {
+        press_gesture.connect_released(move |_gest, _, _, _| {
             // debug!("primary");
-            gest.set_state(gtk::EventSequenceState::Claimed);
+            // gest.set_state(gtk::EventSequenceState::Claimed);
             let m1 = m1.clone();
             glib::MainContext::default().spawn_local(async move {
                 let mode_g = m1.lock().await;
@@ -706,9 +706,9 @@ impl ExampleModule {
         let m1 = mode.clone();
         let release_gesture = GestureClick::new();
         release_gesture.set_button(gdk::BUTTON_SECONDARY);
-        release_gesture.connect_released(move |gest, _, _, _| {
+        release_gesture.connect_released(move |_gest, _, _, _| {
             // debug!("secondary");
-            gest.set_state(gtk::EventSequenceState::Claimed);
+            // gest.set_state(gtk::EventSequenceState::Claimed);
             let m1 = m1.clone();
             glib::MainContext::default().spawn_local(async move {
                 let mode_g = m1.lock().await;
@@ -717,7 +717,8 @@ impl ExampleModule {
 
                 match mode {
                     ActivityMode::Minimal => {
-                        m1.lock().await.set(ActivityMode::Overlay).unwrap();
+                        log::warn!("Don't. It will crash and idk why");
+                        // m1.lock().await.set(ActivityMode::Overlay).unwrap();
                     }
                     ActivityMode::Compact => {
                         m1.lock().await.set(ActivityMode::Minimal).unwrap();
@@ -818,47 +819,16 @@ impl ExampleModule {
         // activity_widget.style_context().add_class("overlay");
     }
 
-    // fn get_bg() -> gtk::Widget {
-    //     let background = gtk::Label::builder()
-    //         .label("")
-    //         .halign(gtk::Align::Start)
-    //         .valign(gtk::Align::Start)
-    //         .build();
-    //     let background = gtk::Box::builder()
-    //         // .height_request(40)
-    //         // .width_request(100)
-    //         .valign(gtk::Align::Start)
-    //         .halign(gtk::Align::Center)
-    //         .vexpand(true)
-    //         .hexpand(true)
-    //         // .above_child(false) //Allows events on children (like buttons)
-    //         .child(&background)
-    //         .build();
-
-    //     let background = gtk::EventBox::builder()
-    //         // .height_request(40)
-    //         // .width_request(100)
-    //         .valign(gtk::Align::Start)
-    //         .halign(gtk::Align::Center)
-    //         .vexpand(false)
-    //         .hexpand(false)
-    //         .above_child(false) //Allows events on children (like buttons)
-    //         .child(&background)
-    //         .build();
-
-    //     background.upcast()
-    // }
-
     fn get_minimal() -> gtk::Widget {
         let minimal = gtk::Box::builder()
             // .height_request(40)
-            .width_request(140)
-            .valign(gtk::Align::Fill)
-            .halign(gtk::Align::Fill)
+            // .width_request(140)
+            .valign(gtk::Align::Center)
+            .halign(gtk::Align::Center)
             .vexpand(false)
             .hexpand(false)
             .overflow(gtk::Overflow::Hidden)
-            .homogeneous(true)
+            .homogeneous(false)
             .build();
 
         // let btn = gtk::Label::builder()
@@ -870,7 +840,7 @@ impl ExampleModule {
         // minimal.add(&btn);
 
         // let scroll_label = ScrollingLabel::new();
-        let scroll_label = Label::new(Some("valueasdfvasdfasdfasdfasfd"));
+        let scroll_label = Label::new(Some("v"));
         scroll_label.set_hexpand(false);
         scroll_label.set_vexpand(false);
         scroll_label.set_valign(gtk::Align::Center);
@@ -879,6 +849,20 @@ impl ExampleModule {
         scroll_label.set_height_request(40);
         scroll_label.set_margin_start(20);
         scroll_label.set_margin_end(20);
+        
+        let test_btn=gtk::Button::new();
+        test_btn.set_label("test");
+        test_btn.connect_clicked(|_btn|{
+            log::info!("test");
+        });
+        // let btn_gest=GestureClick::new();
+        // btn_gest.set_button(gdk::BUTTON_PRIMARY);
+        // btn_gest.connect_released(|gest,_,_,_|{
+        //     gest.set_state(gtk::EventSequenceState::Claimed);
+        //     log::info!("test");
+        // });
+        // test_btn.add_controller(btn_gest);
+
         // scroll_label.set_max_height(40);
         // scroll_label.set_max_width(140); // ?? should be width+internal margins for vertical
         // scroll_label.set_orientation(Orientation::Horizontal);
@@ -892,6 +876,7 @@ impl ExampleModule {
         // scroll_label.inner_label().set_margin_end(30);
 
         minimal.append(&scroll_label);
+        minimal.append(&test_btn);
 
         // let minimal = gtk::EventBox::builder()
         //     .height_request(40)

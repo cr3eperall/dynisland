@@ -7,33 +7,23 @@ license = "mit"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.75"
-clap = { version = "4.4.1", features = ["derive"] }
+anyhow = {workspace = true}
+gtk = {workspace = true}
+gdk = {workspace = true}
+glib = {workspace = true}
+glib-macros = {workspace = true}
+tokio = { workspace = true, features = ["rt", "time", "sync", "macros"] }
+serde = { workspace = true, features = ["serde_derive"] }
+log = {workspace = true}
+ron = {workspace = true}
+linkme = {workspace = true}
 
-gtk = { version = "0.8.0", package = "gtk4" }
-gdk = { version = "0.8.0", package = "gdk4" }
+
 # gtk-layer-shell = { version = "0.2.0", package = "gtk4-layer-shell" }
-glib = "0.19.2"
-cairo = "0.0.4"
-
-tokio = { version = "1.32.0", features = ["rt", "time", "sync", "macros"] }
-
-grass = {version = "0.13.1", default-features = false} #scss parsing
-glib-macros = "0.19.2"
-
+clap = { version = "4.4.1", features = ["derive"] }
 dyn-clone = "1.0.13"
 rand = "0.8.5"
 async-trait = "0.1.73"
-ron = "0.8.1"
-serde = { version = "1.0.188", features = ["serde_derive"] }
 notify = { version = "6.1.1", features = ["fsevent-sys"] }
-# wgpu = "0.18.0"
-# bytemuck = "1.14.0"
-# futures = "0.3.29"
-# once_cell = "1.18.0"
-linkme = "0.3.17"
 concat-idents = "1.1.5"
-# env_logger = "0.10.1"
-log = "0.4.20"
-
 # css-anim = {path = "../../css-anim", version = "*"}

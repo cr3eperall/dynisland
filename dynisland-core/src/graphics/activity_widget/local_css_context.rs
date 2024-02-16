@@ -211,7 +211,7 @@ impl ActivityWidgetLocalCssContext {
             )
         };
         // trace!("{css}");
-        self.css_provider.load_from_data(&css);
+        self.css_provider.load_from_string(&css);
     }
 }
 

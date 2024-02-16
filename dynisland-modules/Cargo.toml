@@ -8,18 +8,19 @@ license = "mit"
 
 [dependencies]
 dynisland-core = { path = "../dynisland-core"}
+anyhow = {workspace = true}
+gtk = {workspace = true}
+gdk = {workspace = true}
+glib = {workspace = true}
+glib-macros = {workspace = true}
+tokio = { workspace = true, features = ["rt", "time", "sync", "macros"] }
+serde = { workspace = true, features = ["serde_derive"] }
+log = {workspace = true}
+ron = {workspace = true}
+linkme = {workspace = true}
+
 css-anim = {path = "../../css-anim", version = "*"}
 
-anyhow = "1.0.75"
-gtk = { version = "0.8.0", package = "gtk4" }
-gdk = { version = "0.8.0", package = "gdk4" }
-glib = "0.19.2"
-tokio = { version = "1.32.0", features = ["rt", "time", "sync", "macros"] }
-glib-macros = "0.19.2"
 dyn-clone = "1.0.13"
 async-trait = "0.1.73"
-ron = "0.8.1"
-serde = { version = "1.0.188", features = ["serde_derive"] }
-linkme = "0.3.17"
 # env_logger = "0.10.1"
-log = "0.4.20"
