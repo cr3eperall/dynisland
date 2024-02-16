@@ -34,9 +34,10 @@ pub struct App {
 
 impl App {
     pub fn initialize_server(mut self) -> Result<()> {
+        log::info!("pid: {}", std::process::id());
         //default css
         let fallback_provider = gtk::CssProvider::new();
-        fallback_provider.load_from_data(include_str!("../default.css"));
+        fallback_provider.load_from_string(include_str!("../default.css"));
         gtk::style_context_add_provider_for_display(
             &gdk::Display::default().unwrap(),
             &fallback_provider,
@@ -47,7 +48,7 @@ impl App {
         gtk::style_context_add_provider_for_display(
             &gdk::Display::default().unwrap(),
             &self.css_provider,
-            gtk::STYLE_PROVIDER_PRIORITY_USER,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
         //load user's scss
         self.load_css();
@@ -113,7 +114,7 @@ impl App {
                     }
                     UIServerCommand::AddActivity(module_identifier, activity) => {
                         act_container.append(&activity.lock().await.get_activity_widget()); //add to window
-                        act_container.show();
+                        act_container.set_visible(true);
                         Self::update_general_configs_on_activity(
                             &self.config.general_config,
                             &activity,
@@ -152,7 +153,7 @@ impl App {
         glib::MainContext::default().spawn_local(async move {
             while let Some(command) = server_recv.recv().await {
                 match command {
-                    BackendServerCommand::ReloadConfig() => {
+                    BackendServerCommand::ReloadConfig() => { //TODO split config and css reload (producers don't need to be restarted if only css changed)
                         // without this sleep, reading the config file sometimes gives an empty file.
                         glib::timeout_future(std::time::Duration::from_millis(50)).await;
                         self.load_configs();
@@ -196,27 +197,29 @@ impl App {
             config::get_config_path().join("dynisland.scss"),
             &grass::Options::default(),
         );
-        if let Err(err) = css_content {
-            error!(
-                "{} {:?}",
-                "failed to parse css:".red(),
-                err.to_string().red()
-            );
-            return;
+        match css_content {
+            Ok(content) => {
+                // gtk::style_context_remove_provider_for_display(
+                //     &gdk::Display::default().unwrap(),
+                //     &self.css_provider,
+                // );
+                //setup static css style
+                self.css_provider //TODO save previous state before trying to update
+                    .load_from_string(&content);
+                // gtk::style_context_add_provider_for_display(
+                //     &gdk::Display::default().unwrap(),
+                //     &self.css_provider,
+                //     gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+                // );
+            }
+            Err(err) => {
+                error!(
+                    "{} {:?}",
+                    "failed to parse css:".red(),
+                    err.to_string().red()
+                );
+            }
         }
-
-        gtk::style_context_remove_provider_for_display(
-            &gdk::Display::default().unwrap(),
-            &self.css_provider,
-        );
-        //setup static css style
-        self.css_provider //TODO save previous state before trying to update
-            .load_from_data(&css_content.unwrap());
-        gtk::style_context_add_provider_for_display(
-            &gdk::Display::default().unwrap(),
-            &self.css_provider,
-            gtk::STYLE_PROVIDER_PRIORITY_USER,
-        );
     }
 
     pub fn load_modules(&mut self) {
