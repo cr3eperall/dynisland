@@ -1,0 +1,65 @@
+activity-widget .mode-minimal,
+activity-widget .mode-compact,
+activity-widget .mode-expanded,
+activity-widget .mode-overlay {
+    transition-property: transform, opacity, filter;
+    transition-duration: 1s, 1s, 1s;
+    transition-timing-function: ease-in-out, ease-in-out, ease-in-out;
+}
+
+activity-widget .activity-background,
+activity-widget .activity-background * {
+    transition-property: min-width, min-height;
+    transition-duration: 1s, 1s;
+    transition-timing-function: ease-in-out, ease-in-out;
+}
+
+@keyframes in {
+    from {
+        transform: translateY(15px) scale(0.2); /* should be translateY(100%) but gtk doesn't support that */
+        opacity: 0.5;
+    }
+
+    65% {
+        transform: translateY(-2px) scale(1);
+        opacity: 1;
+    }
+
+    80% {
+        transform: translateY(-0.7px) scale(1);
+        opacity: 1;
+    }
+
+    93% {
+        transform: translateY(0.2px) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(0px) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes out {
+    0% {
+        transform: translateY(0px) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-15px) scale(0.2); /* should be translateY(-100%) but gtk doesn't support that */
+        opacity: 0.2;
+    }
+}
+
+rolling-char .in {
+    animation-name: in;
+    animation-duration: 450ms;
+}
+
+rolling-char .out {
+    opacity: 0;
+    animation-name: out;
+    animation-duration: 300ms;
+}
