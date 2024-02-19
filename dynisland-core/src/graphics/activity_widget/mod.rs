@@ -1,110 +1,233 @@
-pub mod allocate_and_draw;
+// pub mod allocate_and_draw;
+pub mod imp;
+pub mod layout_manager;
 pub mod local_css_context;
-pub mod widget;
 
-pub(crate) const BLUR_RADIUS: f32 = 6.0;
+use gtk::{prelude::*, subclass::prelude::*};
 
-const FILTER_BACKEND: crate::filters::filter::FilterBackend =
-    crate::filters::filter::FilterBackend::Gpu; //TODO move to config file, if i implement everything on the cpu
+use self::imp::ActivityMode;
 
-//without this the widget is not centered with scales near 1.0 (probably due to rounding errors)
-const TRANSLATE_CORRECTIVE_FACTOR: f64 = -1.0;
-const CLIP_CORRECTIVE_FACTOR: f64 = 1.0;
+use super::util;
 
-pub mod util {
-    use css_anim::transition::TransitionManager;
-    use gtk::prelude::WidgetExt;
+glib::wrapper! {
+    pub struct ActivityWidget(ObjectSubclass<imp::ActivityWidgetPriv>)
+        @extends gtk::Widget;
+        // @implements gtk::Accessible;
+}
 
-    use super::{widget::ActivityMode, BLUR_RADIUS};
-
-    pub(super) fn init_transition_properties(tm: &mut TransitionManager) {
-        tm.add_property("minimal-opacity", 1.0);
-        tm.add_property("minimal-blur", 0.0);
-        tm.add_property("minimal-stretch-x", 1.0);
-        tm.add_property("minimal-stretch-y", 1.0);
-
-        tm.add_property("compact-opacity", 0.0);
-        tm.add_property("compact-blur", BLUR_RADIUS as f64);
-        tm.add_property("compact-stretch-x", 1.0);
-        tm.add_property("compact-stretch-y", 1.0);
-
-        tm.add_property("expanded-opacity", 0.0);
-        tm.add_property("expanded-blur", BLUR_RADIUS as f64);
-        tm.add_property("expanded-stretch-x", 1.0);
-        tm.add_property("expanded-stretch-y", 1.0);
-
-        tm.add_property("overlay-opacity", 0.0);
-        tm.add_property("overlay-blur", BLUR_RADIUS as f64);
-        tm.add_property("overlay-stretch-x", 1.0);
-        tm.add_property("overlay-stretch-y", 1.0);
-    }
-
-    pub(super) fn get_max_preferred_size(m1: (i32, i32), m2: (i32, i32)) -> (i32, i32) {
-        (std::cmp::max(m1.0, m2.0), std::cmp::max(m1.1, m2.1))
-    }
-
-    pub(super) fn get_final_widget_size(
-        widget: &gtk::Widget,
-        mode: ActivityMode,
-        minimal_height: i32,
-    ) -> (i32, i32) {
-        let height = match mode {
-            ActivityMode::Minimal | ActivityMode::Compact => minimal_height,
-            ActivityMode::Expanded | ActivityMode::Overlay => {
-                if widget.height_request() != -1 {
-                    widget.height_request()
-                } else {
-                    widget.allocation().height()
-                }
-            }
-        };
-        let width = if widget.width_request() != -1 {
-            widget.width_request()
-        } else {
-            widget.allocation().width()
-        };
-        (width, height)
+impl Default for ActivityWidget {
+    fn default() -> Self {
+        let sel = glib::Object::new::<Self>();
+        sel.set_overflow(gtk::Overflow::Hidden);
+        sel
     }
 }
 
-#[macro_export]
-macro_rules! implement_set_transition{
-    ($vis:vis, $ctx:tt, $val:tt, $props:expr) => {
-        concat_idents::concat_idents!(name = set_, $val {
-            $vis fn name(&self, transition: Box<dyn EaseFunction>, module: bool) -> Result<()> {
-                self.imp()
-                    .$ctx
-                    .borrow_mut()
-                    .name(dyn_clone::clone_box(transition.as_ref()), module)?;
-                let dur=Duration::from_millis(self.imp().$ctx.borrow().get_transition_duration());
-                for prop in $props{
-                    self.imp().transition_manager.borrow_mut().set_easing_function(prop, dyn_clone::clone_box(transition.as_ref()));
-                    self.imp().transition_manager.borrow_mut().set_duration(prop, dur);
+impl ActivityWidget {
+    pub fn new(name: &str) -> Self {
+        let wid = Self::default();
+        // wid.set_has_window(false);
+        wid.set_name(name);
 
-                    // self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("minimal-")+prop), dyn_clone::clone_box(transition.as_ref()));
-                    // self.imp().transition_manager.borrow_mut().set_duration(&(String::from("minimal-")+prop), dur);
+        gtk::style_context_add_provider_for_display(
+            &gdk::Display::default().unwrap(),
+            &wid.local_css_context().get_css_provider(),
+            gtk::STYLE_PROVIDER_PRIORITY_USER + 1, //needs to be higher than user proprity
+        );
+        wid
+    }
 
-                    // self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("compact-")+prop), dyn_clone::clone_box(transition.as_ref()));
-                    // self.imp().transition_manager.borrow_mut().set_duration(&(String::from("compact-")+prop), dur);
+    pub fn set_minimal_mode(&self, widget: &gtk::Widget) {
+        let priv_ = self.imp();
+        if let Some(content) = &*priv_.minimal_mode_widget.borrow() {
+            content.unparent();
+            content.remove_css_class("mode-minimal");
+        }
 
-                    // self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("expanded-")+prop), dyn_clone::clone_box(transition.as_ref()));
-                    // self.imp().transition_manager.borrow_mut().set_duration(&(String::from("expanded-")+prop), dur);
+        widget.set_parent(self);
+        widget.add_css_class("mode-minimal");
+        widget.set_overflow(gtk::Overflow::Hidden);
+        priv_.minimal_mode_widget.replace(Some(widget.clone()));
+        let min_height = self.local_css_context().get_config_minimal_height();
+        let widget_size = util::get_final_widget_size(widget, self.mode(), min_height);
+        if let ActivityMode::Minimal = self.mode() {
+            self.imp()
+                .local_css_context
+                .borrow_mut()
+                .set_size(widget_size);
 
-                    // self.imp().transition_manager.borrow_mut().set_easing_function(&(String::from("overlay-")+prop), dyn_clone::clone_box(transition.as_ref()));
-                    // self.imp().transition_manager.borrow_mut().set_duration(&(String::from("overlay-")+prop), dur);
-                }
-                Ok(())
-            }
-        });
-    };
-    ($vis:vis, $ctx:tt, $val:tt) => {
-        concat_idents::concat_idents!(name = set_, $val {
-            $vis fn name(&self, transition: Box<dyn EaseFunction>, module: bool) -> Result<()> {
-                self.imp()
-                    .$ctx
-                    .borrow_mut()
-                    .name(dyn_clone::clone_box(transition.as_ref()), module)
-            }
-        });
-    };
+            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
+        } else {
+            let current_size = self
+                .imp()
+                .get_final_widget_size_for_mode(self.mode(), min_height);
+            self.local_css_context().set_stretch(
+                ActivityMode::Minimal,
+                (
+                    current_size.0 / widget_size.0 as f64,
+                    current_size.1 / widget_size.1 as f64,
+                ),
+            );
+        }
+        self.queue_draw(); // Queue a draw call with the updated widget
+    }
+
+    pub fn set_compact_mode(&self, widget: &gtk::Widget) {
+        let priv_ = self.imp();
+        if let Some(content) = &*priv_.compact_mode_widget.borrow() {
+            content.unparent();
+            content.remove_css_class("mode-compact");
+        }
+        widget.set_parent(self);
+        widget.add_css_class("mode-compact");
+        widget.set_overflow(gtk::Overflow::Hidden);
+        priv_.compact_mode_widget.replace(Some(widget.clone()));
+        let min_height = self.local_css_context().get_config_minimal_height();
+        let widget_size = util::get_final_widget_size(widget, self.mode(), min_height);
+        if let ActivityMode::Compact = self.mode() {
+            self.imp()
+                .local_css_context
+                .borrow_mut()
+                .set_size(widget_size);
+
+            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
+        } else {
+            let current_size = self
+                .imp()
+                .get_final_widget_size_for_mode(self.mode(), min_height);
+            self.local_css_context().set_stretch(
+                ActivityMode::Compact,
+                (
+                    current_size.0 / widget_size.0 as f64,
+                    current_size.1 / widget_size.1 as f64,
+                ),
+            );
+        }
+        self.queue_draw(); // Queue a draw call with the updated widget
+    }
+
+    pub fn set_expanded_mode(&self, widget: &gtk::Widget) {
+        let priv_ = self.imp();
+        if let Some(content) = &*priv_.expanded_mode_widget.borrow() {
+            content.unparent();
+            content.remove_css_class("mode-expanded");
+        }
+        widget.set_parent(self);
+        widget.add_css_class("mode-expanded");
+        widget.set_overflow(gtk::Overflow::Hidden);
+        priv_.expanded_mode_widget.replace(Some(widget.clone()));
+        let min_height = self.local_css_context().get_config_minimal_height();
+        let widget_size = util::get_final_widget_size(widget, self.mode(), min_height);
+        if let ActivityMode::Expanded = self.mode() {
+            self.imp()
+                .local_css_context
+                .borrow_mut()
+                .set_size(widget_size);
+
+            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
+        } else {
+            let current_size = self
+                .imp()
+                .get_final_widget_size_for_mode(self.mode(), min_height);
+            self.local_css_context().set_stretch(
+                ActivityMode::Expanded,
+                (
+                    current_size.0 / widget_size.0 as f64,
+                    current_size.1 / widget_size.1 as f64,
+                ),
+            );
+        }
+        self.queue_draw(); // Queue a draw call with the updated widget
+    }
+
+    pub fn set_overlay_mode(&self, widget: &gtk::Widget) {
+        let priv_ = self.imp();
+        if let Some(content) = &*priv_.overlay_mode_widget.borrow() {
+            content.unparent();
+            content.remove_css_class("mode-overlay");
+        }
+        widget.set_parent(self);
+        widget.add_css_class("mode-overlay");
+        widget.set_overflow(gtk::Overflow::Hidden);
+        priv_.overlay_mode_widget.replace(Some(widget.clone()));
+        let min_height = self.local_css_context().get_config_minimal_height();
+        let widget_size = util::get_final_widget_size(widget, self.mode(), min_height);
+        if let ActivityMode::Overlay = self.mode() {
+            self.imp()
+                .local_css_context
+                .borrow_mut()
+                .set_size(widget_size);
+
+            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
+        } else {
+            let current_size = self
+                .imp()
+                .get_final_widget_size_for_mode(self.mode(), min_height);
+            self.local_css_context().set_stretch(
+                ActivityMode::Overlay,
+                (
+                    current_size.0 / widget_size.0 as f64,
+                    current_size.1 / widget_size.1 as f64,
+                ),
+            );
+        }
+        self.queue_draw(); // Queue a draw call with the updated widget
+    }
+
+    pub fn minimal_mode(&self) -> Option<gtk::Widget> {
+        self.imp().minimal_mode_widget.borrow().clone()
+    }
+    pub fn compact_mode(&self) -> Option<gtk::Widget> {
+        self.imp().compact_mode_widget.borrow().clone()
+    }
+    pub fn expanded_mode(&self) -> Option<gtk::Widget> {
+        self.imp().expanded_mode_widget.borrow().clone()
+    }
+    pub fn overlay_mode(&self) -> Option<gtk::Widget> {
+        self.imp().overlay_mode_widget.borrow().clone()
+    }
+
+    pub fn get_widget_for_mode(&self, mode: ActivityMode) -> Option<gtk::Widget> {
+        match mode {
+            ActivityMode::Minimal => self.minimal_mode().clone(),
+            ActivityMode::Compact => self.compact_mode().clone(),
+            ActivityMode::Expanded => self.expanded_mode().clone(),
+            ActivityMode::Overlay => self.overlay_mode().clone(),
+        }
+    }
+
+    pub fn current_widget(&self) -> Option<gtk::Widget> {
+        match self.mode() {
+            ActivityMode::Minimal => self.minimal_mode().clone(),
+            ActivityMode::Compact => self.compact_mode().clone(),
+            ActivityMode::Expanded => self.expanded_mode().clone(),
+            ActivityMode::Overlay => self.overlay_mode().clone(),
+        }
+    }
+
+    pub fn set_minimal_height(&self, height: i32, module: bool) {
+        self.imp()
+            .local_css_context
+            .borrow_mut()
+            .set_config_minimal_height(height, module);
+    }
+    pub fn get_minimal_height(&self) -> i32 {
+        self.imp()
+            .local_css_context
+            .borrow()
+            .get_config_minimal_height()
+    }
+
+    pub fn set_blur_radius(&self, radius: f64, module: bool) {
+        self.imp()
+            .local_css_context
+            .borrow_mut()
+            .set_config_blur_radius(radius, module);
+    }
+    pub fn get_blur_radius(&self) -> f64 {
+        self.imp()
+            .local_css_context
+            .borrow()
+            .get_config_blur_radius()
+    }
 }
