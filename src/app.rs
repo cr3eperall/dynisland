@@ -48,7 +48,7 @@ impl App {
         gtk::style_context_add_provider_for_display(
             &gdk::Display::default().unwrap(),
             &self.css_provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            gtk::STYLE_PROVIDER_PRIORITY_USER,
         );
         //load user's scss
         self.load_css();
@@ -153,7 +153,8 @@ impl App {
         glib::MainContext::default().spawn_local(async move {
             while let Some(command) = server_recv.recv().await {
                 match command {
-                    BackendServerCommand::ReloadConfig() => { //TODO split config and css reload (producers don't need to be restarted if only css changed)
+                    BackendServerCommand::ReloadConfig() => {
+                        //TODO split config and css reload (producers don't need to be restarted if only css changed)
                         // without this sleep, reading the config file sometimes gives an empty file.
                         glib::timeout_future(std::time::Duration::from_millis(50)).await;
                         self.load_configs();
