@@ -17,8 +17,8 @@ pub struct ActivityWidgetLocalCssContext {
     blur: [f64; 4],
     stretch_on_resize: bool,
 
-    minimal_height: ConfigVariable<i32>,
-    blur_radius: ConfigVariable<f64>,
+    config_minimal_height: ConfigVariable<i32>,
+    config_blur_radius: ConfigVariable<f64>,
 }
 
 #[allow(unused_braces)]
@@ -27,18 +27,19 @@ impl ActivityWidgetLocalCssContext {
         Self {
             css_provider: gtk::CssProvider::new(),
             name: name.to_string(),
-            minimal_height: ConfigVariable::new(40),
-            blur_radius: ConfigVariable::new(6.0),
             size: (40, 40),
             opacity: [1.0, 0.0, 0.0, 0.0],
             stretch: [(1.0, 1.0), (1.0, 1.0), (1.0, 1.0), (1.0, 1.0)],
             blur: [0.0, 1.0, 1.0, 1.0],
             stretch_on_resize: true,
+            
+            config_minimal_height: ConfigVariable::new(40),
+            config_blur_radius: ConfigVariable::new(6.0),
         }
     }
 
-    implement_config_get_set!(pub, minimal_height, i32);
-    implement_config_get_set!(pub, blur_radius, f64);
+    implement_config_get_set!(pub, config_minimal_height, i32);
+    implement_config_get_set!(pub, config_blur_radius, f64);
 
     // GET
     pub fn get_css_provider(&self) -> CssProvider {
@@ -73,8 +74,8 @@ impl ActivityWidgetLocalCssContext {
             return;
         }
         self.size = (
-            i32::max(size.0, self.minimal_height.value),
-            i32::max(size.1, self.minimal_height.value),
+            i32::max(size.0, self.config_minimal_height.value),
+            i32::max(size.1, self.config_minimal_height.value),
         );
         self.update_provider()
     }
@@ -218,10 +219,13 @@ impl ActivityWidgetLocalCssContext {
 impl Default for ActivityWidgetLocalCssContext {
     fn default() -> Self {
         Self::new(
-            rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(6)
-                .map(char::from)
+            "c".chars()
+                .chain(
+                    rand::thread_rng()
+                        .sample_iter(&Alphanumeric)
+                        .take(6)
+                        .map(char::from),
+                )
                 .collect::<String>()
                 .as_str(),
         )

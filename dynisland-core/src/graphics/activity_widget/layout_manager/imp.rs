@@ -15,11 +15,10 @@ impl ObjectSubclass for ActivityLayoutManagerPriv {
 impl ObjectImpl for ActivityLayoutManagerPriv {}
 
 // impl ActivityLayoutManagerPriv {
-    
+
 // }
 
 impl LayoutManagerImpl for ActivityLayoutManagerPriv {
-    
     fn measure(
         &self,
         widget: &gtk::Widget,
@@ -34,7 +33,9 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
         }
         let activity_widget = activity_widget.unwrap();
 
-        let min_height = activity_widget.local_css_context().get_minimal_height();
+        let min_height = activity_widget
+            .local_css_context()
+            .get_config_minimal_height();
         let first_child = activity_widget.first_child(); //should be the background widget
         match first_child {
             Some(first_child) => {
@@ -52,7 +53,7 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
             return;
         }
         let binding = activity_widget.unwrap();
-        let min_height = binding.local_css_context().get_minimal_height();
+        let min_height = binding.local_css_context().get_config_minimal_height();
         let activity = binding.imp();
 
         if let Some(content) = &*activity.background_widget.borrow() {
@@ -68,7 +69,6 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
             );
 
             content.allocate(width, height, -1, transform);
-
         }
         if let Some(content) = &*activity.compact_mode_widget.borrow() {
             let (width, height, transform) = util::get_child_aligned_allocation(

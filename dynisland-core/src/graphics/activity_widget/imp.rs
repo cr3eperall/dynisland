@@ -74,11 +74,15 @@ impl ObjectSubclass for ActivityWidgetPriv {
 //default data
 impl Default for ActivityWidgetPriv {
     fn default() -> Self {
-        let name: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(6)
-            .map(char::from)
-            .collect();
+        let name: String = "c"
+            .chars()
+            .chain(
+                rand::thread_rng()
+                    .sample_iter(&Alphanumeric)
+                    .take(6)
+                    .map(char::from),
+            )
+            .collect::<String>();
 
         Self {
             mode: RefCell::new(ActivityMode::Minimal),
@@ -133,7 +137,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                 // let last_mode = *self.last_mode.borrow();
 
                 let mut css_context = self.local_css_context.borrow_mut();
-                let min_height = css_context.get_minimal_height();
+                let min_height = css_context.get_config_minimal_height();
                 // println!("min_height: {}", min_height);
 
                 let next_size = self.get_final_widget_size_for_mode(mode, min_height);
@@ -147,20 +151,20 @@ impl ObjectImpl for ActivityWidgetPriv {
 
                 css_context.set_opacity_all(util::get_property_slice_for_mode_f64(mode, 1.0, 0.0));
 
-                let blur_radius = css_context.get_blur_radius();
+                let blur_radius = css_context.get_config_blur_radius();
                 css_context.set_blur_all(util::get_property_slice_for_mode_f64(
                     mode,
                     0.0,
                     blur_radius,
                 ));
 
-                
                 let stretches = self.get_stretches(next_size, min_height);
                 log::trace!("stretches: {:?}", stretches);
                 css_context.set_stretch_all(stretches);
 
                 if let Some(next) = self.get_mode_widget(mode).borrow().as_ref() {
-                    next.insert_before(self.obj().as_ref(), Option::None::<&gtk::Widget>); //put at the end so it recieves the inputs
+                    next.insert_before(self.obj().as_ref(), Option::None::<&gtk::Widget>);
+                    //put at the end so it recieves the inputs
                 };
 
                 // self.raise_windows();
@@ -209,7 +213,6 @@ impl WidgetImpl for ActivityWidgetPriv {
     // fn snapshot(&self, snapshot: &gtk::Snapshot) { // IMPORTANT try to fix lag on overlay transition
 
     // }
-    
 }
 
 impl ActivityWidgetPriv {
@@ -245,7 +248,12 @@ impl ActivityWidgetPriv {
             (1.0, 1.0)
         } else {
             let min_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-                let measure=util::get_child_aligned_allocation((next_size.0 as i32, next_size.1 as i32, -1), widget, mode, min_height);
+                let measure = util::get_child_aligned_allocation(
+                    (next_size.0 as i32, next_size.1 as i32, -1),
+                    widget,
+                    mode,
+                    min_height,
+                );
                 (measure.0 as f64, measure.1 as f64)
             } else {
                 self.get_final_widget_size_for_mode(mode, min_height)
@@ -259,7 +267,12 @@ impl ActivityWidgetPriv {
             (1.0, 1.0)
         } else {
             let com_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-                let measure=util::get_child_aligned_allocation((next_size.0 as i32, next_size.1 as i32, -1), widget, mode, min_height);
+                let measure = util::get_child_aligned_allocation(
+                    (next_size.0 as i32, next_size.1 as i32, -1),
+                    widget,
+                    mode,
+                    min_height,
+                );
                 (measure.0 as f64, measure.1 as f64)
             } else {
                 self.get_final_widget_size_for_mode(mode, min_height)
@@ -273,7 +286,12 @@ impl ActivityWidgetPriv {
             (1.0, 1.0)
         } else {
             let exp_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-                let measure=util::get_child_aligned_allocation((next_size.0 as i32, next_size.1 as i32, -1), widget, mode, min_height);
+                let measure = util::get_child_aligned_allocation(
+                    (next_size.0 as i32, next_size.1 as i32, -1),
+                    widget,
+                    mode,
+                    min_height,
+                );
                 (measure.0 as f64, measure.1 as f64)
             } else {
                 self.get_final_widget_size_for_mode(mode, min_height)
@@ -287,7 +305,12 @@ impl ActivityWidgetPriv {
             (1.0, 1.0)
         } else {
             let ove_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-                let measure=util::get_child_aligned_allocation((next_size.0 as i32, next_size.1 as i32, -1), widget, mode, min_height);
+                let measure = util::get_child_aligned_allocation(
+                    (next_size.0 as i32, next_size.1 as i32, -1),
+                    widget,
+                    mode,
+                    min_height,
+                );
                 (measure.0 as f64, measure.1 as f64)
             } else {
                 self.get_final_widget_size_for_mode(mode, min_height)
