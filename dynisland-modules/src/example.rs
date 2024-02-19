@@ -322,16 +322,16 @@ impl ExampleModule {
             .unwrap();
         // label.blocking_lock().set(config.string.clone()).unwrap();
 
-        let activity = Rc::new(Mutex::new(Self::get_activity(
-            _prop_send.clone(),
-            "exampleActivity2",
-        )));
-        _app_send
-            .send(UIServerCommand::AddActivity(
-                "ExampleModule".to_string(),
-                activity,
-            ))
-            .unwrap();
+        // let activity = Rc::new(Mutex::new(Self::get_activity(
+        //     _prop_send.clone(),
+        //     "exampleActivity2",
+        // )));
+        // _app_send
+        //     .send(UIServerCommand::AddActivity(
+        //         "ExampleModule".to_string(),
+        //         activity,
+        //     ))
+        //     .unwrap();
 
         let config = config.clone();
         // debug!("starting task");

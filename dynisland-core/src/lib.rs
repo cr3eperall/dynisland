@@ -5,5 +5,4 @@
 #![feature(type_name_of_val)]
 
 pub mod base_module;
-// pub mod filters;
 pub mod graphics;
