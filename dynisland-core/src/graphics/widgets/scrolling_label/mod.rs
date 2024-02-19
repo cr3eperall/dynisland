@@ -3,6 +3,8 @@ pub mod local_css_context;
 
 use gtk::{prelude::*, subclass::prelude::*};
 
+use crate::graphics::util::CssSize;
+
 glib::wrapper! {
     pub struct ScrollingLabel(ObjectSubclass<imp::ScrollingLabelPriv>)
         @extends gtk::Widget;
@@ -26,5 +28,23 @@ impl ScrollingLabel {
             gtk::STYLE_PROVIDER_PRIORITY_USER - 1,
         );
         label
+    }
+    pub fn set_fade_size(&self, size: CssSize, module: bool) {
+        self.imp()
+            .local_css_context
+            .borrow_mut()
+            .set_config_fade_size(size, module);
+    }
+    pub fn set_scroll_speed(&self, speed: f32, module: bool) {
+        self.imp()
+            .local_css_context
+            .borrow_mut()
+            .set_config_speed(speed, module);
+    }
+    pub fn set_delay(&self, delay: u64, module: bool) {
+        self.imp()
+            .local_css_context
+            .borrow_mut()
+            .set_config_delay(delay, module);
     }
 }

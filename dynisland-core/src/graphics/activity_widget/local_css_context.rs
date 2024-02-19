@@ -32,7 +32,7 @@ impl ActivityWidgetLocalCssContext {
             stretch: [(1.0, 1.0), (1.0, 1.0), (1.0, 1.0), (1.0, 1.0)],
             blur: [0.0, 1.0, 1.0, 1.0],
             stretch_on_resize: true,
-            
+
             config_minimal_height: ConfigVariable::new(40),
             config_blur_radius: ConfigVariable::new(6.0),
         }

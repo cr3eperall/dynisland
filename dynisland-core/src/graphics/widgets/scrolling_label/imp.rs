@@ -17,9 +17,9 @@ use super::{local_css_context::ScrollingLabelLocalCssContext, ScrollingLabel};
 #[properties(wrapper_type = ScrollingLabel)]
 pub struct ScrollingLabelPriv {
     #[property(get, nick = "Local CSS Provider")]
-    local_css_context: RefCell<ScrollingLabelLocalCssContext>,
-    // #[property(get, nick = "Internal Label")]
+    pub(super) local_css_context: RefCell<ScrollingLabelLocalCssContext>,
     bin: RefCell<gtk::Box>,
+    #[property(get, nick = "Internal Label")]
     pub(super) label: RefCell<gtk::Label>,
     #[property(get, nick = "Active scrolling")]
     active: RefCell<bool>,
@@ -29,7 +29,7 @@ impl Default for ScrollingLabelPriv {
     fn default() -> Self {
         ScrollingLabelPriv {
             bin: RefCell::new(gtk::Box::new(gtk::Orientation::Horizontal, 0)),
-            label: RefCell::new(gtk::Label::new(Some("Hello"))),
+            label: RefCell::new(gtk::Label::new(Some(""))),
             local_css_context: RefCell::new(ScrollingLabelLocalCssContext::default()),
             active: RefCell::new(false),
         }

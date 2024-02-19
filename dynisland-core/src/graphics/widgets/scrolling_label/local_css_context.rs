@@ -119,7 +119,7 @@ impl ScrollingLabelLocalCssContext {
                 }}"
             )
         };
-        log::debug!("{css}");
+        // log::debug!("{css}");
         self.css_provider.load_from_string(&css);
     }
 }
