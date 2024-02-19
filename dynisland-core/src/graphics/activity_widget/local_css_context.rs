@@ -139,6 +139,19 @@ impl ActivityWidgetLocalCssContext {
             self.opacity[2],
             self.opacity[3],
         );
+        self.stretch.map(|(x, y)|{
+            let x=if !x.is_finite(){
+                1.0
+            }else{
+                x
+            };
+            let y=if !y.is_finite(){
+                1.0
+            }else{
+                y
+            };
+            (x,y)
+        });
         let (min_stretch_x, com_stretch_x, exp_stretch_x, ove_stretch_x) = (
             self.stretch[0].0,
             self.stretch[1].0,
@@ -211,7 +224,7 @@ impl ActivityWidgetLocalCssContext {
                 }}"
             )
         };
-        // trace!("{css}");
+        // log::debug!("{css}");
         self.css_provider.load_from_string(&css);
     }
 }

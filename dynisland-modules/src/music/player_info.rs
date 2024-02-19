@@ -1,37 +1,36 @@
 use std::time::Duration;
 
-use anyhow::{Result,Context, bail};
-use gdk::keys::constants::l;
+use anyhow::{bail, Result};
 use mpris::TrackID;
 
 #[derive(serde::Deserialize, Debug)]
-pub struct CurrentSongMinimal{
+pub struct CurrentSongMinimal {
     pub info: CurrentSongMinimalInfo,
 }
 #[derive(serde::Deserialize, Debug)]
-pub struct CurrentSongMinimalInfo{
-    #[serde(rename="durationInMillis")]
+pub struct CurrentSongMinimalInfo {
+    #[serde(rename = "durationInMillis")]
     pub duration_in_millis: u64,
-    #[serde(rename="albumName")]
+    #[serde(rename = "albumName")]
     pub album_name: String,
     pub name: String,
     pub artwork: Option<CurrentSongArtwork>,
-    #[serde(rename="artistName")]
+    #[serde(rename = "artistName")]
     pub artist_name: String,
-    #[serde(rename="currentPlaybackTime")]
+    #[serde(rename = "currentPlaybackTime")]
     pub current_playback_time: f64,
-    #[serde(rename="currentPlaybackProgress")]
-    pub current_playback_progress:f32,
-    
+    #[serde(rename = "currentPlaybackProgress")]
+    pub current_playback_progress: f32,
 }
 #[derive(serde::Deserialize, Debug)]
-pub struct CurrentSongArtwork{
+pub struct CurrentSongArtwork {
     pub url: String,
     pub width: Option<u64>,
     pub height: Option<u64>,
 }
 
-pub trait Playerinfo{ //TODO add signals for when the song changes / progress updates
+pub trait Playerinfo {
+    //TODO add signals for when the song changes / progress updates
     fn play(&self) -> Result<()>;
     fn pause(&self) -> Result<()>;
     fn play_pause(&self) -> Result<()>;
@@ -52,7 +51,7 @@ pub trait Playerinfo{ //TODO add signals for when the song changes / progress up
     fn get_volume(&self) -> Result<f64>;
     fn get_metadata(&self) -> Result<mpris::Metadata>;
     fn get_current_track_id(&self) -> Result<TrackID>;
-    fn get_current_song_info(&self)-> Result<CurrentSongMinimalInfo>;
+    fn get_current_song_info(&self) -> Result<CurrentSongMinimalInfo>;
 }
 
 pub struct MprisPlayerInfo {
@@ -62,14 +61,20 @@ pub struct MprisPlayerInfo {
 impl MprisPlayerInfo {
     ///uses active player as fallback
     pub fn new(name: &str) -> Self {
-        let player = mpris::PlayerFinder::new().expect("Could not connect to D-Bus").find_by_name(name).unwrap_or_else(|err|{
-            mpris::PlayerFinder::new().expect("Could not connect to D-Bus").find_active().unwrap()
-        });
+        let player = mpris::PlayerFinder::new()
+            .expect("Could not connect to D-Bus")
+            .find_by_name(name)
+            .unwrap_or_else(|_| {
+                mpris::PlayerFinder::new()
+                    .expect("Could not connect to D-Bus")
+                    .find_active()
+                    .unwrap()
+            });
 
-        Self {player}
+        Self { player }
     }
 }
-impl Playerinfo for MprisPlayerInfo{
+impl Playerinfo for MprisPlayerInfo {
     fn play(&self) -> Result<()> {
         self.player.play()?;
         Ok(())
@@ -100,7 +105,7 @@ impl Playerinfo for MprisPlayerInfo{
         Ok(())
     }
     fn get_playback_status(&self) -> Result<mpris::PlaybackStatus> {
-        let playback_status=self.player.get_playback_status()?;
+        let playback_status = self.player.get_playback_status()?;
         Ok(playback_status)
     }
 
@@ -110,7 +115,7 @@ impl Playerinfo for MprisPlayerInfo{
     }
 
     fn get_shuffle(&self) -> Result<bool> {
-        let shuffle=self.player.get_shuffle()?;
+        let shuffle = self.player.get_shuffle()?;
         Ok(shuffle)
     }
 
@@ -120,36 +125,39 @@ impl Playerinfo for MprisPlayerInfo{
     }
 
     fn get_loop(&self) -> Result<mpris::LoopStatus> {
-        let loop_status=self.player.get_loop_status()?;
+        let loop_status = self.player.get_loop_status()?;
         Ok(loop_status)
     }
 
     fn seek(&self, offset: i64) -> Result<()> {
-        self.player.seek(offset*1_000_000)?;
+        self.player.seek(offset * 1_000_000)?;
         Ok(())
     }
 
     fn get_position(&self) -> Result<Duration> {
-        let position=self.player.get_position()?;
+        let position = self.player.get_position()?;
         Ok(position)
     }
 
     fn set_position(&self, track_id: &str, position: Duration) -> Result<()> {
-        let track_id=match mpris::TrackID::new(track_id) {
+        let track_id = match mpris::TrackID::new(track_id) {
             Ok(track_id) => track_id,
             Err(err) => bail!("error creating track id: {:?}", err),
         };
         self.player.set_position(track_id, &position)?;
         Ok(())
     }
-    fn get_length(&self) -> Result<Duration> {//TODO add fallback to cider2 api
-        let metadata=self.get_metadata()?;
-        let length=match metadata.get("mpris:length") {
+    fn get_length(&self) -> Result<Duration> {
+        //TODO add fallback to cider2 api
+        let metadata = self.get_metadata()?;
+        let length = match metadata.get("mpris:length") {
             Some(length) => length,
             None => bail!("Length not found in metadata"),
         };
         println!("{:?}", length.as_i64());
-        Ok(Duration::from_micros(length.as_i64().unwrap().max(0).unsigned_abs()))
+        Ok(Duration::from_micros(
+            length.as_i64().unwrap().max(0).unsigned_abs(),
+        ))
     }
 
     fn set_volume(&self, volume: f64) -> Result<()> {
@@ -158,17 +166,17 @@ impl Playerinfo for MprisPlayerInfo{
     }
 
     fn get_volume(&self) -> Result<f64> {
-        let volume=self.player.get_volume()?;
+        let volume = self.player.get_volume()?;
         Ok(volume)
     }
 
     fn get_metadata(&self) -> Result<mpris::Metadata> {
-        let metadata=self.player.get_metadata()?;
+        let metadata = self.player.get_metadata()?;
         Ok(metadata)
     }
     fn get_current_track_id(&self) -> Result<TrackID> {
-        let metadata=self.get_metadata()?;
-        let track_id=match metadata.get("mpris:trackid") {
+        let metadata = self.get_metadata()?;
+        let track_id = match metadata.get("mpris:trackid") {
             Some(track_id) => track_id.as_str().unwrap(),
             None => bail!("TrackId not found in metadata"),
         };
@@ -177,32 +185,34 @@ impl Playerinfo for MprisPlayerInfo{
             Err(err) => bail!("error creating track id: {:?}", err),
         }
     }
-    fn get_current_song_info(&self)-> Result<CurrentSongMinimalInfo> {
-        let duration_millis=self.get_length()?.as_millis() as u64;
-        let metadata=self.get_metadata()?;
-        let name=match metadata.get("xesam:title") {
+    fn get_current_song_info(&self) -> Result<CurrentSongMinimalInfo> {
+        let duration_millis = self.get_length()?.as_millis() as u64;
+        let metadata = self.get_metadata()?;
+        let name = match metadata.get("xesam:title") {
             Some(name) => name.as_str().unwrap(),
             None => "",
         };
-        let album_name=match metadata.get("xesam:album") {
+        let album_name = match metadata.get("xesam:album") {
             Some(album_name) => album_name.as_str().unwrap(),
             None => "",
         };
-        let artist_name=match metadata.get("xesam:artist") {
+        let artist_name = match metadata.get("xesam:artist") {
             Some(artist_name) => {
-                let arr=artist_name.as_array().unwrap();
+                let arr = artist_name.as_array().unwrap();
                 arr.first().unwrap().as_str().unwrap()
-            },
+            }
             None => "",
         };
-        let artwork=metadata.get("mpris:artUrl").map(|artwork| CurrentSongArtwork{
+        let artwork = metadata
+            .get("mpris:artUrl")
+            .map(|artwork| CurrentSongArtwork {
                 url: artwork.as_str().unwrap().to_string(),
                 width: None,
                 height: None,
             });
-        let current_playback_time=self.get_position()?.as_secs_f64();
-        let current_playback_progress=current_playback_time as f32/duration_millis as f32;
-        Ok(CurrentSongMinimalInfo{
+        let current_playback_time = self.get_position()?.as_secs_f64();
+        let current_playback_progress = current_playback_time as f32 / duration_millis as f32;
+        Ok(CurrentSongMinimalInfo {
             duration_in_millis: duration_millis,
             name: name.to_string(),
             album_name: album_name.to_string(),
@@ -227,7 +237,10 @@ impl Cider2PlayerInfo {
 }
 impl Default for Cider2PlayerInfo {
     fn default() -> Self {
-        let player = mpris::PlayerFinder::new().expect("Could not connect to D-Bus").find_by_name("cider2").unwrap();
+        let player = mpris::PlayerFinder::new()
+            .expect("Could not connect to D-Bus")
+            .find_by_name("cider2")
+            .unwrap();
 
         Self {
             mpris_player: player,
@@ -236,7 +249,7 @@ impl Default for Cider2PlayerInfo {
     }
 }
 
-impl Playerinfo for Cider2PlayerInfo{
+impl Playerinfo for Cider2PlayerInfo {
     fn play(&self) -> Result<()> {
         self.mpris_player.play()?;
         Ok(())
@@ -268,7 +281,7 @@ impl Playerinfo for Cider2PlayerInfo{
     }
 
     fn get_playback_status(&self) -> Result<mpris::PlaybackStatus> {
-        let playback_status=self.mpris_player.get_playback_status()?;
+        let playback_status = self.mpris_player.get_playback_status()?;
         Ok(playback_status)
     }
 
@@ -278,7 +291,7 @@ impl Playerinfo for Cider2PlayerInfo{
     }
 
     fn get_shuffle(&self) -> Result<bool> {
-        let shuffle=self.mpris_player.get_shuffle()?;
+        let shuffle = self.mpris_player.get_shuffle()?;
         Ok(shuffle)
     }
 
@@ -288,19 +301,27 @@ impl Playerinfo for Cider2PlayerInfo{
     }
 
     fn get_loop(&self) -> Result<mpris::LoopStatus> {
-        let loop_status=self.mpris_player.get_loop_status()?;
+        let loop_status = self.mpris_player.get_loop_status()?;
         Ok(loop_status)
     }
 
     fn seek(&self, offset: i64) -> Result<()> {
-        let current_position=self.get_position()?;
-        let length=self.get_length()?;
-        let new_position=if offset.is_negative() {
+        let current_position = self.get_position()?;
+        let length = self.get_length()?;
+        let new_position = if offset.is_negative() {
             current_position.saturating_sub(Duration::from_secs(offset.unsigned_abs()))
         } else {
-            current_position.saturating_add(Duration::from_secs(offset as u64)).min(length)
+            current_position
+                .saturating_add(Duration::from_secs(offset as u64))
+                .min(length)
         };
-        let response=self.client.get(format!("{CIDER2_API_URL}/seekto/{}", new_position.as_secs())).send()?;
+        let response = self
+            .client
+            .get(format!(
+                "{CIDER2_API_URL}/seekto/{}",
+                new_position.as_secs()
+            ))
+            .send()?;
         if matches!(response.status(), reqwest::StatusCode::NO_CONTENT) {
             Ok(())
         } else {
@@ -313,8 +334,9 @@ impl Playerinfo for Cider2PlayerInfo{
         Ok(Duration::from_secs_f64(position))
     }
 
-    fn set_position(&self, track_id: &str, position: Duration) -> Result<()> {//TODO add fallback to cider2 api
-        let track_id=match mpris::TrackID::new(track_id) {
+    fn set_position(&self, track_id: &str, position: Duration) -> Result<()> {
+        //TODO add fallback to cider2 api
+        let track_id = match mpris::TrackID::new(track_id) {
             Ok(track_id) => track_id,
             Err(err) => bail!("error creating track id: {:?}", err),
         };
@@ -322,14 +344,17 @@ impl Playerinfo for Cider2PlayerInfo{
         Ok(())
     }
 
-    fn get_length(&self) -> Result<Duration> {//TODO add fallback to cider2 api
-        let metadata=self.get_metadata()?;
-        let length=match metadata.get("mpris:length") {
+    fn get_length(&self) -> Result<Duration> {
+        //TODO add fallback to cider2 api
+        let metadata = self.get_metadata()?;
+        let length = match metadata.get("mpris:length") {
             Some(length) => length,
             None => bail!("Length not found in metadata"),
         };
         println!("{:?}", length.as_i64());
-        Ok(Duration::from_micros(length.as_i64().unwrap().max(0).unsigned_abs()))
+        Ok(Duration::from_micros(
+            length.as_i64().unwrap().max(0).unsigned_abs(),
+        ))
     }
 
     fn set_volume(&self, volume: f64) -> Result<()> {
@@ -338,17 +363,17 @@ impl Playerinfo for Cider2PlayerInfo{
     }
 
     fn get_volume(&self) -> Result<f64> {
-        let volume=self.mpris_player.get_volume()?;
+        let volume = self.mpris_player.get_volume()?;
         Ok(volume)
     }
 
     fn get_metadata(&self) -> Result<mpris::Metadata> {
-        let metadata=self.mpris_player.get_metadata()?;
+        let metadata = self.mpris_player.get_metadata()?;
         Ok(metadata)
     }
     fn get_current_track_id(&self) -> Result<TrackID> {
-        let metadata=self.get_metadata()?;
-        let track_id=match metadata.get("mpris:trackid") {
+        let metadata = self.get_metadata()?;
+        let track_id = match metadata.get("mpris:trackid") {
             Some(track_id) => track_id.as_str().unwrap(),
             None => bail!("TrackId not found in metadata"),
         };
@@ -358,13 +383,14 @@ impl Playerinfo for Cider2PlayerInfo{
         }
     }
     fn get_current_song_info(&self) -> Result<CurrentSongMinimalInfo> {
-        let response=self.client.get(format!("{CIDER2_API_URL}/currentPlayingSong")).send()?;
-        let current_song: CurrentSongMinimal=serde_json::from_str(&response.text()?)?;
+        let response = self
+            .client
+            .get(format!("{CIDER2_API_URL}/currentPlayingSong"))
+            .send()?;
+        let current_song: CurrentSongMinimal = serde_json::from_str(&response.text()?)?;
         Ok(current_song.info)
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -382,16 +408,16 @@ mod tests {
     //     assert_eq!(player.get_playback_status().unwrap(), mpris::PlaybackStatus::Paused);
     // }
     #[test]
-    fn test_cider_current_song_info(){
-        let player=Cider2PlayerInfo::new();
-        let current_song_info=player.get_current_song_info().unwrap();
+    fn test_cider_current_song_info() {
+        let player = Cider2PlayerInfo::new();
+        let current_song_info = player.get_current_song_info().unwrap();
         println!("song info: {:?}", current_song_info);
     }
 
     #[test]
-    fn test_mpris_current_song_info(){
-        let player=MprisPlayerInfo::new("cider2");
-        let current_song_info=player.get_current_song_info().unwrap();
+    fn test_mpris_current_song_info() {
+        let player = MprisPlayerInfo::new("cider2");
+        let current_song_info = player.get_current_song_info().unwrap();
         println!("song info: {:?}", current_song_info);
     }
 }

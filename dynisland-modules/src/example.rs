@@ -353,10 +353,13 @@ impl ExampleModule {
                 scrolling_text
                     .lock()
                     .await
-                    .set("Hello long text, very long text. Hello long text, very long text.    end".to_string())
+                    .set(
+                        "Hello long text, very long text. Hello long text, very long text.    end"
+                            .to_string(),
+                    )
                     .unwrap();
                 tokio::time::sleep(tokio::time::Duration::from_millis(12000)).await;
-                
+
                 scrolling_text
                     .lock()
                     .await
@@ -467,7 +470,8 @@ impl ExampleModule {
                     .unwrap()
                     .downcast::<ScrollingLabel>()
                     .unwrap()
-                    .label().set_text(real_value.as_str());
+                    .label()
+                    .set_text(real_value.as_str());
             })
             .unwrap();
 
@@ -545,7 +549,7 @@ impl ExampleModule {
             })
             .unwrap();
 
-            let c1=compact.clone();
+        let c1 = compact.clone();
         activity
             .subscribe_to_property("rolling-char", move |new_value| {
                 let real_value = cast_dyn_any!(new_value, char).unwrap();

@@ -248,12 +248,18 @@ impl ActivityWidgetPriv {
             (1.0, 1.0)
         } else {
             let min_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-                let measure = util::get_child_aligned_allocation(
+                let mut measure = util::get_child_aligned_allocation(
                     (next_size.0 as i32, next_size.1 as i32, -1),
                     widget,
                     mode,
                     min_height,
                 );
+                if measure.0 == 0 {
+                    measure.0 = next_size.0 as i32;
+                }
+                if measure.1 == 0 {
+                    measure.1 = next_size.1 as i32;
+                }
                 (measure.0 as f64, measure.1 as f64)
             } else {
                 self.get_final_widget_size_for_mode(mode, min_height)
@@ -267,12 +273,18 @@ impl ActivityWidgetPriv {
             (1.0, 1.0)
         } else {
             let com_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-                let measure = util::get_child_aligned_allocation(
+                let mut measure = util::get_child_aligned_allocation(
                     (next_size.0 as i32, next_size.1 as i32, -1),
                     widget,
                     mode,
                     min_height,
                 );
+                if measure.0 == 0 {
+                    measure.0 = next_size.0 as i32;
+                }
+                if measure.1 == 0 {
+                    measure.1 = next_size.1 as i32;
+                }
                 (measure.0 as f64, measure.1 as f64)
             } else {
                 self.get_final_widget_size_for_mode(mode, min_height)
@@ -286,12 +298,18 @@ impl ActivityWidgetPriv {
             (1.0, 1.0)
         } else {
             let exp_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-                let measure = util::get_child_aligned_allocation(
+                let mut measure = util::get_child_aligned_allocation(
                     (next_size.0 as i32, next_size.1 as i32, -1),
                     widget,
                     mode,
                     min_height,
                 );
+                if measure.0 == 0 {
+                    measure.0 = next_size.0 as i32;
+                }
+                if measure.1 == 0 {
+                    measure.1 = next_size.1 as i32;
+                }
                 (measure.0 as f64, measure.1 as f64)
             } else {
                 self.get_final_widget_size_for_mode(mode, min_height)
@@ -305,12 +323,18 @@ impl ActivityWidgetPriv {
             (1.0, 1.0)
         } else {
             let ove_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-                let measure = util::get_child_aligned_allocation(
+                let mut measure = util::get_child_aligned_allocation(
                     (next_size.0 as i32, next_size.1 as i32, -1),
                     widget,
                     mode,
                     min_height,
                 );
+                if measure.0 == 0 {
+                    measure.0 = next_size.0 as i32;
+                }
+                if measure.1 == 0 {
+                    measure.1 = next_size.1 as i32;
+                }
                 (measure.0 as f64, measure.1 as f64)
             } else {
                 self.get_final_widget_size_for_mode(mode, min_height)

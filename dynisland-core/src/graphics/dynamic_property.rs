@@ -56,3 +56,10 @@ macro_rules! cast_dyn_any {
         ($val as &dyn std::any::Any).downcast_ref::<$type>()
     };
 }
+
+#[macro_export]
+macro_rules! cast_dyn_any_mut {
+    ($val:expr, $type:ty) => {
+        (&mut $val as &mut dyn std::any::Any).downcast_mut::<$type>()
+    };
+}
