@@ -139,7 +139,7 @@ impl ActivityWidgetLocalCssContext {
             self.opacity[2],
             self.opacity[3],
         );
-        self.stretch.map(|(x, y)|{
+        let stretches=self.stretch.map(|(x, y)|{
             let x=if !x.is_finite(){
                 1.0
             }else{
@@ -153,16 +153,16 @@ impl ActivityWidgetLocalCssContext {
             (x,y)
         });
         let (min_stretch_x, com_stretch_x, exp_stretch_x, ove_stretch_x) = (
-            self.stretch[0].0,
-            self.stretch[1].0,
-            self.stretch[2].0,
-            self.stretch[3].0,
+            stretches[0].0,
+            stretches[1].0,
+            stretches[2].0,
+            stretches[3].0,
         );
         let (min_stretch_y, com_stretch_y, exp_stretch_y, ove_stretch_y) = (
-            self.stretch[0].1,
-            self.stretch[1].1,
-            self.stretch[2].1,
-            self.stretch[3].1,
+            stretches[0].1,
+            stretches[1].1,
+            stretches[2].1,
+            stretches[3].1,
         );
         let (min_blur, com_blur, exp_blur, ove_blur) =
             (self.blur[0], self.blur[1], self.blur[2], self.blur[3]);

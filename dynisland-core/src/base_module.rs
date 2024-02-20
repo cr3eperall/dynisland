@@ -45,11 +45,9 @@ pub type ActivityMap = Rc<Mutex<HashMap<String, Rc<Mutex<DynamicActivity>>>>>;
 ///
 /// Every time the configuration file changes, the task running in `rt` is killed and this function is re-executed with a new runtime
 pub type Producer = fn(
-    activities: ActivityMap,
+    module: &dyn Module,
     rt: &Handle,
     app_send: UnboundedSender<UIServerCommand>,
-    prop_send: UnboundedSender<PropertyUpdate>,
-    config: &dyn ModuleConfig,
 );
 
 /// This trait must be implemented by the module configuration struct
@@ -78,7 +76,10 @@ pub trait ModuleConfig: Any + Debug + DynClone {}
 /// static SOMETHING: fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module> = ModuleName::new;
 /// ```
 #[async_trait(?Send)]
-pub trait Module {
+pub trait Module{
+
+    fn as_any(&self) -> &dyn Any;
+
     /// Creates a new instance of the plugin
     ///
     /// This is called once at the beginning of the execution.
@@ -200,8 +201,14 @@ pub struct PropertyUpdate {
     pub value: Box<dyn ValidDynType>,
 }
 
-pub trait ValidDynType: Any + Sync + Send + DynClone {}
-impl<T: Any + Sync + Send + Clone> ValidDynType for T {}
+pub trait ValidDynType: Any + Sync + Send + DynClone {
+    fn as_any(&self) -> &dyn Any;
+}
+impl<T: Any + Sync + Send + Clone> ValidDynType for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
 pub trait ValidDynamicClosure: Fn(&dyn ValidDynType) + DynClone {}
 impl<T: Fn(&dyn ValidDynType) + DynClone + Clone> ValidDynamicClosure for T {}

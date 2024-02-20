@@ -1,14 +1,9 @@
 use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-    str::FromStr,
-    sync::Arc,
-    vec,
+    any::Any, collections::{HashMap, HashSet}, rc::Rc, sync::Arc, vec
 };
 
 use anyhow::{Context, Ok, Result};
 use async_trait::async_trait;
-use css_anim::soy::Bezier;
 use gtk::{prelude::*, GestureClick, Label};
 use linkme::distributed_slice;
 use ron::Value;
@@ -46,52 +41,6 @@ pub struct ExampleConfig {
     pub vec: Vec<String>,
 
     pub duration: u64,
-
-    #[serde(
-        deserialize_with = "Bezier::from_string_or_struct",
-        default = "default_bezier"
-    )]
-    pub translate_prev: Bezier,
-    #[serde(
-        deserialize_with = "Bezier::from_string_or_struct",
-        default = "default_bezier"
-    )]
-    pub scale_prev: Bezier,
-    #[serde(
-        deserialize_with = "Bezier::from_string_or_struct",
-        default = "default_bezier"
-    )]
-    pub opacity_prev: Bezier,
-    #[serde(
-        deserialize_with = "Bezier::from_string_or_struct",
-        default = "default_bezier"
-    )]
-    pub blur_prev: Bezier,
-
-    #[serde(
-        deserialize_with = "Bezier::from_string_or_struct",
-        default = "default_bezier"
-    )]
-    pub translate_next: Bezier,
-    #[serde(
-        deserialize_with = "Bezier::from_string_or_struct",
-        default = "default_bezier"
-    )]
-    pub scale_next: Bezier,
-    #[serde(
-        deserialize_with = "Bezier::from_string_or_struct",
-        default = "default_bezier"
-    )]
-    pub opacity_next: Bezier,
-    #[serde(
-        deserialize_with = "Bezier::from_string_or_struct",
-        default = "default_bezier"
-    )]
-    pub blur_next: Bezier,
-}
-
-fn default_bezier() -> Bezier {
-    Bezier::from_str("linear").unwrap()
 }
 
 impl ModuleConfig for ExampleConfig {}
@@ -102,14 +51,6 @@ impl Default for ExampleConfig {
             string: String::from("Example1"),
             vec: vec![String::from("Example2"), String::from("Example3")],
             duration: 400,
-            translate_prev: default_bezier(),
-            scale_prev: default_bezier(),
-            opacity_prev: default_bezier(),
-            blur_prev: default_bezier(),
-            translate_next: default_bezier(),
-            scale_next: default_bezier(),
-            opacity_next: default_bezier(),
-            blur_next: default_bezier(),
         }
     }
 }
@@ -185,6 +126,14 @@ impl Module for ExampleModule {
         self.prop_send.clone()
     }
 
+    fn parse_config(&mut self, config: Value) -> Result<()> {
+        self.config = config
+            .into_rust()
+            .with_context(|| "failed to parse config")
+            .unwrap();
+        Ok(())
+    }
+
     fn init(&self) {
         let app_send = self.app_send.clone();
         let name = self.name.clone();
@@ -209,93 +158,26 @@ impl Module for ExampleModule {
         });
     }
 
-    fn parse_config(&mut self, config: Value) -> Result<()> {
-        self.config = config
-            .into_rust()
-            .with_context(|| "failed to parse config")
-            .unwrap();
-        Ok(())
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
-
-// fn update_config(config: &ExampleConfig, activities: ActivityMap) {
-//     let compact_mode = activities
-//         .blocking_lock()
-//         .get("exampleActivity1")
-//         .unwrap()
-//         .blocking_lock()
-//         .get_activity_widget()
-//         .compact_mode()
-//         .unwrap();
-//     let rn1 = compact_mode
-//         .clone()
-//         .downcast::<gtk::EventBox>()
-//         .unwrap()
-//         .children()
-//         .first()
-//         .unwrap()
-//         .clone()
-//         .downcast::<gtk::Box>()
-//         .unwrap()
-//         .children()
-//         .first()
-//         .unwrap()
-//         .clone()
-//         .downcast::<RollingNumber>()
-//         .unwrap();
-//     let rn2 = compact_mode
-//         .clone()
-//         .downcast::<gtk::EventBox>()
-//         .unwrap()
-//         .children()
-//         .first()
-//         .unwrap()
-//         .clone()
-//         .downcast::<gtk::Box>()
-//         .unwrap()
-//         .children()
-//         .get(1)
-//         .unwrap()
-//         .clone()
-//         .downcast::<RollingNumber>()
-//         .unwrap();
-//     let rn_list = vec![rn1, rn2]; //
-//     for rn in rn_list {
-//         rn.set_translate_prev_transition(Box::new(config.translate_prev), true)
-//             .unwrap();
-//         rn.set_scale_prev_transition(Box::new(config.scale_prev), true)
-//             .unwrap();
-//         rn.set_opacity_prev_transition(Box::new(config.opacity_prev), true)
-//             .unwrap();
-//         rn.set_blur_prev_transition(Box::new(config.blur_prev), true)
-//             .unwrap();
-//         rn.set_translate_next_transition(Box::new(config.translate_next), true)
-//             .unwrap();
-//         rn.set_scale_next_transition(Box::new(config.scale_next), true)
-//             .unwrap();
-//         rn.set_opacity_next_transition(Box::new(config.opacity_next), true)
-//             .unwrap();
-//         rn.set_blur_next_transition(Box::new(config.blur_next), true)
-//             .unwrap();
-//         rn.set_transition_duration(config.duration, true).unwrap();
-//     }
-// }
 
 impl ExampleModule {
     //TODO add reference to module and recieve messages from main
     #[allow(unused_variables)]
     fn producer(
-        activities: ActivityMap,
+        module: &dyn Module,
         rt: &Handle,
         _app_send: UnboundedSender<UIServerCommand>,
-        _prop_send: UnboundedSender<PropertyUpdate>,
-        config: &dyn ModuleConfig,
     ) {
+        
+        let module =cast_dyn_any!(module, ExampleModule).unwrap();
         //data producer
-        let config: &ExampleConfig = cast_dyn_any!(config, ExampleConfig).unwrap();
-        // update_config(config, activities.clone());
+        let config: &ExampleConfig = &module.config;
+
         //TODO shouldn't be blocking locks, maybe execute async with glib::MainContext
-        let act = activities.blocking_lock();
+        let act = module.registered_activities.blocking_lock();
         let mode = act
             .get("exampleActivity1")
             .unwrap()
@@ -598,7 +480,7 @@ impl ExampleModule {
     fn set_act_widget(activity_widget: &mut ActivityWidget) {
         activity_widget.set_vexpand(true);
         activity_widget.set_hexpand(true);
-        activity_widget.set_valign(gtk::Align::Center);
+        activity_widget.set_valign(gtk::Align::Start);
         activity_widget.set_halign(gtk::Align::Start);
         // activity_widget.set_transition_duration(2000, true).unwrap();
         // activity_widget.style_context().add_class("overlay");

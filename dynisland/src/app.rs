@@ -104,11 +104,9 @@ impl App {
                         module.register_producer(producer).await; //add inside module
                         producer(
                             // execute //TODO make sure this doesn't get executed twice at the same time when the configuration is being reloaded
-                            module.get_registered_activities(),
+                            module.as_ref(),
                             &rt,
                             app_send.clone(),
-                            module.get_prop_send(),
-                            module.get_config(),
                         );
                         info!("registered producer {}", module.get_name());
                     }
@@ -159,9 +157,9 @@ impl App {
                         glib::timeout_future(std::time::Duration::from_millis(50)).await;
                         self.load_configs();
                         self.update_general_configs().await;
-                        self.restart_producer_rt();
-
                         self.load_css();
+                        
+                        self.restart_producer_rt();
                     }
                 }
             }
@@ -321,11 +319,9 @@ impl App {
             //restart producers
             for producer in module.get_registered_producers().blocking_lock().iter() {
                 producer(
-                    module.get_registered_activities(),
+                    module.as_ref(),
                     &self.producers_handle,
                     self.app_send.clone().unwrap(),
-                    module.get_prop_send(),
-                    module.get_config(),
                 )
             }
         }

@@ -1,7 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-    sync::Arc,
+    any::Any, collections::{HashMap, HashSet}, rc::Rc, sync::Arc
 };
 
 use anyhow::{Context, Ok, Result};
@@ -43,6 +41,9 @@ pub struct MusicModule {
 
 #[async_trait(?Send)]
 impl Module for MusicModule {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Box<dyn Module> {
         let conf = match config {
             Some(value) => value.into_rust().expect("failed to parse config"),
@@ -134,22 +135,19 @@ impl Module for MusicModule {
     }
 }
 
-// fn update_config(config: &MusicConfig, activities: ActivityMap) {}
-
 impl MusicModule {
     //TODO add reference to module and recieve messages from main
     #[allow(unused_variables)]
     fn producer(
-        activities: ActivityMap,
+        module: &dyn Module,
         rt: &Handle,
         _app_send: UnboundedSender<UIServerCommand>,
-        _prop_send: UnboundedSender<PropertyUpdate>,
-        config: &dyn ModuleConfig,
     ) {
+        let module=cast_dyn_any!(module, MusicModule).unwrap();
         //data producer
-        let config: &MusicConfig = cast_dyn_any!(config, MusicConfig).unwrap();
+        let config = &module.config;
         // let module: &mut MusicModule = cast_dyn_any_mut!(module, MusicModule).unwrap();
-        // update_config(config, activities.clone());
+        let activities=&module.registered_activities;
         let mode = activities
             .blocking_lock()
             .get("music-activity")

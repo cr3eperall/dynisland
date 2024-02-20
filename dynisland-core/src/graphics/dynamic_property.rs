@@ -53,13 +53,13 @@ impl DynamicProperty {
 #[macro_export]
 macro_rules! cast_dyn_any {
     ($val:expr, $type:ty) => {
-        ($val as &dyn std::any::Any).downcast_ref::<$type>()
+        $val.as_any().downcast_ref::<$type>()
     };
 }
 
-#[macro_export]
-macro_rules! cast_dyn_any_mut {
-    ($val:expr, $type:ty) => {
-        (&mut $val as &mut dyn std::any::Any).downcast_mut::<$type>()
-    };
-}
+// #[macro_export]
+// macro_rules! cast_dyn_any_mut {
+//     ($val:expr, $type:ty) => {
+//         (&mut $val).as_any().downcast_mut::<$type>()
+//     };
+// }
