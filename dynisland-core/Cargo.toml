@@ -27,3 +27,4 @@ async-trait = "0.1.73"
 notify = { version = "6.1.1", features = ["fsevent-sys"] }
 concat-idents = "1.1.5"
 # css-anim = {path = "../../css-anim", version = "*"}
+stabby = "3.0.3"

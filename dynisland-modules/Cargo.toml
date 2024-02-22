@@ -19,8 +19,6 @@ log = {workspace = true}
 ron = {workspace = true}
 linkme = {workspace = true}
 
-css-anim = {path = "../../css-anim", version = "*"}
-
 dyn-clone = "1.0.13"
 async-trait = "0.1.73"
 mpris = "2.0.1"
