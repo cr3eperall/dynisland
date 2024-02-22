@@ -13,7 +13,13 @@ use tokio::{
     },
 };
 
-use crate::config::{self, Config, GeneralConfig};
+use crate::{
+    config::{self, Config, GeneralConfig},
+    layout_manager::{
+        layout_manager_base::{LayoutManager, LAYOUTS},
+        simple_layout::{self, SimpleLayout},
+    },
+};
 
 use dynisland_core::base_module::{Module, UIServerCommand, MODULES};
 
@@ -25,6 +31,7 @@ pub struct App {
     pub application: gtk::Application,
     // pub window: gtk::Window,
     pub module_map: Rc<Mutex<HashMap<String, Box<dyn Module>>>>,
+    pub layout: Option<Rc<Mutex<Box<dyn LayoutManager>>>>,
     pub producers_handle: Handle,
     pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
     pub app_send: Option<UnboundedSender<UIServerCommand>>,
@@ -52,23 +59,21 @@ impl App {
         );
         //load user's scss
         self.load_css();
-        let act_container = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .halign(gtk::Align::Center)
-            .valign(gtk::Align::Start)
-            .margin_top(10)
-            .build();
 
         let (app_send, mut app_recv) = unbounded_channel::<UIServerCommand>();
 
         self.app_send = Some(app_send.clone());
 
-        self.load_modules();
+        let module_order = self.load_modules();
+        self.layout = Some(Rc::new(Mutex::new(self.load_layout_manager())));
+
         self.load_configs();
-        self.init_loaded_modules();
+        self.load_layout_config();
+
+        self.init_loaded_modules(&module_order);
 
         let rt = self.producers_handle.clone();
-        let map = self.module_map.clone();
+        let module_map = self.module_map.clone();
 
         // let app_send1=self.app_send.clone().unwrap();
         // glib::MainContext::default().spawn_local(async move {
@@ -77,10 +82,12 @@ impl App {
         //     app_send1.send(UIServerCommand::ReloadConfig()).unwrap();
         // });
 
-        let act_container1 = act_container.clone();
+        let layout = self.layout.clone().unwrap();
+        let widget = layout.blocking_lock().get_primary_widget();
+        // let act_container1 = act_container.clone();
         self.application.connect_activate(move |app| {
             let window = gtk::ApplicationWindow::new(app);
-            window.set_child(Some(&act_container1));
+            window.set_child(Some(&widget));
 
             // gtk::Window::set_interactive_debugging(true);
 
@@ -96,8 +103,8 @@ impl App {
             while let Some(command) = app_recv.recv().await {
                 match command {
                     UIServerCommand::AddProducer(module_identifier, producer) => {
-                        let map = map.lock().await;
-                        let module = map
+                        let map_lock = module_map.lock().await;
+                        let module = map_lock
                             .get(&module_identifier)
                             .unwrap_or_else(|| panic!("module {} not found", module_identifier));
 
@@ -111,34 +118,34 @@ impl App {
                         info!("registered producer {}", module.get_name());
                     }
                     UIServerCommand::AddActivity(module_identifier, activity) => {
-                        act_container.append(&activity.lock().await.get_activity_widget()); //add to window
-                        act_container.set_visible(true);
+                        layout.lock().await.add_activity(activity.clone());
+
                         Self::update_general_configs_on_activity(
-                            &self.config.general_config,
+                            &self.config.general_style_config,
                             &activity,
                         )
                         .await;
-                        let map = map.lock().await;
-                        let module = map
+                        let map_lock = module_map.lock().await;
+                        let module = map_lock
                             .get(&module_identifier)
                             .unwrap_or_else(|| panic!("module {} not found", module_identifier));
-                        module.register_activity(activity).await; //add inside its module
+                        module.register_activity(activity).await; //add inside its module //FIXME keep track of registered activities and producers outside of the module
                         info!("registered activity on {}", module.get_name());
                     }
                     UIServerCommand::RemoveActivity(module_identifier, name) => {
-                        let map = map.lock().await;
-                        let module = map
+                        let map_lock = module_map.lock().await;
+                        let module = map_lock
                             .get(&module_identifier)
                             .unwrap_or_else(|| panic!("module {} not found", module_identifier));
                         let activity_map = module.get_registered_activities();
                         let activity_map = activity_map.lock().await;
-                        let act = activity_map.get(&name).unwrap_or_else(|| {
-                            panic!(
-                                "activity {} not found on module {}",
-                                name, module_identifier
-                            )
-                        });
-                        act_container.remove(&act.lock().await.get_activity_widget());
+                        let act = activity_map.get_activity(&name).unwrap(); //TODO log error
+
+                        layout
+                            .lock()
+                            .await
+                            .remove_activity(&act.lock().await.get_identifier());
+
                         module.unregister_activity(&name).await;
                     }
                 }
@@ -157,8 +164,9 @@ impl App {
                         glib::timeout_future(std::time::Duration::from_millis(50)).await;
                         self.load_configs();
                         self.update_general_configs().await;
+                        self.load_layout_config();
                         self.load_css();
-                        
+
                         self.restart_producer_rt();
                     }
                 }
@@ -221,48 +229,58 @@ impl App {
         }
     }
 
-    pub fn load_modules(&mut self) {
+    pub fn load_modules(&mut self) -> Vec<String> {
+        //TODO maybe load modules in order of definition in config
         self.config = config::get_config();
-        for module_new in MODULES.iter() {
-            let module = module_new(self.app_send.as_ref().unwrap().clone(), None);
-            if self
-                .config
-                .loaded_modules
-                .contains(&module.get_name().to_string())
-                || self.config.loaded_modules.contains(&"all".to_string())
-            {
+        let mut module_order = vec![];
+        let mut module_def_map =
+            HashMap::<String, fn(UnboundedSender<UIServerCommand>) -> Box<dyn Module>>::new();
+        for module_def in MODULES.iter() {
+            let module_name = module_def.0;
+            let constructor = module_def.1;
+            module_def_map.insert(module_name.to_string(), constructor);
+        }
+
+        if self.config.loaded_modules.contains(&"all".to_string()) {
+            //load all modules available
+            for module_def in MODULES.iter() {
+                let module_name = module_def.0;
+                let built_module = module_def.1(self.app_send.as_ref().unwrap().clone());
+                module_order.push(module_name.to_string());
+                self.module_map
+                    .blocking_lock()
+                    .insert(module_name.to_string(), built_module);
+            }
+        } else {
+            //load only modules in the config in order of definition
+            for module_name in self.config.loaded_modules.iter() {
+                let module_def = module_def_map.get(module_name);
+                let module_def = match module_def {
+                    None => {
+                        info!("module {} not found, skipping", module_name);
+                        continue;
+                    }
+                    Some(def) => def,
+                };
+
+                let built_module = module_def(self.app_send.as_ref().unwrap().clone());
+                module_order.push(module_name.to_string());
                 // info!("loading module {}", module.get_name());
                 self.module_map
                     .blocking_lock()
-                    .insert(module.get_name().to_string(), module);
-            } else {
-                info!("skipping module {}", module.get_name());
-                continue;
+                    .insert(module_name.to_string(), built_module);
             }
         }
-        // let example_mod =
-        //     example::ExampleModule::new(self.app_send.as_ref().unwrap().clone(), None);
-        // self.module_map
-        //     .blocking_lock()
-        //     .insert(example_mod.get_name().to_string(), example_mod);
-
-        // let example_mod2 =
-        //     example::ExampleModule2::new(self.app_send.as_ref().unwrap().clone(), None);
-        // self.module_map
-        //     .blocking_lock()
-        //     .insert(example_mod2.get_name().to_string(), Box::new(example_mod2));
-
-        info!(
-            "loaded modules: {:?}",
-            self.module_map.blocking_lock().keys()
-        );
+        info!("loaded modules: {:?}", module_order);
+        module_order
     }
 
     fn load_configs(&mut self) {
         self.config = config::get_config();
-        debug!("general_config: {:#?}", self.config.general_config);
+        debug!("general_config: {:#?}", self.config.general_style_config);
         for module in self.module_map.blocking_lock().values_mut() {
-            let config_parsed = match self.config.module_config.get(module.get_name()) {
+            let config_to_parse = self.config.module_config.get(module.get_name());
+            let config_parsed = match config_to_parse {
                 Some(conf) => module.parse_config(conf.clone()),
                 None => Ok(()),
             };
@@ -274,7 +292,7 @@ impl App {
                     )
                 }
                 Ok(()) => {
-                    debug!("{}: {:#?}", module.get_name(), module.get_config());
+                    debug!("{}: {:#?}", module.get_name(), config_to_parse);
                 }
             }
         }
@@ -282,9 +300,12 @@ impl App {
 
     async fn update_general_configs(&mut self) {
         for module in self.module_map.blocking_lock().values_mut() {
-            for activity in module.get_registered_activities().lock().await.values() {
-                Self::update_general_configs_on_activity(&self.config.general_config, activity)
-                    .await;
+            for activity in module.get_registered_activities().lock().await.map.values() {
+                Self::update_general_configs_on_activity(
+                    &self.config.general_style_config,
+                    activity,
+                )
+                .await;
             }
         }
     }
@@ -302,9 +323,46 @@ impl App {
             .set_blur_radius(config.blur_radius, false);
     }
 
-    fn init_loaded_modules(&self) {
-        for module in self.module_map.blocking_lock().values() {
+    fn init_loaded_modules(&self, order: &Vec<String>) {
+        let module_map = self.module_map.blocking_lock();
+        for module_name in order {
+            let module = module_map.get(module_name).unwrap();
             module.init();
+        }
+    }
+
+    fn load_layout_manager(&mut self) -> Box<dyn LayoutManager> {
+        let layout_to_load = self
+            .config
+            .layout
+            .clone()
+            .unwrap_or(simple_layout::NAME.to_string());
+
+        let mut layout: Option<Box<dyn LayoutManager>> = None;
+        for (layout_name, layout_constructor) in LAYOUTS.iter() {
+            if layout_name == &layout_to_load {
+                layout = Some(layout_constructor());
+                break;
+            }
+        }
+        layout.unwrap_or(SimpleLayout::new())
+    }
+
+    fn load_layout_config(&self) {
+        let layout = self.layout.clone().unwrap();
+        let mut layout = layout.blocking_lock();
+        let layout_name = layout.get_name();
+        if let Some(config) = self.config.layout_configs.get(layout_name) {
+            match layout.parse_config(config.clone()) {
+                Ok(()) => {
+                    info!("loaded layout config for {layout_name}");
+                }
+                Err(err) => {
+                    error!("failed to parse layout config for {layout_name}, {err}");
+                }
+            }
+        } else {
+            info!("no layout config found for {layout_name}, using Default");
         }
     }
 
@@ -336,6 +394,7 @@ impl Default for App {
         App {
             application: app,
             module_map: Rc::new(Mutex::new(HashMap::new())),
+            layout: None,
             producers_handle: hdl,
             producers_shutdown: shutdown,
             app_send: None,
