@@ -396,6 +396,7 @@ dependencies = [
  "glib",
  "grass",
  "gtk4",
+ "linkme",
  "log",
  "notify",
  "ron",

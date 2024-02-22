@@ -1,8 +1,6 @@
-use std::{
-    any::Any, collections::{HashMap, HashSet}, rc::Rc, sync::Arc
-};
+use std::{any::Any, collections::HashSet, rc::Rc, sync::Arc};
 
-use anyhow::{Context, Ok, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use gtk::{prelude::*, Widget};
 use ron::Value;
@@ -14,8 +12,7 @@ use tokio::{
 
 use dynisland_core::{
     base_module::{
-        ActivityMap, DynamicActivity, Module, ModuleConfig, Producer, PropertyUpdate,
-        UIServerCommand,
+        ActivityMap, DynamicActivity, Module, Producer, PropertyUpdate, UIServerCommand,
     },
     cast_dyn_any,
     graphics::activity_widget::{imp::ActivityMode, ActivityWidget},
@@ -28,13 +25,14 @@ pub struct MusicConfig {
     enabled_player_override: Vec<String>,
 }
 
-impl ModuleConfig for MusicConfig {}
+// impl ModuleConfig for MusicConfig {}
+
+pub const NAME: &str = "MusicModule";
 
 pub struct MusicModule {
-    name: String,
     app_send: UnboundedSender<UIServerCommand>,
     prop_send: UnboundedSender<PropertyUpdate>,
-    registered_activities: ActivityMap,
+    registered_activities: Rc<Mutex<ActivityMap>>,
     registered_producers: Arc<Mutex<HashSet<Producer>>>,
     config: MusicConfig,
 }
@@ -44,53 +42,40 @@ impl Module for MusicModule {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Box<dyn Module> {
-        let conf = match config {
-            Some(value) => value.into_rust().expect("failed to parse config"),
-            None => MusicConfig::default(),
-        };
-        let registered_activities = Rc::new(Mutex::new(HashMap::<
-            String,
-            Rc<Mutex<DynamicActivity>>,
-        >::new()));
+    fn new(app_send: UnboundedSender<UIServerCommand>) -> Box<dyn Module> {
+        let registered_activities = Rc::new(Mutex::new(ActivityMap::new()));
 
         let prop_send = MusicModule::spawn_property_update_loop(&registered_activities);
 
         Box::new(Self {
-            name: "MusicModule".to_string(),
             app_send,
             prop_send,
             registered_activities,
             registered_producers: Arc::new(Mutex::new(HashSet::new())),
-            config: conf,
+            config: MusicConfig::default(),
         })
     }
 
-    fn get_name(&self) -> &str {
-        &self.name
+    fn get_name(&self) -> &'static str {
+        NAME
     }
-    fn get_config(&self) -> &dyn ModuleConfig {
-        &self.config
-    }
+    // fn get_config(&self) -> &dyn ModuleConfig {
+    //     &self.config
+    // }
 
-    fn get_registered_activities(&self) -> ActivityMap {
+    fn get_registered_activities(&self) -> Rc<Mutex<ActivityMap>> {
         self.registered_activities.clone()
     }
 
     async fn register_activity(&self, activity: Rc<Mutex<DynamicActivity>>) {
         let mut reg = self.registered_activities.lock().await;
-        let activity_id = activity.lock().await.get_identifier();
-        if reg.contains_key(&activity_id) {
-            panic!("activity {} was already registered", activity_id);
-        }
-        reg.insert(activity_id, activity.clone());
+        reg.insert_activity(activity)
+            .await
+            .with_context(|| "failed to register activity")
+            .unwrap();
     }
     async fn unregister_activity(&self, activity: &str) {
-        self.registered_activities
-            .lock()
-            .await
-            .remove(activity)
-            .expect("activity isn't registered");
+        self.registered_activities.lock().await.map.remove(activity);
     }
 
     fn get_registered_producers(&self) -> Arc<Mutex<HashSet<Producer>>> {
@@ -107,19 +92,25 @@ impl Module for MusicModule {
 
     fn init(&self) {
         let app_send = self.app_send.clone();
-        let name = self.name.clone();
         let prop_send = self.prop_send.clone();
         glib::MainContext::default().spawn_local(async move {
             //create activity
-            let activity = Rc::new(Mutex::new(Self::get_activity(prop_send, "music-activity")));
+            let activity = Rc::new(Mutex::new(Self::get_activity(
+                prop_send,
+                NAME,
+                "music-activity",
+            )));
 
             //register activity and data producer
             app_send
-                .send(UIServerCommand::AddActivity(name.clone(), activity.clone()))
+                .send(UIServerCommand::AddActivity(
+                    NAME.to_string(),
+                    activity.clone(),
+                ))
                 .unwrap();
             app_send
                 .send(UIServerCommand::AddProducer(
-                    name,
+                    NAME.to_string(),
                     Self::producer as Producer,
                 ))
                 .unwrap();
@@ -138,24 +129,16 @@ impl Module for MusicModule {
 impl MusicModule {
     //TODO add reference to module and recieve messages from main
     #[allow(unused_variables)]
-    fn producer(
-        module: &dyn Module,
-        rt: &Handle,
-        _app_send: UnboundedSender<UIServerCommand>,
-    ) {
-        let module=cast_dyn_any!(module, MusicModule).unwrap();
+    fn producer(module: &dyn Module, rt: &Handle, _app_send: UnboundedSender<UIServerCommand>) {
+        let module = cast_dyn_any!(module, MusicModule).unwrap();
         //data producer
         let config = &module.config;
         // let module: &mut MusicModule = cast_dyn_any_mut!(module, MusicModule).unwrap();
-        let activities=&module.registered_activities;
+        let activities = &module.registered_activities;
         let mode = activities
             .blocking_lock()
-            .get("music-activity")
-            .unwrap()
-            .blocking_lock()
-            .get_property("mode")
-            .unwrap()
-            .clone();
+            .get_property_blocking("music-activity", "mode")
+            .unwrap();
         // debug!("starting task");
         let config = config.clone();
         rt.spawn(async move {
@@ -168,9 +151,10 @@ impl MusicModule {
 
     fn get_activity(
         prop_send: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
+        module: &str,
         name: &str,
     ) -> DynamicActivity {
-        let mut activity = DynamicActivity::new(prop_send, name);
+        let mut activity = DynamicActivity::new(prop_send, module, name);
 
         //create activity widget
         let mut activity_widget = activity.get_activity_widget();
@@ -202,11 +186,11 @@ impl MusicModule {
         activity
     }
 
-    fn set_act_widget(activity_widget: &mut ActivityWidget) {
-        activity_widget.set_vexpand(false);
-        activity_widget.set_hexpand(false);
-        activity_widget.set_valign(gtk::Align::Start);
-        activity_widget.set_halign(gtk::Align::Center);
+    fn set_act_widget(_activity_widget: &mut ActivityWidget) {
+        // activity_widget.set_vexpand(false);
+        // activity_widget.set_hexpand(false);
+        // activity_widget.set_valign(gtk::Align::Start);
+        // activity_widget.set_halign(gtk::Align::Center);
     }
 
     fn get_minimal() -> gtk::Widget {

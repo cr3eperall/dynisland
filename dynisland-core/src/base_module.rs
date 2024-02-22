@@ -21,7 +21,7 @@ use crate::graphics::activity_widget::ActivityWidget;
 
 /// Slice of loaded modules
 #[distributed_slice]
-pub static MODULES: [fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module>];
+pub static MODULES: [ModuleDefinition];
 
 pub enum UIServerCommand {
     AddActivity(String, Rc<Mutex<DynamicActivity>>),
@@ -29,8 +29,17 @@ pub enum UIServerCommand {
     RemoveActivity(String, String), //TODO needs to be tested
 }
 
+pub type ModuleDefinition = (
+    &'static str,
+    fn(UnboundedSender<UIServerCommand>) -> Box<dyn Module>,
+);
+
 /// This type stores all the registered activities for a module with their name
-pub type ActivityMap = Rc<Mutex<HashMap<String, Rc<Mutex<DynamicActivity>>>>>;
+// pub type ActivityMap = Rc<Mutex<HashMap<ActivityIdentifier, Rc<Mutex<DynamicActivity>>>>>;
+#[derive(Default)]
+pub struct ActivityMap {
+    pub map: HashMap<String, Rc<Mutex<DynamicActivity>>>,
+}
 
 /// This is a function that can be registered by the module on the backend.
 ///
@@ -44,16 +53,13 @@ pub type ActivityMap = Rc<Mutex<HashMap<String, Rc<Mutex<DynamicActivity>>>>>;
 /// You should use `rt` to spawn async tasks and return as soon as possible
 ///
 /// Every time the configuration file changes, the task running in `rt` is killed and this function is re-executed with a new runtime
-pub type Producer = fn(
-    module: &dyn Module,
-    rt: &Handle,
-    app_send: UnboundedSender<UIServerCommand>,
-);
+pub type Producer =
+    fn(module: &dyn Module, rt: &Handle, app_send: UnboundedSender<UIServerCommand>);
 
 /// This trait must be implemented by the module configuration struct
 ///
 /// This will be used by [ron] to create a [ron::Value] object from the configuration file, that will be parsed using [Module::parse_config]
-pub trait ModuleConfig: Any + Debug + DynClone {}
+// pub trait ModuleConfig: Any + Debug + DynClone {}
 
 /// This trait must be implemented by the main module struct
 ///
@@ -61,7 +67,7 @@ pub trait ModuleConfig: Any + Debug + DynClone {}
 /// ```ignore
 /// app_send: UnboundedSender<UIServerCommand>,
 /// prop_send: UnboundedSender<PropertyUpdate>,
-/// registered_activities: ActivityMap,
+/// registered_activities: Rc<Mutex<ActivityMap>>,
 /// registered_producers: Arc<Mutex<HashSet<Producer>>>,
 /// config: ModuleConfig,
 /// ```
@@ -76,8 +82,7 @@ pub trait ModuleConfig: Any + Debug + DynClone {}
 /// static SOMETHING: fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module> = ModuleName::new;
 /// ```
 #[async_trait(?Send)]
-pub trait Module{
-
+pub trait Module {
     fn as_any(&self) -> &dyn Any;
 
     /// Creates a new instance of the plugin
@@ -87,7 +92,7 @@ pub trait Module{
     /// if `config` is [None], a default value should be used
     /// it should also spawn the dynymic property update loop
     #[allow(clippy::new_ret_no_self)]
-    fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Box<dyn Module>
+    fn new(app_send: UnboundedSender<UIServerCommand>) -> Box<dyn Module>
     where
         Self: Sized;
 
@@ -95,7 +100,7 @@ pub trait Module{
     ///
     /// It should only be called once in `Module::new()` to get `prop_send`
     fn spawn_property_update_loop(
-        registered_activities: &ActivityMap,
+        registered_activities: &Rc<Mutex<ActivityMap>>,
     ) -> UnboundedSender<PropertyUpdate>
     where
         Self: Sized,
@@ -106,8 +111,8 @@ pub trait Module{
         glib::MainContext::default().spawn_local(async move {
             //start data consumer
             while let Some(res) = prop_recv.recv().await {
-                if res.activity_id == "*" {
-                    for activity in activities.lock().await.values() {
+                if res.activity_id.activity() == "*" {
+                    for activity in activities.lock().await.map.values() {
                         match activity.lock().await.get_subscribers(&res.property_name) {
                             core::result::Result::Ok(subs) => {
                                 for sub in subs {
@@ -120,7 +125,7 @@ pub trait Module{
                         }
                     }
                 } else {
-                    match activities.lock().await.get(&res.activity_id) {
+                    match activities.lock().await.map.get(&res.activity_id.activity()) {
                         Some(activity) => {
                             match activity.lock().await.get_subscribers(&res.property_name) {
                                 core::result::Result::Ok(subs) => {
@@ -144,13 +149,14 @@ pub trait Module{
     }
 
     /// gets the name of the Module
-    fn get_name(&self) -> &str;
+    fn get_name(&self) -> &'static str;
 
-    /// gets the current config struct, used when starting registered `Producer`s
-    fn get_config(&self) -> &dyn ModuleConfig;
+    //FIXME
+    /// gets the current config struct, ~~used when starting registered `Producer`s~~
+    // fn get_config(&self) -> &dyn ModuleConfig;
 
     /// gets the registered activities for this Module
-    fn get_registered_activities(&self) -> ActivityMap;
+    fn get_registered_activities(&self) -> Rc<Mutex<ActivityMap>>;
 
     /// This is called after `UIServerCommand::AddActivity` if the activity was registered successfully
     ///
@@ -192,11 +198,17 @@ pub struct DynamicActivity {
     pub(crate) widget: ActivityWidget,
     pub(crate) property_dictionary: HashMap<String, SubscribableProperty>,
     pub(crate) ui_send: UnboundedSender<PropertyUpdate>,
-    // pub(crate) identifier: String,
+    pub(crate) identifier: ActivityIdentifier,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ActivityIdentifier {
+    pub(crate) module: String,
+    pub(crate) activity: String,
 }
 
 pub struct PropertyUpdate {
-    pub activity_id: String,
+    pub activity_id: ActivityIdentifier,
     pub property_name: String,
     pub value: Box<dyn ValidDynType>,
 }
@@ -215,7 +227,7 @@ impl<T: Fn(&dyn ValidDynType) + DynClone + Clone> ValidDynamicClosure for T {}
 
 pub struct DynamicProperty {
     pub backend_channel: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
-    pub activity_id: String,
+    pub activity_id: ActivityIdentifier,
     pub property_name: String,
     pub value: Box<dyn ValidDynType>,
 }

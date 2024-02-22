@@ -139,18 +139,10 @@ impl ActivityWidgetLocalCssContext {
             self.opacity[2],
             self.opacity[3],
         );
-        let stretches=self.stretch.map(|(x, y)|{
-            let x=if !x.is_finite(){
-                1.0
-            }else{
-                x
-            };
-            let y=if !y.is_finite(){
-                1.0
-            }else{
-                y
-            };
-            (x,y)
+        let stretches = self.stretch.map(|(x, y)| {
+            let x = if !x.is_finite() { 1.0 } else { x };
+            let y = if !y.is_finite() { 1.0 } else { y };
+            (x, y)
         });
         let (min_stretch_x, com_stretch_x, exp_stretch_x, ove_stretch_x) = (
             stretches[0].0,

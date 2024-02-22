@@ -3,18 +3,26 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
 use crate::base_module::{
-    DynamicActivity, DynamicProperty, PropertyUpdate, SubscribableProperty, ValidDynType,
-    ValidDynamicClosure,
+    ActivityIdentifier, DynamicActivity, DynamicProperty, PropertyUpdate, SubscribableProperty,
+    ValidDynType, ValidDynamicClosure,
 };
 
 use super::activity_widget::ActivityWidget;
 
 impl DynamicActivity {
-    pub fn new(ui_send: UnboundedSender<PropertyUpdate>, name: &str) -> Self {
+    pub fn new(
+        ui_send: UnboundedSender<PropertyUpdate>,
+        module_name: &str,
+        activity_name: &str,
+    ) -> Self {
         Self {
-            widget: ActivityWidget::new(name),
+            widget: ActivityWidget::new(activity_name),
             property_dictionary: HashMap::new(),
             ui_send,
+            identifier: ActivityIdentifier {
+                module: module_name.to_string(),
+                activity: activity_name.to_string(),
+            },
         }
     }
 
@@ -25,8 +33,8 @@ impl DynamicActivity {
     pub fn get_activity_widget(&self) -> ActivityWidget {
         self.widget.clone()
     }
-    pub fn get_identifier(&self) -> String {
-        self.widget.name().to_string()
+    pub fn get_identifier(&self) -> ActivityIdentifier {
+        self.identifier.clone()
     }
 
     /// Returns Err if the property already exists

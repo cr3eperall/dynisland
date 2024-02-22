@@ -1,3 +1,5 @@
+pub mod activity_identifier;
+pub mod activity_map;
 pub mod activity_widget;
 pub mod config_variable;
 pub mod dynamic_activity;

@@ -1,6 +1,4 @@
-use std::{
-    any::Any, collections::{HashMap, HashSet}, rc::Rc, sync::Arc, vec
-};
+use std::{any::Any, collections::HashSet, rc::Rc, sync::Arc, vec};
 
 use anyhow::{Context, Ok, Result};
 use async_trait::async_trait;
@@ -15,7 +13,7 @@ use tokio::{
 
 use dynisland_core::{
     base_module::{
-        ActivityMap, DynamicActivity, Module, ModuleConfig, Producer, PropertyUpdate,
+        ActivityMap, DynamicActivity, Module, ModuleDefinition, Producer, PropertyUpdate,
         UIServerCommand, MODULES,
     },
     cast_dyn_any,
@@ -25,10 +23,11 @@ use dynisland_core::{
     },
 };
 
+pub const NAME: &str = "ExampleModule";
+
 //add to modules to be loaded
 #[distributed_slice(MODULES)]
-static EXAMPLE_MODULE: fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module> =
-    ExampleModule::new;
+static EXAMPLE_MODULE: ModuleDefinition = (NAME, ExampleModule::new);
 
 /// for now this is just used to test new code
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -43,7 +42,7 @@ pub struct ExampleConfig {
     pub duration: u64,
 }
 
-impl ModuleConfig for ExampleConfig {}
+// impl ModuleConfig for ExampleConfig {}
 impl Default for ExampleConfig {
     fn default() -> Self {
         Self {
@@ -55,61 +54,54 @@ impl Default for ExampleConfig {
     }
 }
 pub struct ExampleModule {
-    name: String,
+    // name: String,
     app_send: UnboundedSender<UIServerCommand>,
     prop_send: UnboundedSender<PropertyUpdate>,
-    registered_activities: ActivityMap,
+    registered_activities: Rc<Mutex<ActivityMap>>,
     registered_producers: Arc<Mutex<HashSet<Producer>>>,
     config: ExampleConfig,
 }
 
 #[async_trait(?Send)]
 impl Module for ExampleModule {
-    fn new(app_send: UnboundedSender<UIServerCommand>, config: Option<Value>) -> Box<dyn Module> {
-        let conf = match config {
-            Some(value) => value.into_rust().expect("failed to parse config"),
-            None => ExampleConfig::default(),
-        };
-        let registered_activities = Rc::new(Mutex::new(HashMap::<
-            String,
-            Rc<Mutex<DynamicActivity>>,
-        >::new()));
+    fn new(app_send: UnboundedSender<UIServerCommand>) -> Box<dyn Module> {
+        let registered_activities = Rc::new(Mutex::new(ActivityMap::new()));
 
         let prop_send = ExampleModule::spawn_property_update_loop(&registered_activities);
 
         Box::new(Self {
-            name: "ExampleModule".to_string(),
+            // name: "ExampleModule".to_string(),
             app_send,
             prop_send,
             registered_activities,
             registered_producers: Arc::new(Mutex::new(HashSet::new())),
-            config: conf,
+            config: ExampleConfig::default(),
         })
     }
 
-    fn get_name(&self) -> &str {
-        &self.name
+    fn get_name(&self) -> &'static str {
+        NAME
     }
-    fn get_config(&self) -> &dyn ModuleConfig {
-        &self.config
-    }
+    // fn get_config(&self) -> &dyn ModuleConfig {
+    //     &self.config
+    // }
 
-    fn get_registered_activities(&self) -> ActivityMap {
+    fn get_registered_activities(&self) -> Rc<Mutex<ActivityMap>> {
         self.registered_activities.clone()
     }
 
     async fn register_activity(&self, activity: Rc<Mutex<DynamicActivity>>) {
         let mut reg = self.registered_activities.lock().await;
-        let activity_id = activity.lock().await.get_identifier();
-        if reg.contains_key(&activity_id) {
-            panic!("activity {} was already registered", activity_id);
-        }
-        reg.insert(activity_id, activity.clone());
+        reg.insert_activity(activity)
+            .await
+            .with_context(|| "failed to register activity")
+            .unwrap();
     }
     async fn unregister_activity(&self, activity: &str) {
         self.registered_activities
             .lock()
             .await
+            .map
             .remove(activity)
             .expect("activity isn't registered");
     }
@@ -136,22 +128,25 @@ impl Module for ExampleModule {
 
     fn init(&self) {
         let app_send = self.app_send.clone();
-        let name = self.name.clone();
         let prop_send = self.prop_send.clone();
         glib::MainContext::default().spawn_local(async move {
             //create activity
             let activity = Rc::new(Mutex::new(Self::get_activity(
                 prop_send,
+                NAME,
                 "exampleActivity1",
             )));
 
             //register activity and data producer
             app_send
-                .send(UIServerCommand::AddActivity(name.clone(), activity.clone()))
+                .send(UIServerCommand::AddActivity(
+                    NAME.to_string(),
+                    activity.clone(),
+                ))
                 .unwrap();
             app_send
                 .send(UIServerCommand::AddProducer(
-                    name,
+                    NAME.to_string(),
                     Self::producer as Producer,
                 ))
                 .unwrap();
@@ -166,41 +161,24 @@ impl Module for ExampleModule {
 impl ExampleModule {
     //TODO add reference to module and recieve messages from main
     #[allow(unused_variables)]
-    fn producer(
-        module: &dyn Module,
-        rt: &Handle,
-        _app_send: UnboundedSender<UIServerCommand>,
-    ) {
-        
-        let module =cast_dyn_any!(module, ExampleModule).unwrap();
+    fn producer(module: &dyn Module, rt: &Handle, _app_send: UnboundedSender<UIServerCommand>) {
+        let module = cast_dyn_any!(module, ExampleModule).unwrap();
         //data producer
         let config: &ExampleConfig = &module.config;
 
         //TODO shouldn't be blocking locks, maybe execute async with glib::MainContext
         let act = module.registered_activities.blocking_lock();
         let mode = act
-            .get("exampleActivity1")
-            .unwrap()
-            .blocking_lock()
-            .get_property("mode")
+            .get_property_blocking("exampleActivity1", "mode")
             .unwrap();
         let label = act
-            .get("exampleActivity1")
-            .unwrap()
-            .blocking_lock()
-            .get_property("comp-label")
+            .get_property_blocking("exampleActivity1", "comp-label")
             .unwrap();
         let scrolling_text = act
-            .get("exampleActivity1")
-            .unwrap()
-            .blocking_lock()
-            .get_property("scrolling-label-text")
+            .get_property_blocking("exampleActivity1", "scrolling-label-text")
             .unwrap();
         let rolling_char = act
-            .get("exampleActivity1")
-            .unwrap()
-            .blocking_lock()
-            .get_property("rolling-char")
+            .get_property_blocking("exampleActivity1", "rolling-char")
             .unwrap();
         // label.blocking_lock().set(config.string.clone()).unwrap();
 
@@ -300,9 +278,10 @@ impl ExampleModule {
 
     fn get_activity(
         prop_send: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
+        module: &str,
         name: &str,
     ) -> DynamicActivity {
-        let mut activity = DynamicActivity::new(prop_send, name);
+        let mut activity = DynamicActivity::new(prop_send, module, name);
 
         //create activity widget
         let mut activity_widget = activity.get_activity_widget();
@@ -326,7 +305,7 @@ impl ExampleModule {
         // debug!("Changed mode: {:?}", l);
         // });
 
-        activity.set_activity_widget(activity_widget.clone());
+        // activity.set_activity_widget(activity_widget.clone());
 
         activity
             .add_dynamic_property("mode", ActivityMode::Minimal)
@@ -477,11 +456,11 @@ impl ExampleModule {
         activity
     }
 
-    fn set_act_widget(activity_widget: &mut ActivityWidget) {
-        activity_widget.set_vexpand(true);
-        activity_widget.set_hexpand(true);
-        activity_widget.set_valign(gtk::Align::Start);
-        activity_widget.set_halign(gtk::Align::Start);
+    fn set_act_widget(_activity_widget: &mut ActivityWidget) {
+        // activity_widget.set_vexpand(true);
+        // activity_widget.set_hexpand(true);
+        // activity_widget.set_valign(gtk::Align::Start);
+        // activity_widget.set_halign(gtk::Align::Start);
         // activity_widget.set_transition_duration(2000, true).unwrap();
         // activity_widget.style_context().add_class("overlay");
     }
