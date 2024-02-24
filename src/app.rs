@@ -21,7 +21,10 @@ use crate::{
     },
 };
 
-use dynisland_core::base_module::{Module, UIServerCommand, MODULES};
+use dynisland_core::{
+    base_module::{Module, UIServerCommand, MODULES},
+    graphics::activity_widget::ActivityWidget,
+};
 
 pub enum BackendServerCommand {
     ReloadConfig(),
@@ -108,45 +111,44 @@ impl App {
                             .get(&module_identifier)
                             .unwrap_or_else(|| panic!("module {} not found", module_identifier));
 
-                        module.register_producer(producer).await; //add inside module
+                        // module.register_producer(producer).await; //add inside module
                         producer(
                             // execute //TODO make sure this doesn't get executed twice at the same time when the configuration is being reloaded
                             module.as_ref(),
                             &rt,
                             app_send.clone(),
                         );
-                        info!("registered producer {}", module.get_name());
+                        info!("registered producer {}", module_identifier);
                     }
-                    UIServerCommand::AddActivity(module_identifier, activity) => {
-                        layout.lock().await.add_activity(activity.clone());
+                    UIServerCommand::AddActivity(activity_identifier, activity) => {
+                        layout
+                            .lock()
+                            .await
+                            .add_activity(&activity_identifier, activity.clone());
 
                         Self::update_general_configs_on_activity(
                             &self.config.general_style_config,
                             &activity,
-                        )
-                        .await;
-                        let map_lock = module_map.lock().await;
-                        let module = map_lock
-                            .get(&module_identifier)
-                            .unwrap_or_else(|| panic!("module {} not found", module_identifier));
-                        module.register_activity(activity).await; //add inside its module //FIXME keep track of registered activities and producers outside of the module
-                        info!("registered activity on {}", module.get_name());
+                        );
+                        // let map_lock = module_map.lock().await;
+                        // let module = map_lock
+                        //     .get(&module_identifier)
+                        //     .unwrap_or_else(|| panic!("module {} not found", module_identifier));
+                        // module.register_activity(activity).await; //add inside its module //FIXME keep track of registered activities and producers outside of the module
+                        info!("registered activity on {}", activity_identifier.module());
                     }
-                    UIServerCommand::RemoveActivity(module_identifier, name) => {
-                        let map_lock = module_map.lock().await;
-                        let module = map_lock
-                            .get(&module_identifier)
-                            .unwrap_or_else(|| panic!("module {} not found", module_identifier));
-                        let activity_map = module.get_registered_activities();
-                        let activity_map = activity_map.lock().await;
-                        let act = activity_map.get_activity(&name).unwrap(); //TODO log error
+                    UIServerCommand::RemoveActivity(activity_identifier) => {
+                        // let map_lock = module_map.lock().await;
+                        // let module = map_lock
+                        //     .get(&module_identifier)
+                        //     .unwrap_or_else(|| panic!("module {} not found", module_identifier));
+                        // let activity_map = module.get_registered_activities();
+                        // let activity_map = activity_map.lock().await;
+                        // let act = activity_map.get_activity(&name).unwrap(); //TODO log error
 
-                        layout
-                            .lock()
-                            .await
-                            .remove_activity(&act.lock().await.get_identifier());
+                        layout.lock().await.remove_activity(&activity_identifier);
 
-                        module.unregister_activity(&name).await;
+                        // module.unregister_activity(&name).await;
                     }
                 }
             }
@@ -163,7 +165,7 @@ impl App {
                         // without this sleep, reading the config file sometimes gives an empty file.
                         glib::timeout_future(std::time::Duration::from_millis(50)).await;
                         self.load_configs();
-                        self.update_general_configs().await;
+                        self.update_general_configs();
                         self.load_layout_config();
                         self.load_css();
 
@@ -278,49 +280,36 @@ impl App {
     fn load_configs(&mut self) {
         self.config = config::get_config();
         debug!("general_config: {:#?}", self.config.general_style_config);
-        for module in self.module_map.blocking_lock().values_mut() {
-            let config_to_parse = self.config.module_config.get(module.get_name());
+        for (module_name, module) in self.module_map.blocking_lock().iter_mut() {
+            let config_to_parse = self.config.module_config.get(module_name);
             let config_parsed = match config_to_parse {
                 Some(conf) => module.parse_config(conf.clone()),
                 None => Ok(()),
             };
             match config_parsed {
                 Err(err) => {
-                    error!(
-                        "failed to parse config for module {}: {err:?}",
-                        module.get_name()
-                    )
+                    error!("failed to parse config for module {}: {err:?}", module_name)
                 }
                 Ok(()) => {
-                    debug!("{}: {:#?}", module.get_name(), config_to_parse);
+                    debug!("{}: {:#?}", module_name, config_to_parse);
                 }
             }
         }
     }
 
-    async fn update_general_configs(&mut self) {
-        for module in self.module_map.blocking_lock().values_mut() {
-            for activity in module.get_registered_activities().lock().await.map.values() {
-                Self::update_general_configs_on_activity(
-                    &self.config.general_style_config,
-                    activity,
-                )
-                .await;
-            }
+    fn update_general_configs(&self) {
+        let layout = self.layout.clone().unwrap();
+        let layout = layout.blocking_lock();
+        let activities = layout.list_activities();
+        for activity in activities {
+            let activity = layout.get_activity(activity).unwrap();
+            Self::update_general_configs_on_activity(&self.config.general_style_config, activity);
         }
     }
 
-    async fn update_general_configs_on_activity(
-        config: &GeneralConfig,
-        activity: &Mutex<dynisland_core::base_module::DynamicActivity>,
-    ) {
-        let activity = activity.lock().await;
-        activity
-            .get_activity_widget()
-            .set_minimal_height(config.minimal_height as i32, false);
-        activity
-            .get_activity_widget()
-            .set_blur_radius(config.blur_radius, false);
+    fn update_general_configs_on_activity(config: &GeneralConfig, activity: &ActivityWidget) {
+        activity.set_minimal_height(config.minimal_height as i32, false);
+        activity.set_blur_radius(config.blur_radius, false);
     }
 
     fn init_loaded_modules(&self, order: &Vec<String>) {

@@ -1,13 +1,9 @@
-use std::{collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 
-use dynisland_core::{
-    base_module::{ActivityIdentifier, DynamicActivity},
-    graphics::activity_widget::ActivityWidget,
-};
+use dynisland_core::{base_module::ActivityIdentifier, graphics::activity_widget::ActivityWidget};
 use gtk::prelude::*;
 use linkme::distributed_slice;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
 
 use anyhow::{anyhow, Context, Result};
 
@@ -103,18 +99,19 @@ impl LayoutManager for SimpleLayout {
     fn get_primary_widget(&self) -> gtk::Widget {
         self.container.clone().upcast()
     }
-    fn add_activity(&mut self, activity: Rc<Mutex<DynamicActivity>>) {
-        let activity = activity.blocking_lock();
-        if self.widget_map.contains_key(&activity.get_identifier()) {
+    fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: ActivityWidget) {
+        if self.widget_map.contains_key(activity_id) {
             return;
         }
-        let widget = activity.get_activity_widget();
         self.configure_widget(&widget);
         self.container.append(&widget.clone());
-        self.widget_map.insert(activity.get_identifier(), widget);
+        self.widget_map.insert(activity_id.clone(), widget);
         if self.focused.is_none() {
-            self.focused = Some(activity.get_identifier());
+            self.focused = Some(activity_id.clone());
         }
+    }
+    fn get_activity(&self, activity: &ActivityIdentifier) -> Option<&ActivityWidget> {
+        self.widget_map.get(activity)
     }
     fn remove_activity(&mut self, activity: &ActivityIdentifier) {
         if let Some(widget) = self.widget_map.get(activity) {
