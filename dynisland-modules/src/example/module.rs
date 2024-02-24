@@ -1,9 +1,7 @@
-use std::{any::Any, collections::HashSet, rc::Rc, sync::Arc, vec};
+use std::{collections::HashSet, rc::Rc, sync::Arc, vec};
 
 use anyhow::{Context, Ok, Result};
-use async_trait::async_trait;
 use gtk::{prelude::*, GestureClick, Label};
-use linkme::distributed_slice;
 use ron::Value;
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -13,8 +11,7 @@ use tokio::{
 
 use dynisland_core::{
     base_module::{
-        ActivityMap, DynamicActivity, Module, ModuleDefinition, Producer, PropertyUpdate,
-        UIServerCommand, MODULES,
+        ActivityIdentifier, ActivityMap, DynamicActivity, Module, Producer, PropertyUpdate, UIServerCommand
     },
     cast_dyn_any,
     graphics::{
@@ -23,11 +20,7 @@ use dynisland_core::{
     },
 };
 
-pub const NAME: &str = "ExampleModule";
-
-//add to modules to be loaded
-#[distributed_slice(MODULES)]
-static EXAMPLE_MODULE: ModuleDefinition = (NAME, ExampleModule::new);
+use super::NAME;
 
 /// for now this is just used to test new code
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -57,12 +50,50 @@ pub struct ExampleModule {
     // name: String,
     app_send: UnboundedSender<UIServerCommand>,
     prop_send: UnboundedSender<PropertyUpdate>,
-    registered_activities: Rc<Mutex<ActivityMap>>,
+    pub registered_activities: Rc<Mutex<ActivityMap>>,
     registered_producers: Arc<Mutex<HashSet<Producer>>>,
     config: ExampleConfig,
 }
 
-#[async_trait(?Send)]
+fn register_activity(registered_activities: Rc<Mutex<ActivityMap>>, app_send: &UnboundedSender<UIServerCommand>, activity: DynamicActivity) {
+    
+    let widget=activity.get_activity_widget();
+    let id=activity.get_identifier();
+    let activity= Rc::new(Mutex::new(activity));
+    
+    app_send
+        .send(UIServerCommand::AddActivity(
+            id,
+            widget,
+        ))
+        .unwrap();
+    let mut reg = registered_activities.blocking_lock();
+    reg.insert_activity(activity)
+        .with_context(|| "failed to register activity")
+        .unwrap();
+}
+fn unregister_activity(registered_activities: Rc<Mutex<ActivityMap>>, app_send: &UnboundedSender<UIServerCommand>, activity_name: &str) {
+    app_send
+        .send(UIServerCommand::RemoveActivity(ActivityIdentifier::new(NAME, activity_name)))
+        .unwrap();
+    
+    registered_activities
+        .blocking_lock()
+        .map
+        .remove(activity_name)
+        .expect("activity isn't registered");
+}
+
+fn register_producer(registered_producers: Arc<Mutex<HashSet<Producer>>>, app_send: &UnboundedSender<UIServerCommand>, producer: Producer) {
+    app_send
+        .send(UIServerCommand::AddProducer(
+            NAME.to_string(),
+            producer as Producer,
+        ))
+        .unwrap();
+    registered_producers.blocking_lock().insert(producer);
+}
+
 impl Module for ExampleModule {
     fn new(app_send: UnboundedSender<UIServerCommand>) -> Box<dyn Module> {
         let registered_activities = Rc::new(Mutex::new(ActivityMap::new()));
@@ -79,43 +110,8 @@ impl Module for ExampleModule {
         })
     }
 
-    fn get_name(&self) -> &'static str {
-        NAME
-    }
-    // fn get_config(&self) -> &dyn ModuleConfig {
-    //     &self.config
-    // }
-
-    fn get_registered_activities(&self) -> Rc<Mutex<ActivityMap>> {
-        self.registered_activities.clone()
-    }
-
-    async fn register_activity(&self, activity: Rc<Mutex<DynamicActivity>>) {
-        let mut reg = self.registered_activities.lock().await;
-        reg.insert_activity(activity)
-            .await
-            .with_context(|| "failed to register activity")
-            .unwrap();
-    }
-    async fn unregister_activity(&self, activity: &str) {
-        self.registered_activities
-            .lock()
-            .await
-            .map
-            .remove(activity)
-            .expect("activity isn't registered");
-    }
-
     fn get_registered_producers(&self) -> Arc<Mutex<HashSet<Producer>>> {
         self.registered_producers.clone()
-    }
-
-    async fn register_producer(&self, producer: Producer) {
-        self.registered_producers.lock().await.insert(producer);
-    }
-
-    fn get_prop_send(&self) -> UnboundedSender<PropertyUpdate> {
-        self.prop_send.clone()
     }
 
     fn parse_config(&mut self, config: Value) -> Result<()> {
@@ -129,32 +125,21 @@ impl Module for ExampleModule {
     fn init(&self) {
         let app_send = self.app_send.clone();
         let prop_send = self.prop_send.clone();
+        let registered_activities = self.registered_activities.clone();
+        let registered_producers = self.registered_producers.clone();
         glib::MainContext::default().spawn_local(async move {
             //create activity
-            let activity = Rc::new(Mutex::new(Self::get_activity(
+
+            let act = Self::get_activity(
                 prop_send,
                 NAME,
                 "exampleActivity1",
-            )));
+            );
 
             //register activity and data producer
-            app_send
-                .send(UIServerCommand::AddActivity(
-                    NAME.to_string(),
-                    activity.clone(),
-                ))
-                .unwrap();
-            app_send
-                .send(UIServerCommand::AddProducer(
-                    NAME.to_string(),
-                    Self::producer as Producer,
-                ))
-                .unwrap();
+            register_activity(registered_activities, &app_send, act);
+            register_producer(registered_producers, &app_send, Self::producer);
         });
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

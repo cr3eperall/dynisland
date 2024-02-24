@@ -7,7 +7,6 @@ use std::{
 };
 
 use anyhow::Result;
-use async_trait::async_trait;
 use dyn_clone::DynClone;
 use linkme::distributed_slice;
 use log::error;
@@ -24,9 +23,9 @@ use crate::graphics::activity_widget::ActivityWidget;
 pub static MODULES: [ModuleDefinition];
 
 pub enum UIServerCommand {
-    AddActivity(String, Rc<Mutex<DynamicActivity>>),
+    AddActivity(ActivityIdentifier, ActivityWidget),
     AddProducer(String, Producer),
-    RemoveActivity(String, String), //TODO needs to be tested
+    RemoveActivity(ActivityIdentifier), //TODO needs to be tested
 }
 
 pub type ModuleDefinition = (
@@ -81,9 +80,7 @@ pub type Producer =
 /// #[distributed_slice(MODULES)]
 /// static SOMETHING: fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module> = ModuleName::new;
 /// ```
-#[async_trait(?Send)]
-pub trait Module {
-    fn as_any(&self) -> &dyn Any;
+pub trait Module: AsAny{
 
     /// Creates a new instance of the plugin
     ///
@@ -148,36 +145,8 @@ pub trait Module {
         prop_send
     }
 
-    /// gets the name of the Module
-    fn get_name(&self) -> &'static str;
-
-    //FIXME
-    /// gets the current config struct, ~~used when starting registered `Producer`s~~
-    // fn get_config(&self) -> &dyn ModuleConfig;
-
-    /// gets the registered activities for this Module
-    fn get_registered_activities(&self) -> Rc<Mutex<ActivityMap>>;
-
-    /// This is called after `UIServerCommand::AddActivity` if the activity was registered successfully
-    ///
-    /// It should put `activity` inside `self.registered_activities`
-    async fn register_activity(&self, activity: Rc<Mutex<DynamicActivity>>);
-
-    /// This is called after `UIServerCommand::RemoveActivity` if the activity was removed successfully
-    ///
-    /// It should remove the activity with this name from `self.registered_activities`
-    async fn unregister_activity(&self, activity: &str);
-
     /// gets the registered producers for this Module
     fn get_registered_producers(&self) -> Arc<Mutex<HashSet<Producer>>>;
-
-    /// This is called after `UIServerCommand::AddProducer` if the producer was registered successfully
-    ///
-    /// It should put `producer` inside `self.registered_producers`
-    async fn register_producer(&self, producer: Producer);
-
-    /// gets the channel used to update `DynamicProperty`s
-    fn get_prop_send(&self) -> UnboundedSender<PropertyUpdate>;
 
     /// This is the module initialization function
     ///
@@ -186,6 +155,20 @@ pub trait Module {
     fn init(&self);
 
     fn parse_config(&mut self, config: Value) -> Result<()>;
+}
+
+pub trait ModuleInfo{
+    const NAME: &'static str;
+}
+
+pub trait AsAny{
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl <T: Any> AsAny for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 /// Bundles a `DynamicProperty` with all of its subscribers

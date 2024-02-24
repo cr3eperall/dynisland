@@ -1,7 +1,6 @@
-use std::{any::Any, collections::HashSet, rc::Rc, sync::Arc};
+use std::{collections::HashSet, rc::Rc, sync::Arc};
 
 use anyhow::{Context, Result};
-use async_trait::async_trait;
 use gtk::{prelude::*, Widget};
 use ron::Value;
 use serde::{Deserialize, Serialize};
@@ -12,7 +11,7 @@ use tokio::{
 
 use dynisland_core::{
     base_module::{
-        ActivityMap, DynamicActivity, Module, Producer, PropertyUpdate, UIServerCommand,
+        ActivityIdentifier, ActivityMap, DynamicActivity, Module, Producer, PropertyUpdate, UIServerCommand
     },
     cast_dyn_any,
     graphics::activity_widget::{imp::ActivityMode, ActivityWidget},
@@ -37,11 +36,46 @@ pub struct MusicModule {
     config: MusicConfig,
 }
 
-#[async_trait(?Send)]
+fn register_activity(registered_activities: Rc<Mutex<ActivityMap>>, app_send: &UnboundedSender<UIServerCommand>, activity: DynamicActivity) {
+    
+    let widget=activity.get_activity_widget();
+    let id=activity.get_identifier();
+    let activity= Rc::new(Mutex::new(activity));
+    
+    app_send
+        .send(UIServerCommand::AddActivity(
+            id,
+            widget,
+        ))
+        .unwrap();
+    let mut reg = registered_activities.blocking_lock();
+    reg.insert_activity(activity)
+        .with_context(|| "failed to register activity")
+        .unwrap();
+}
+fn unregister_activity(registered_activities: Rc<Mutex<ActivityMap>>, app_send: &UnboundedSender<UIServerCommand>, activity_name: &str) {
+    app_send
+        .send(UIServerCommand::RemoveActivity(ActivityIdentifier::new(NAME, activity_name)))
+        .unwrap();
+    
+    registered_activities
+        .blocking_lock()
+        .map
+        .remove(activity_name)
+        .expect("activity isn't registered");
+}
+
+fn register_producer(registered_producers: Arc<Mutex<HashSet<Producer>>>, app_send: &UnboundedSender<UIServerCommand>, producer: Producer) {
+    app_send
+        .send(UIServerCommand::AddProducer(
+            NAME.to_string(),
+            producer as Producer,
+        ))
+        .unwrap();
+    registered_producers.blocking_lock().insert(producer);
+}
+
 impl Module for MusicModule {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn new(app_send: UnboundedSender<UIServerCommand>) -> Box<dyn Module> {
         let registered_activities = Rc::new(Mutex::new(ActivityMap::new()));
 
@@ -56,64 +90,30 @@ impl Module for MusicModule {
         })
     }
 
-    fn get_name(&self) -> &'static str {
-        NAME
-    }
-    // fn get_config(&self) -> &dyn ModuleConfig {
-    //     &self.config
+    // fn get_name(&self) -> &'static str {
+    //     NAME
     // }
-
-    fn get_registered_activities(&self) -> Rc<Mutex<ActivityMap>> {
-        self.registered_activities.clone()
-    }
-
-    async fn register_activity(&self, activity: Rc<Mutex<DynamicActivity>>) {
-        let mut reg = self.registered_activities.lock().await;
-        reg.insert_activity(activity)
-            .await
-            .with_context(|| "failed to register activity")
-            .unwrap();
-    }
-    async fn unregister_activity(&self, activity: &str) {
-        self.registered_activities.lock().await.map.remove(activity);
-    }
 
     fn get_registered_producers(&self) -> Arc<Mutex<HashSet<Producer>>> {
         self.registered_producers.clone()
     }
 
-    async fn register_producer(&self, producer: Producer) {
-        self.registered_producers.lock().await.insert(producer);
-    }
-
-    fn get_prop_send(&self) -> UnboundedSender<PropertyUpdate> {
-        self.prop_send.clone()
-    }
-
     fn init(&self) {
         let app_send = self.app_send.clone();
         let prop_send = self.prop_send.clone();
+        let registered_activities = self.registered_activities.clone();
+        let registered_producers = self.registered_producers.clone();
         glib::MainContext::default().spawn_local(async move {
             //create activity
-            let activity = Rc::new(Mutex::new(Self::get_activity(
+            let activity = Self::get_activity(
                 prop_send,
                 NAME,
                 "music-activity",
-            )));
+            );
 
             //register activity and data producer
-            app_send
-                .send(UIServerCommand::AddActivity(
-                    NAME.to_string(),
-                    activity.clone(),
-                ))
-                .unwrap();
-            app_send
-                .send(UIServerCommand::AddProducer(
-                    NAME.to_string(),
-                    Self::producer as Producer,
-                ))
-                .unwrap();
+            register_activity(registered_activities, &app_send, activity);
+            register_producer(registered_producers, &app_send, Self::producer);
         });
     }
 

@@ -19,6 +19,7 @@ impl Default for ActivityWidget {
     fn default() -> Self {
         let sel = glib::Object::new::<Self>();
         sel.set_overflow(gtk::Overflow::Hidden);
+        
         sel
     }
 }

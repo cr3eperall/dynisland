@@ -15,8 +15,8 @@ impl ActivityMap {
             .cloned()
             .ok_or_else(|| anyhow!("Activity {} not found", identifier))
     }
-    pub async fn insert_activity(&mut self, activity: Rc<Mutex<DynamicActivity>>) -> Result<()> {
-        let activity_id = activity.lock().await.get_identifier();
+    pub fn insert_activity(&mut self, activity: Rc<Mutex<DynamicActivity>>) -> Result<()> {
+        let activity_id = activity.blocking_lock().get_identifier();
         if self.map.contains_key(&activity_id.activity()) {
             bail!("activity {} was already registered", activity_id);
         }

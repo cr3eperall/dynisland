@@ -1,12 +1,13 @@
 use dynisland_core::base_module::{Module, ModuleDefinition, MODULES};
 use linkme::distributed_slice;
 
-use crate::music::module::MusicModule;
+use self::module::ExampleModule;
 
 pub mod module;
-pub mod player_info;
-pub mod visualizer;
+
+
+pub const NAME: &str = "ExampleModule";
 
 //add to modules to be loaded
 #[distributed_slice(MODULES)]
-static MUSIC_MODULE: ModuleDefinition = (module::NAME, MusicModule::new);
+static EXAMPLE_MODULE: ModuleDefinition = (NAME, ExampleModule::new);

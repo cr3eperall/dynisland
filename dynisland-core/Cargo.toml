@@ -23,8 +23,6 @@ linkme = {workspace = true}
 clap = { version = "4.4.1", features = ["derive"] }
 dyn-clone = "1.0.13"
 rand = "0.8.5"
-async-trait = "0.1.73"
 notify = { version = "6.1.1", features = ["fsevent-sys"] }
 concat-idents = "1.1.5"
 # css-anim = {path = "../../css-anim", version = "*"}
-stabby = "3.0.3"
