@@ -1,4 +1,4 @@
-use dynisland_core::{base_module::ActivityIdentifier, graphics::activity_widget::ActivityWidget};
+use dynisland_core::{graphics::activity_widget::ActivityWidget, module_abi::ActivityIdentifier};
 use linkme::distributed_slice;
 use ron::Value;
 

@@ -11,10 +11,10 @@ use tokio::{
 
 use dynisland_core::{
     base_module::{
-        ActivityIdentifier, ActivityMap, DynamicActivity, Module, Producer, PropertyUpdate, UIServerCommand
+        ActivityMap, DynamicActivity, Module, Producer, PropertyUpdate
     },
     cast_dyn_any,
-    graphics::activity_widget::{imp::ActivityMode, ActivityWidget},
+    graphics::activity_widget::{imp::ActivityMode, ActivityWidget}, module_abi::{ActivityIdentifier, UIServerCommand},
 };
 
 /// for now this is just used to test new code
@@ -33,6 +33,8 @@ pub struct MusicModule {
     prop_send: UnboundedSender<PropertyUpdate>,
     registered_activities: Rc<Mutex<ActivityMap>>,
     registered_producers: Arc<Mutex<HashSet<Producer>>>,
+    pub producers_handle: Handle,
+    pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
     config: MusicConfig,
 }
 
@@ -45,7 +47,7 @@ fn register_activity(registered_activities: Rc<Mutex<ActivityMap>>, app_send: &U
     app_send
         .send(UIServerCommand::AddActivity(
             id,
-            widget,
+            widget.into(),
         ))
         .unwrap();
     let mut reg = registered_activities.blocking_lock();
@@ -53,7 +55,7 @@ fn register_activity(registered_activities: Rc<Mutex<ActivityMap>>, app_send: &U
         .with_context(|| "failed to register activity")
         .unwrap();
 }
-fn unregister_activity(registered_activities: Rc<Mutex<ActivityMap>>, app_send: &UnboundedSender<UIServerCommand>, activity_name: &str) {
+fn _unregister_activity(registered_activities: Rc<Mutex<ActivityMap>>, app_send: &UnboundedSender<UIServerCommand>, activity_name: &str) {
     app_send
         .send(UIServerCommand::RemoveActivity(ActivityIdentifier::new(NAME, activity_name)))
         .unwrap();
@@ -65,34 +67,48 @@ fn unregister_activity(registered_activities: Rc<Mutex<ActivityMap>>, app_send: 
         .expect("activity isn't registered");
 }
 
-fn register_producer(registered_producers: Arc<Mutex<HashSet<Producer>>>, app_send: &UnboundedSender<UIServerCommand>, producer: Producer) {
-    app_send
-        .send(UIServerCommand::AddProducer(
-            NAME.to_string(),
-            producer as Producer,
-        ))
-        .unwrap();
-    registered_producers.blocking_lock().insert(producer);
+pub fn get_new_tokio_rt() -> (Handle, tokio::sync::mpsc::Sender<()>) {
+    let (rt_send, rt_recv) =
+        tokio::sync::oneshot::channel::<(Handle, tokio::sync::mpsc::Sender<()>)>();
+    let (shutdown_send, mut shutdown_recv) = tokio::sync::mpsc::channel::<()>(1);
+    std::thread::Builder::new()
+        .name("dyn-producers".to_string())
+        .spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("idk tokio rt failed");
+            let handle = rt.handle();
+            rt_send
+                .send((handle.clone(), shutdown_send))
+                .expect("failed to send rt");
+            rt.block_on(async { shutdown_recv.recv().await }); //keep thread alive
+        })
+        .expect("failed to spawn new trhread");
+
+    rt_recv.blocking_recv().expect("failed to receive rt")
 }
 
 impl Module for MusicModule {
-    fn new(app_send: UnboundedSender<UIServerCommand>) -> Box<dyn Module> {
+    fn new(app_send: UnboundedSender<UIServerCommand> ) -> Box<dyn Module> {
         let registered_activities = Rc::new(Mutex::new(ActivityMap::new()));
 
         let prop_send = MusicModule::spawn_property_update_loop(&registered_activities);
-
+        let (hdl, shutdown) = get_new_tokio_rt();
         Box::new(Self {
             app_send,
             prop_send,
             registered_activities,
             registered_producers: Arc::new(Mutex::new(HashSet::new())),
+            producers_handle: hdl,
+            producers_shutdown: shutdown,
             config: MusicConfig::default(),
         })
     }
 
-    // fn get_name(&self) -> &'static str {
-    //     NAME
-    // }
+    fn restart_producers(&mut self) {
+        self.restart_producer_rt();
+    }
 
     fn get_registered_producers(&self) -> Arc<Mutex<HashSet<Producer>>> {
         self.registered_producers.clone()
@@ -102,8 +118,7 @@ impl Module for MusicModule {
         let app_send = self.app_send.clone();
         let prop_send = self.prop_send.clone();
         let registered_activities = self.registered_activities.clone();
-        let registered_producers = self.registered_producers.clone();
-        glib::MainContext::default().spawn_local(async move {
+        // glib::MainContext::default().spawn_local(async move {
             //create activity
             let activity = Self::get_activity(
                 prop_send,
@@ -113,11 +128,11 @@ impl Module for MusicModule {
 
             //register activity and data producer
             register_activity(registered_activities, &app_send, activity);
-            register_producer(registered_producers, &app_send, Self::producer);
-        });
+            self.register_producer(Self::producer);
+        // });
     }
 
-    fn parse_config(&mut self, config: Value) -> Result<()> {
+    fn update_config(&mut self, config: Value) -> Result<()> {
         self.config = config
             .into_rust()
             .with_context(|| "failed to parse config")
@@ -127,6 +142,39 @@ impl Module for MusicModule {
 }
 
 impl MusicModule {
+
+    fn register_producer(&self, producer: Producer) {
+        producer(
+            self as &dyn Module,
+            &self.producers_handle,
+            self.app_send.clone(),
+        );
+        
+        // app_send
+        //     .send(UIServerCommand::AddProducer(
+        //         NAME.to_string(),
+        //         producer as Producer,
+        //     ))
+        //     .unwrap();
+        self.registered_producers.blocking_lock().insert(producer);
+    }
+
+    fn restart_producer_rt(&mut self) {
+        self.producers_shutdown
+            .blocking_send(())
+            .expect("failed to shutdown old producer runtime"); //stop current producers_runtime
+        let (handle, shutdown) = get_new_tokio_rt(); //start new producers_runtime
+        self.producers_handle = handle;
+        self.producers_shutdown = shutdown;
+        //restart producers
+        for producer in self.get_registered_producers().blocking_lock().iter() {
+            producer(
+                self as &dyn Module,
+                &self.producers_handle,
+                self.app_send.clone(),
+            )
+        }
+    }
     //TODO add reference to module and recieve messages from main
     #[allow(unused_variables)]
     fn producer(module: &dyn Module, rt: &Handle, _app_send: UnboundedSender<UIServerCommand>) {

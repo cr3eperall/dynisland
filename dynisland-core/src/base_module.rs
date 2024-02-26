@@ -1,7 +1,6 @@
 use std::{
     any::Any,
     collections::{HashMap, HashSet},
-    fmt::Debug,
     rc::Rc,
     sync::Arc,
 };
@@ -16,17 +15,11 @@ use tokio::{
     sync::{mpsc::UnboundedSender, Mutex},
 };
 
-use crate::graphics::activity_widget::ActivityWidget;
+use crate::{graphics::activity_widget::ActivityWidget, module_abi::{ActivityIdentifier, UIServerCommand}};
 
 /// Slice of loaded modules
 #[distributed_slice]
 pub static MODULES: [ModuleDefinition];
-
-pub enum UIServerCommand {
-    AddActivity(ActivityIdentifier, ActivityWidget),
-    AddProducer(String, Producer),
-    RemoveActivity(ActivityIdentifier), //TODO needs to be tested
-}
 
 pub type ModuleDefinition = (
     &'static str,
@@ -154,7 +147,9 @@ pub trait Module: AsAny{
     /// - register the first producers and activities
     fn init(&self);
 
-    fn parse_config(&mut self, config: Value) -> Result<()>;
+    fn restart_producers(&mut self);
+
+    fn update_config(&mut self, config: Value) -> Result<()>;
 }
 
 pub trait ModuleInfo{
@@ -182,12 +177,6 @@ pub struct DynamicActivity {
     pub(crate) property_dictionary: HashMap<String, SubscribableProperty>,
     pub(crate) ui_send: UnboundedSender<PropertyUpdate>,
     pub(crate) identifier: ActivityIdentifier,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ActivityIdentifier {
-    pub(crate) module: String,
-    pub(crate) activity: String,
 }
 
 pub struct PropertyUpdate {

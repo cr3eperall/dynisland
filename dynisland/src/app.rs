@@ -22,8 +22,8 @@ use crate::{
 };
 
 use dynisland_core::{
-    base_module::{Module, UIServerCommand, MODULES},
-    graphics::activity_widget::ActivityWidget,
+    base_module::{Module, MODULES},
+    graphics::activity_widget::ActivityWidget, module_abi::UIServerCommand,
 };
 
 pub enum BackendServerCommand {
@@ -35,8 +35,8 @@ pub struct App {
     // pub window: gtk::Window,
     pub module_map: Rc<Mutex<HashMap<String, Box<dyn Module>>>>,
     pub layout: Option<Rc<Mutex<Box<dyn LayoutManager>>>>,
-    pub producers_handle: Handle,
-    pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
+    // pub producers_handle: Handle,
+    // pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
     pub app_send: Option<UnboundedSender<UIServerCommand>>,
     pub config: Config,
     pub css_provider: CssProvider,
@@ -75,8 +75,8 @@ impl App {
 
         self.init_loaded_modules(&module_order);
 
-        let rt = self.producers_handle.clone();
-        let module_map = self.module_map.clone();
+        // let rt = self.producers_handle.clone();
+        // let module_map = self.module_map.clone();
 
         // let app_send1=self.app_send.clone().unwrap();
         // glib::MainContext::default().spawn_local(async move {
@@ -105,22 +105,23 @@ impl App {
             // TODO check if there are too many tasks on the UI thread and it begins to lag
             while let Some(command) = app_recv.recv().await {
                 match command {
-                    UIServerCommand::AddProducer(module_identifier, producer) => {
-                        let map_lock = module_map.lock().await;
-                        let module = map_lock
-                            .get(&module_identifier)
-                            .unwrap_or_else(|| panic!("module {} not found", module_identifier));
+                    // UIServerCommand::AddProducer(module_identifier, producer) => {
+                    //     let map_lock = module_map.lock().await;
+                    //     let module = map_lock
+                    //         .get(&module_identifier)
+                    //         .unwrap_or_else(|| panic!("module {} not found", module_identifier));
 
-                        // module.register_producer(producer).await; //add inside module
-                        producer(
-                            // execute //TODO make sure this doesn't get executed twice at the same time when the configuration is being reloaded
-                            module.as_ref(),
-                            &rt,
-                            app_send.clone(),
-                        );
-                        info!("registered producer {}", module_identifier);
-                    }
+                    //     // module.register_producer(producer).await; //add inside module
+                    //     producer(
+                    //         // execute //TODO make sure this doesn't get executed twice at the same time when the configuration is being reloaded
+                    //         module.as_ref(),
+                    //         &rt,
+                    //         app_send.clone(),
+                    //     );
+                    //     info!("registered producer {}", module_identifier);
+                    // }
                     UIServerCommand::AddActivity(activity_identifier, activity) => {
+                        let activity:ActivityWidget=activity.try_into().unwrap();
                         layout
                             .lock()
                             .await
@@ -283,7 +284,7 @@ impl App {
         for (module_name, module) in self.module_map.blocking_lock().iter_mut() {
             let config_to_parse = self.config.module_config.get(module_name);
             let config_parsed = match config_to_parse {
-                Some(conf) => module.parse_config(conf.clone()),
+                Some(conf) => module.update_config(conf.clone()),
                 None => Ok(()),
             };
             match config_parsed {
@@ -356,36 +357,23 @@ impl App {
     }
 
     fn restart_producer_rt(&mut self) {
-        self.producers_shutdown
-            .blocking_send(())
-            .expect("failed to shutdown old producer runtime"); //stop current producers_runtime
-        let (handle, shutdown) = get_new_tokio_rt(); //start new producers_runtime
-        self.producers_handle = handle;
-        self.producers_shutdown = shutdown;
-        for module in self.module_map.blocking_lock().values() {
-            //restart producers
-            for producer in module.get_registered_producers().blocking_lock().iter() {
-                producer(
-                    module.as_ref(),
-                    &self.producers_handle,
-                    self.app_send.clone().unwrap(),
-                )
-            }
+        for module in self.module_map.blocking_lock().values_mut() {
+            module.restart_producers();
         }
     }
 }
 
 impl Default for App {
     fn default() -> Self {
-        let (hdl, shutdown) = get_new_tokio_rt();
+        // let (hdl, shutdown) = get_new_tokio_rt();
         let app =
             gtk::Application::new(Some("com.github.cr3eperall.dynisland"), Default::default());
         App {
             application: app,
             module_map: Rc::new(Mutex::new(HashMap::new())),
             layout: None,
-            producers_handle: hdl,
-            producers_shutdown: shutdown,
+            // producers_handle: hdl,
+            // producers_shutdown: shutdown,
             app_send: None,
             config: config::Config::default(),
             css_provider: gtk::CssProvider::new(),

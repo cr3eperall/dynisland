@@ -17,6 +17,7 @@ serde = { workspace = true, features = ["serde_derive"] }
 log = {workspace = true}
 ron = {workspace = true}
 linkme = {workspace = true}
+abi_stable = {workspace = true}
 
 
 # gtk-layer-shell = { version = "0.2.0", package = "gtk4-layer-shell" }

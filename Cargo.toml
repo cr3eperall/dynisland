@@ -22,3 +22,4 @@ serde = { version = "1.0.188", features = ["serde_derive"] }
 log = "0.4.20"
 ron = "0.8.1"
 linkme = "0.3.17"
+abi_stable = "0.11.3"
