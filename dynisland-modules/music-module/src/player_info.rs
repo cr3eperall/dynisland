@@ -154,7 +154,6 @@ impl Playerinfo for MprisPlayerInfo {
             Some(length) => length,
             None => bail!("Length not found in metadata"),
         };
-        println!("{:?}", length.as_i64());
         Ok(Duration::from_micros(
             length.as_i64().unwrap().max(0).unsigned_abs(),
         ))
@@ -351,7 +350,6 @@ impl Playerinfo for Cider2PlayerInfo {
             Some(length) => length,
             None => bail!("Length not found in metadata"),
         };
-        println!("{:?}", length.as_i64());
         Ok(Duration::from_micros(
             length.as_i64().unwrap().max(0).unsigned_abs(),
         ))

@@ -1,5 +1,5 @@
 [package]
-name = "dynisland-core"
+name = "example-module"
 version = "0.1.0"
 edition = "2021"
 license = "mit"
@@ -7,26 +7,22 @@ license = "mit"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
-dynisland-abi = { path = "../dynisland-abi" }
+dynisland-core = { path = "../../dynisland-core"}
+dynisland-abi = { path = "../../dynisland-abi"}
 
 anyhow = {workspace = true}
-gtk = {workspace = true}
+gtk = {workspace = true, features = ["unsafe-assume-initialized"]}
 gdk = {workspace = true}
 glib = {workspace = true}
 glib-macros = {workspace = true}
 tokio = { workspace = true, features = ["rt", "time", "sync", "macros"] }
 serde = { workspace = true, features = ["serde_derive"] }
-log = {workspace = true}
 ron = {workspace = true}
 abi_stable = {workspace = true}
 
+log = {workspace = true}
+env_logger = {workspace = true}
 
-# gtk-layer-shell = { version = "0.2.0", package = "gtk4-layer-shell" }
-clap = { version = "4.4.1", features = ["derive"] }
-dyn-clone = "1.0.13"
-rand = "0.8.5"
-notify = { version = "6.1.1", features = ["fsevent-sys"] }
-concat-idents = "1.1.5"
-const-random = "0.1.17"
-# css-anim = {path = "../../css-anim", version = "*"}
+[lib]
+name = "example_module"
+crate-type = ["cdylib",'rlib']

@@ -1,35 +1,16 @@
 use rand::{distributions::Alphanumeric, Rng};
 use std::cell::RefCell;
 
-use glib::{object_subclass, prelude::*, Boxed};
+use glib::{object_subclass, prelude::*};
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
 
+use crate::randomize_name;
+
 use super::{
-    layout_manager::ActivityLayoutManager, local_css_context::ActivityWidgetLocalCssContext, util,
-    ActivityWidget,
+    boxed_activity_mode::ActivityMode, layout_manager::ActivityLayoutManager,
+    local_css_context::ActivityWidgetLocalCssContext, util, ActivityWidget,
 };
-
-#[derive(Clone, Boxed, Debug, Copy)]
-#[boxed_type(name = "BoxedActivityMode")]
-pub enum ActivityMode {
-    Minimal = 0,
-    Compact = 1,
-    Expanded = 2,
-    Overlay = 3,
-}
-
-impl ToString for ActivityMode {
-    fn to_string(&self) -> String {
-        match self {
-            ActivityMode::Minimal => "minimal".to_string(),
-            ActivityMode::Compact => "compact".to_string(),
-            ActivityMode::Expanded => "expanded".to_string(),
-            ActivityMode::Overlay => "overlay".to_string(),
-        }
-    }
-}
-
 #[derive(Properties)]
 #[properties(wrapper_type = ActivityWidget)]
 pub struct ActivityWidgetPriv {
@@ -41,6 +22,12 @@ pub struct ActivityWidgetPriv {
 
     #[property(get, set, nick = "Widget name")]
     pub(super) name: RefCell<String>,
+
+    #[property(set, nick = "Minimal height")]
+    pub(super) config_minimal_height_app: RefCell<i32>,
+
+    #[property(set, nick = "Transition blur radius")]
+    pub(super) config_blur_radius_app: RefCell<f64>,
 
     pub(super) last_mode: RefCell<ActivityMode>,
 
@@ -62,7 +49,7 @@ impl ObjectSubclass for ActivityWidgetPriv {
     type ParentType = gtk::Widget;
     type Type = super::ActivityWidget;
 
-    const NAME: &'static str = "ActivityWidget";
+    const NAME: &'static str = randomize_name!("ActivityWidget");
 
     fn class_init(klass: &mut Self::Class) {
         klass.set_layout_manager_type::<ActivityLayoutManager>();
@@ -84,9 +71,14 @@ impl Default for ActivityWidgetPriv {
             )
             .collect::<String>();
 
+        let css_ctx = ActivityWidgetLocalCssContext::new(&name);
+        let min_h = css_ctx.get_config_minimal_height();
+        let blur = css_ctx.get_config_blur_radius();
         Self {
             mode: RefCell::new(ActivityMode::Minimal),
-            local_css_context: RefCell::new(ActivityWidgetLocalCssContext::new(&name)),
+            local_css_context: RefCell::new(css_ctx),
+            config_minimal_height_app: RefCell::new(min_h),
+            config_blur_radius_app: RefCell::new(blur),
             last_mode: RefCell::new(ActivityMode::Minimal),
             name: RefCell::new(name),
             minimal_mode_widget: RefCell::new(None),
@@ -138,7 +130,6 @@ impl ObjectImpl for ActivityWidgetPriv {
 
                 let mut css_context = self.local_css_context.borrow_mut();
                 let min_height = css_context.get_config_minimal_height();
-                // println!("min_height: {}", min_height);
 
                 let next_size = self.get_final_widget_size_for_mode(mode, min_height);
                 // log::debug!("next_size: {:?}", next_size);
@@ -182,6 +173,19 @@ impl ObjectImpl for ActivityWidgetPriv {
                     .set_name(value.get().unwrap());
                 self.obj().add_css_class(value.get().unwrap());
             }
+            "config-minimal-height-app" => {
+                // self.config_minimal_height_app.replace(value.get().unwrap());
+                self.local_css_context
+                    .borrow_mut()
+                    .set_config_minimal_height(value.get().unwrap(), false);
+            }
+            "config-blur-radius-app" => {
+                // self.config_blur_radius_app.replace(value.get().unwrap());
+                self.local_css_context
+                    .borrow_mut()
+                    .set_config_blur_radius(value.get().unwrap(), false);
+            }
+
             x => panic!("Tried to set inexistant property of ActivityWidget: {}", x),
         }
     }

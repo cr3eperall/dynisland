@@ -1,9 +1,11 @@
-use dynisland_core::{graphics::activity_widget::ActivityWidget, module_abi::ActivityIdentifier};
+use dynisland_abi::ActivityIdentifier;
+use gtk::Widget;
 use linkme::distributed_slice;
 use ron::Value;
 
 use anyhow::Result;
 
+//TODO switch to cdylib
 pub type LayoutDefinition = (&'static str, fn() -> Box<dyn LayoutManager>);
 
 #[distributed_slice]
@@ -19,8 +21,8 @@ pub trait LayoutManager {
 
     fn get_name(&self) -> &'static str;
     fn get_primary_widget(&self) -> gtk::Widget;
-    fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: ActivityWidget);
-    fn get_activity(&self, activity: &ActivityIdentifier) -> Option<&ActivityWidget>;
+    fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: Widget);
+    fn get_activity(&self, activity: &ActivityIdentifier) -> Option<&Widget>;
     fn remove_activity(&mut self, activity: &ActivityIdentifier);
     fn list_activities(&self) -> Vec<&ActivityIdentifier>;
     fn set_focus(&mut self, identifier: &ActivityIdentifier) -> Result<()>;

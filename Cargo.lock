@@ -195,9 +195,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.15.0"
+version = "3.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d32a994c2b3ca201d9b263612a374263f05e7adde37c4707f693dcd375076d1f"
+checksum = "8ea184aa71bb362a1157c896979544cc23974e08fd265f29ea96b59f0b4a555b"
 
 [[package]]
 name = "bytes"
@@ -285,7 +285,7 @@ dependencies = [
  "heck 0.4.1",
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -323,7 +323,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f76990911f2267d837d9d0ad060aa63aaad170af40904b29461734c339030d4d"
 dependencies = [
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
+]
+
+[[package]]
+name = "const-random"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5aaf16c9c2c612020bcfd042e170f6e32de9b9d75adb5277cdbbd2e2c8c8299a"
+dependencies = [
+ "const-random-macro",
+]
+
+[[package]]
+name = "const-random-macro"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
+dependencies = [
+ "getrandom",
+ "once_cell",
+ "tiny-keccak",
 ]
 
 [[package]]
@@ -381,6 +401,12 @@ checksum = "5a22b2d63d4d1dc0b7f1b6b2747dd0088008a9be28b6ddf0b1e7d335e3037294"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "crunchy"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
 name = "darling"
@@ -449,10 +475,11 @@ checksum = "545b22097d44f8a9581187cdf93de7a71e4722bf51200cfaba810865b49a495d"
 name = "dynisland"
 version = "0.1.0"
 dependencies = [
+ "abi_stable",
  "anyhow",
  "colored",
+ "dynisland-abi",
  "dynisland-core",
- "dynisland-modules",
  "env_logger",
  "gdk4",
  "glib",
@@ -467,6 +494,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dynisland-abi"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "gdk4",
+ "glib",
+ "glib-macros",
+ "gtk4",
+]
+
+[[package]]
 name = "dynisland-core"
 version = "0.1.0"
 dependencies = [
@@ -474,38 +512,18 @@ dependencies = [
  "anyhow",
  "clap",
  "concat-idents",
+ "const-random",
  "dyn-clone",
+ "dynisland-abi",
  "gdk4",
  "glib",
  "glib-macros",
  "gtk4",
- "linkme",
  "log",
  "notify",
  "rand",
  "ron",
  "serde",
- "tokio",
-]
-
-[[package]]
-name = "dynisland-modules"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dyn-clone",
- "dynisland-core",
- "gdk4",
- "glib",
- "glib-macros",
- "gtk4",
- "linkme",
- "log",
- "mpris",
- "reqwest",
- "ron",
- "serde",
- "serde_json",
  "tokio",
 ]
 
@@ -566,6 +584,25 @@ checksum = "a258e46cdc063eb8519c00b9fc845fc47bcfca4130e2f08e88665ceda8474245"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "example-module"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "dynisland-abi",
+ "dynisland-core",
+ "env_logger",
+ "gdk4",
+ "glib",
+ "glib-macros",
+ "gtk4",
+ "log",
+ "ron",
+ "serde",
+ "tokio",
 ]
 
 [[package]]
@@ -696,7 +733,7 @@ checksum = "53b153fd91e4b0147f4aced87be237c98248656bb01050b96bf3ee89220a8ddb"
 dependencies = [
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -873,7 +910,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -1084,9 +1121,9 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
-version = "0.3.6"
+version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd5256b483761cd23699d0da46cc6fd2ee3be420bbe6d020ae4a091e70b7e9fd"
+checksum = "379dada1584ad501b383485dd706b8afb7a70fcbc7f4da7d780638a5a6124a60"
 
 [[package]]
 name = "http"
@@ -1319,7 +1356,7 @@ checksum = "ba125974b109d512fccbc6c0244e7580143e460895dfd6ea7f8bbb692fd94396"
 dependencies = [
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -1400,6 +1437,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "music-module"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "dynisland-abi",
+ "dynisland-core",
+ "env_logger",
+ "gdk4",
+ "glib",
+ "glib-macros",
+ "gtk4",
+ "log",
+ "mpris",
+ "reqwest",
+ "ron",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1463,9 +1522,9 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
 name = "openssl"
-version = "0.10.63"
+version = "0.10.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15c9d69dd87a29568d4d017cfe8ec518706046a05184e5aea92d0af890b803c8"
+checksum = "95a0481286a310808298130d22dd1fef0fa571e05a8f44ec801801e84b216b1f"
 dependencies = [
  "bitflags 2.4.1",
  "cfg-if",
@@ -1484,7 +1543,7 @@ checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
 dependencies = [
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -1495,9 +1554,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.99"
+version = "0.9.101"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22e1bf214306098e4832460f797824c05d25aacdf896f64a985fb0fd992454ae"
+checksum = "dda2b0f344e78efc2facf7d195d098df0dd72151b26ab98da807afc26c198dff"
 dependencies = [
  "cc",
  "libc",
@@ -1946,7 +2005,7 @@ checksum = "33c85360c95e7d137454dc81d9a4ed2b8efd8fbe19cee57357b32b9771fccb67"
 dependencies = [
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -2004,12 +2063,12 @@ checksum = "e6ecd384b10a64542d77071bd64bd7b231f4ed5940fba55e98c3de13824cf3d7"
 
 [[package]]
 name = "socket2"
-version = "0.5.5"
+version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5fac59a5cb5dd637972e5fca70daf0523c9067fcdc4842f053dae04a18f8e9"
+checksum = "05ffd9c0a93b7543e062e759284fcf5f5e3b098501104bfbdde4d404db792871"
 dependencies = [
  "libc",
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2042,9 +2101,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.49"
+version = "2.0.51"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "915aea9e586f80826ee59f8453c1101f9d1c4b3964cd2460185ee8e299ada496"
+checksum = "6ab617d94515e94ae53b8406c628598680aa0c9587474ecbe58188f7b345d66c"
 dependencies = [
  "proc-macro2",
  "quote 1.0.35",
@@ -2136,7 +2195,16 @@ checksum = "266b2e40bc00e5a6c09c3584011e08b06f123c00362c92b975ba9843aaaa14b8"
 dependencies = [
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
+]
+
+[[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
 ]
 
 [[package]]
@@ -2179,7 +2247,7 @@ checksum = "5b8a1e28f2deaa14e508979454cb3a223b10b938b45af148bc0986de36f1923b"
 dependencies = [
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -2306,9 +2374,9 @@ checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
 
 [[package]]
 name = "unicode-normalization"
-version = "0.1.22"
+version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c5713f0fc4b5db668a2ac63cdb7bb4469d8c9fed047b1d0292cc7b0ce2ba921"
+checksum = "a56d1686db2308d901306f92a263857ef59ea39678a5458e7cb17f01415101f5"
 dependencies = [
  "tinyvec",
 ]
@@ -2406,7 +2474,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
  "wasm-bindgen-shared",
 ]
 
@@ -2440,7 +2508,7 @@ checksum = "642f325be6301eb8107a83d12a8ac6c1e1c54345a7ef1a9261962dfefda09e66"
 dependencies = [
  "proc-macro2",
  "quote 1.0.35",
- "syn 2.0.49",
+ "syn 2.0.51",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]

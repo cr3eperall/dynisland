@@ -1,5 +1,5 @@
 [package]
-name = "dynisland-modules"
+name = "music-module"
 version = "0.1.0"
 edition = "2021"
 license = "mit"
@@ -7,20 +7,25 @@ license = "mit"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dynisland-core = { path = "../dynisland-core"}
+dynisland-core = { path = "../../dynisland-core"}
+dynisland-abi = { path = "../../dynisland-abi"}
 anyhow = {workspace = true}
-gtk = {workspace = true}
+gtk = {workspace = true, features = ["unsafe-assume-initialized"]}
 gdk = {workspace = true}
 glib = {workspace = true}
 glib-macros = {workspace = true}
 tokio = { workspace = true, features = ["rt", "time", "sync", "macros"] }
 serde = { workspace = true, features = ["serde_derive"] }
+env_logger = {workspace = true}
 log = {workspace = true}
 ron = {workspace = true}
-linkme = {workspace = true}
+abi_stable = {workspace = true}
 
-dyn-clone = "1.0.13"
 mpris = "2.0.1"
 reqwest = { version = "0.11.24", features = ["blocking"] }
 serde_json = "1.0.113"
 # env_logger = "0.10.1"
+
+[lib]
+name = "music_module"
+crate-type = ["cdylib",'rlib']

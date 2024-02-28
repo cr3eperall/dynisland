@@ -1,12 +1,11 @@
 use gtk::CssProvider;
 use rand::{distributions::Alphanumeric, Rng};
 
-use crate::{graphics::config_variable::ConfigVariable, implement_config_get_set};
+use crate::{graphics::config_variable::ConfigVariable, implement_config_get_set, randomize_name};
 
-use super::imp::ActivityMode;
+use super::boxed_activity_mode::ActivityMode;
 
-#[derive(Clone, glib::Boxed, Debug)]
-#[boxed_type(name = "BoxedActivityWidgetLocalCssContext")]
+#[derive(Clone, Debug)]
 pub struct ActivityWidgetLocalCssContext {
     css_provider: CssProvider,
     name: String,
@@ -234,5 +233,182 @@ impl Default for ActivityWidgetLocalCssContext {
                 .collect::<String>()
                 .as_str(),
         )
+    }
+}
+
+// Recursive expansion of glib::Boxed macro
+// =========================================
+
+impl glib::subclass::boxed::BoxedType for ActivityWidgetLocalCssContext {
+    const NAME: &'static ::core::primitive::str =
+        randomize_name!("BoxedActivityWidgetLocalCssContext");
+}
+impl glib::prelude::StaticType for ActivityWidgetLocalCssContext {
+    #[inline]
+    fn static_type() -> glib::Type {
+        static TYPE: ::std::sync::OnceLock<glib::Type> = ::std::sync::OnceLock::new();
+        *TYPE.get_or_init(glib::subclass::register_boxed_type::<ActivityWidgetLocalCssContext>)
+    }
+}
+impl glib::value::ValueType for ActivityWidgetLocalCssContext {
+    type Type = ActivityWidgetLocalCssContext;
+}
+impl glib::value::ToValue for ActivityWidgetLocalCssContext {
+    #[inline]
+    fn to_value(&self) -> glib::Value {
+        unsafe {
+            let ptr: *mut ActivityWidgetLocalCssContext =
+                ::std::boxed::Box::into_raw(::std::boxed::Box::new(self.clone()));
+            let mut value = glib::Value::from_type_unchecked(
+                <ActivityWidgetLocalCssContext as glib::prelude::StaticType>::static_type(),
+            );
+            glib::gobject_ffi::g_value_take_boxed(
+                glib::translate::ToGlibPtrMut::to_glib_none_mut(&mut value).0,
+                ptr as *mut _,
+            );
+            value
+        }
+    }
+    #[inline]
+    fn value_type(&self) -> glib::Type {
+        <ActivityWidgetLocalCssContext as glib::prelude::StaticType>::static_type()
+    }
+}
+impl ::std::convert::From<ActivityWidgetLocalCssContext> for glib::Value {
+    #[inline]
+    fn from(v: ActivityWidgetLocalCssContext) -> Self {
+        unsafe {
+            let mut value = glib::Value::from_type_unchecked(
+                <ActivityWidgetLocalCssContext as glib::prelude::StaticType>::static_type(),
+            );
+            glib::gobject_ffi::g_value_take_boxed(
+                glib::translate::ToGlibPtrMut::to_glib_none_mut(&mut value).0,
+                glib::translate::IntoGlibPtr::<*mut ActivityWidgetLocalCssContext>::into_glib_ptr(v)
+                    as *mut _,
+            );
+            value
+        }
+    }
+}
+unsafe impl<'a> glib::value::FromValue<'a> for ActivityWidgetLocalCssContext {
+    type Checker = glib::value::GenericValueTypeChecker<Self>;
+    #[inline]
+    unsafe fn from_value(value: &'a glib::Value) -> Self {
+        let ptr =
+            glib::gobject_ffi::g_value_dup_boxed(glib::translate::ToGlibPtr::to_glib_none(value).0);
+        debug_assert!(!ptr.is_null());
+        *::std::boxed::Box::from_raw(ptr as *mut ActivityWidgetLocalCssContext)
+    }
+}
+unsafe impl<'a> glib::value::FromValue<'a> for &'a ActivityWidgetLocalCssContext {
+    type Checker = glib::value::GenericValueTypeChecker<Self>;
+    #[inline]
+    unsafe fn from_value(value: &'a glib::Value) -> Self {
+        let ptr =
+            glib::gobject_ffi::g_value_get_boxed(glib::translate::ToGlibPtr::to_glib_none(value).0);
+        debug_assert!(!ptr.is_null());
+        &*(ptr as *mut ActivityWidgetLocalCssContext)
+    }
+}
+impl glib::translate::GlibPtrDefault for ActivityWidgetLocalCssContext {
+    type GlibType = *mut ActivityWidgetLocalCssContext;
+}
+impl glib::translate::FromGlibPtrBorrow<*const ActivityWidgetLocalCssContext>
+    for ActivityWidgetLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_borrow(
+        ptr: *const ActivityWidgetLocalCssContext,
+    ) -> glib::translate::Borrowed<Self> {
+        glib::translate::FromGlibPtrBorrow::from_glib_borrow(ptr as *mut _)
+    }
+}
+impl glib::translate::FromGlibPtrBorrow<*mut ActivityWidgetLocalCssContext>
+    for ActivityWidgetLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_borrow(
+        ptr: *mut ActivityWidgetLocalCssContext,
+    ) -> glib::translate::Borrowed<Self> {
+        debug_assert!(!ptr.is_null());
+        glib::translate::Borrowed::new(std::ptr::read(ptr))
+    }
+}
+impl glib::translate::FromGlibPtrNone<*const ActivityWidgetLocalCssContext>
+    for ActivityWidgetLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_none(ptr: *const ActivityWidgetLocalCssContext) -> Self {
+        debug_assert!(!ptr.is_null());
+        (*ptr).clone()
+    }
+}
+impl glib::translate::FromGlibPtrNone<*mut ActivityWidgetLocalCssContext>
+    for ActivityWidgetLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_none(ptr: *mut ActivityWidgetLocalCssContext) -> Self {
+        glib::translate::FromGlibPtrNone::from_glib_none(ptr as *const _)
+    }
+}
+impl glib::translate::FromGlibPtrFull<*mut ActivityWidgetLocalCssContext>
+    for ActivityWidgetLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_full(ptr: *mut ActivityWidgetLocalCssContext) -> Self {
+        debug_assert!(!ptr.is_null());
+        *::std::boxed::Box::from_raw(ptr)
+    }
+}
+impl glib::translate::IntoGlibPtr<*mut ActivityWidgetLocalCssContext>
+    for ActivityWidgetLocalCssContext
+{
+    #[inline]
+    unsafe fn into_glib_ptr(self) -> *mut ActivityWidgetLocalCssContext {
+        ::std::boxed::Box::into_raw(::std::boxed::Box::new(self)) as *mut _
+    }
+}
+impl<'a> glib::translate::ToGlibPtr<'a, *const ActivityWidgetLocalCssContext>
+    for ActivityWidgetLocalCssContext
+{
+    type Storage = std::marker::PhantomData<&'a Self>;
+    #[inline]
+    fn to_glib_none(
+        &'a self,
+    ) -> glib::translate::Stash<'a, *const ActivityWidgetLocalCssContext, Self> {
+        glib::translate::Stash(
+            self as *const ActivityWidgetLocalCssContext,
+            std::marker::PhantomData,
+        )
+    }
+    #[inline]
+    fn to_glib_full(&self) -> *const ActivityWidgetLocalCssContext {
+        ::std::boxed::Box::into_raw(::std::boxed::Box::new(self.clone()))
+    }
+}
+impl<'a> glib::translate::ToGlibPtr<'a, *mut ActivityWidgetLocalCssContext>
+    for ActivityWidgetLocalCssContext
+{
+    type Storage = std::marker::PhantomData<&'a Self>;
+    #[inline]
+    fn to_glib_none(
+        &'a self,
+    ) -> glib::translate::Stash<'a, *mut ActivityWidgetLocalCssContext, Self> {
+        glib::translate::Stash(
+            self as *const ActivityWidgetLocalCssContext as *mut _,
+            std::marker::PhantomData,
+        )
+    }
+    #[inline]
+    fn to_glib_full(&self) -> *mut ActivityWidgetLocalCssContext {
+        ::std::boxed::Box::into_raw(::std::boxed::Box::new(self.clone())) as *mut _
+    }
+}
+impl glib::prelude::HasParamSpec for ActivityWidgetLocalCssContext {
+    type ParamSpec = glib::ParamSpecBoxed;
+    type SetValue = Self;
+    type BuilderFn = fn(&::core::primitive::str) -> glib::ParamSpecBoxedBuilder<Self>;
+    fn param_spec_builder() -> Self::BuilderFn {
+        Self::ParamSpec::builder
     }
 }

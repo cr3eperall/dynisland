@@ -2,24 +2,30 @@
 
 members = [
     "dynisland",
+    "dynisland-abi",
     "dynisland-core",
-    "dynisland-modules",
+    "dynisland-modules/example-module",
+    "dynisland-modules/music-module",
 ]
 resolver = "2"
 
-
 [profile.release]
-debug = true
+strip = true
+opt-level = "z"
+lto = true
+
+# debug = true
 
 [workspace.dependencies]
 anyhow = "1.0.75"
 gtk = { version = "0.8.0", package = "gtk4", features = ["v4_12"] }
 gdk = { version = "0.8.0", package = "gdk4" }
-glib = "0.19.2"
-glib-macros = "0.19.2"
+glib = {version="0.19.2"}
+glib-macros = { version="0.19.2"}
 tokio = { version = "1.32.0"}
 serde = { version = "1.0.188", features = ["serde_derive"] }
 log = "0.4.20"
 ron = "0.8.1"
 linkme = "0.3.17"
 abi_stable = "0.11.3"
+env_logger = "0.11.2"

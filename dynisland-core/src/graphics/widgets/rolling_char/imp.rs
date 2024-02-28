@@ -3,6 +3,8 @@ use std::cell::RefCell;
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
 
+use crate::randomize_name;
+
 use super::RollingChar;
 
 #[derive(Properties)]
@@ -28,7 +30,7 @@ impl Default for RollingCharPriv {
 
 #[glib::object_subclass]
 impl ObjectSubclass for RollingCharPriv {
-    const NAME: &'static str = "RollingChar";
+    const NAME: &'static str = randomize_name!("RollingChar");
     type Type = RollingChar;
     type ParentType = gtk::Widget;
 

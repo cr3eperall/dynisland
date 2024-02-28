@@ -1,25 +1,21 @@
-use std::{
-    any::Any,
-    collections::{HashMap, HashSet},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{any::Any, collections::HashMap, rc::Rc, sync::Arc};
 
-use anyhow::Result;
+use abi_stable::external_types::crossbeam_channel::RSender;
 use dyn_clone::DynClone;
-use linkme::distributed_slice;
+use dynisland_abi::{ActivityIdentifier, UIServerCommand};
 use log::error;
-use ron::Value;
 use tokio::{
     runtime::Handle,
     sync::{mpsc::UnboundedSender, Mutex},
 };
 
-use crate::{graphics::activity_widget::ActivityWidget, module_abi::{ActivityIdentifier, UIServerCommand}};
+use crate::graphics::activity_widget::ActivityWidget;
 
-/// Slice of loaded modules
-#[distributed_slice]
-pub static MODULES: [ModuleDefinition];
+//FIXME remove this file
+
+// /// Slice of loaded modules
+// #[distributed_slice]
+// pub static MODULES: [ModuleDefinition];
 
 pub type ModuleDefinition = (
     &'static str,
@@ -45,8 +41,7 @@ pub struct ActivityMap {
 /// You should use `rt` to spawn async tasks and return as soon as possible
 ///
 /// Every time the configuration file changes, the task running in `rt` is killed and this function is re-executed with a new runtime
-pub type Producer =
-    fn(module: &dyn Module, rt: &Handle, app_send: UnboundedSender<UIServerCommand>);
+pub type Producer<T> = fn(module: &T, rt: &Handle, app_send: RSender<UIServerCommand>);
 
 /// This trait must be implemented by the module configuration struct
 ///
@@ -73,18 +68,17 @@ pub type Producer =
 /// #[distributed_slice(MODULES)]
 /// static SOMETHING: fn(UnboundedSender<UIServerCommand>, Option<Value>) -> Box<dyn Module> = ModuleName::new;
 /// ```
-pub trait Module: AsAny{
-
-    /// Creates a new instance of the plugin
-    ///
-    /// This is called once at the beginning of the execution.
-    ///
-    /// if `config` is [None], a default value should be used
-    /// it should also spawn the dynymic property update loop
-    #[allow(clippy::new_ret_no_self)]
-    fn new(app_send: UnboundedSender<UIServerCommand>) -> Box<dyn Module>
-    where
-        Self: Sized;
+pub trait Module {
+    // /// Creates a new instance of the plugin
+    // ///
+    // /// This is called once at the beginning of the execution.
+    // ///
+    // /// if `config` is [None], a default value should be used
+    // /// it should also spawn the dynymic property update loop
+    // #[allow(clippy::new_ret_no_self)]
+    // fn new(app_send: UnboundedSender<UIServerCommand>) -> Box<dyn Module>
+    // where
+    //     Self: Sized;
 
     /// Creates a new loop to execute subscribers when a dynamic property changes
     ///
@@ -138,29 +132,29 @@ pub trait Module: AsAny{
         prop_send
     }
 
-    /// gets the registered producers for this Module
-    fn get_registered_producers(&self) -> Arc<Mutex<HashSet<Producer>>>;
+    // /// gets the registered producers for this Module
+    // fn get_registered_producers(&self) -> Arc<Mutex<HashSet<Producer>>>;
 
-    /// This is the module initialization function
-    ///
-    /// It should:
-    /// - register the first producers and activities
-    fn init(&self);
+    // /// This is the module initialization function
+    // ///
+    // /// It should:
+    // /// - register the first producers and activities
+    // fn init(&self);
 
-    fn restart_producers(&mut self);
+    // fn restart_producers(&mut self);
 
-    fn update_config(&mut self, config: Value) -> Result<()>;
+    // fn update_config(&mut self, config: Value) -> Result<()>;
 }
 
-pub trait ModuleInfo{
+pub trait ModuleInfo {
     const NAME: &'static str;
 }
 
-pub trait AsAny{
+pub trait AsAny {
     fn as_any(&self) -> &dyn Any;
 }
 
-impl <T: Any> AsAny for T {
+impl<T: Any> AsAny for T {
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -2,10 +2,12 @@ use anyhow::{anyhow, bail, Ok, Result};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
-use crate::{base_module::{
-    DynamicActivity, DynamicProperty, PropertyUpdate, SubscribableProperty,
-    ValidDynType, ValidDynamicClosure,
-}, module_abi::ActivityIdentifier};
+use crate::base_module::{
+    DynamicActivity, DynamicProperty, PropertyUpdate, SubscribableProperty, ValidDynType,
+    ValidDynamicClosure,
+};
+
+use dynisland_abi::ActivityIdentifier;
 
 use super::activity_widget::ActivityWidget;
 
@@ -19,10 +21,7 @@ impl DynamicActivity {
             widget: ActivityWidget::new(activity_name),
             property_dictionary: HashMap::new(),
             ui_send,
-            identifier: ActivityIdentifier {
-                module: module_name.to_string().into(),
-                activity: activity_name.to_string().into(),
-            },
+            identifier: ActivityIdentifier::new(module_name, activity_name),
         }
     }
 

@@ -1,13 +1,16 @@
 use gtk::{prelude::*, subclass::prelude::*};
 
-use crate::graphics::activity_widget::{imp::ActivityMode, util, ActivityWidget};
+use crate::{
+    graphics::activity_widget::{boxed_activity_mode::ActivityMode, util, ActivityWidget},
+    randomize_name,
+};
 
 #[derive(Default)]
 pub struct ActivityLayoutManagerPriv {}
 
 #[glib::object_subclass]
 impl ObjectSubclass for ActivityLayoutManagerPriv {
-    const NAME: &'static str = "ActivityLayoutManager";
+    const NAME: &'static str = randomize_name!("ActivityLayoutManager");
     type Type = super::ActivityLayoutManager;
     type ParentType = gtk::LayoutManager;
 }

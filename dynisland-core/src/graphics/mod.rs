@@ -1,4 +1,3 @@
-pub mod activity_identifier;
 pub mod activity_map;
 pub mod activity_widget;
 pub mod config_variable;
@@ -11,7 +10,7 @@ pub mod util {
 
     use gtk::{graphene::Point, gsk::Transform, prelude::WidgetExt};
 
-    use super::activity_widget::imp::ActivityMode;
+    use super::activity_widget::boxed_activity_mode::ActivityMode;
 
     #[derive(Clone, Copy, Debug)]
     pub enum CssSize {

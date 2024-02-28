@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
-use crate::module_abi::ActivityIdentifier;
-
+use crate::ActivityIdentifier;
 
 impl ActivityIdentifier {
     pub fn new(module_name: &str, activity_name: &str) -> Self {

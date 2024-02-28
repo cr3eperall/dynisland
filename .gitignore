@@ -2,3 +2,4 @@
 perf.*
 timings.txt
 file.scss
+disabled-rust-toolchain.toml

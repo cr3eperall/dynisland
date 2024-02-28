@@ -1,11 +1,12 @@
 // pub mod allocate_and_draw;
+pub mod boxed_activity_mode;
 pub mod imp;
 pub mod layout_manager;
 pub mod local_css_context;
 
 use gtk::{prelude::*, subclass::prelude::*};
 
-use self::imp::ActivityMode;
+use self::boxed_activity_mode::ActivityMode;
 
 use super::util;
 
@@ -19,7 +20,7 @@ impl Default for ActivityWidget {
     fn default() -> Self {
         let sel = glib::Object::new::<Self>();
         sel.set_overflow(gtk::Overflow::Hidden);
-        
+
         sel
     }
 }
@@ -211,6 +212,7 @@ impl ActivityWidget {
             .local_css_context
             .borrow_mut()
             .set_config_minimal_height(height, module);
+        self.imp().config_minimal_height_app.replace(height);
     }
     pub fn get_minimal_height(&self) -> i32 {
         self.imp()
@@ -224,6 +226,7 @@ impl ActivityWidget {
             .local_css_context
             .borrow_mut()
             .set_config_blur_radius(radius, module);
+        self.imp().config_blur_radius_app.replace(radius);
     }
     pub fn get_blur_radius(&self) -> f64 {
         self.imp()

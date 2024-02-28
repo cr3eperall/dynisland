@@ -9,6 +9,8 @@ use gtk::{
     subclass::prelude::*,
 };
 
+use crate::randomize_name;
+
 use super::{local_css_context::ScrollingLabelLocalCssContext, ScrollingLabel};
 
 //TODO implement vertical orientation
@@ -38,7 +40,7 @@ impl Default for ScrollingLabelPriv {
 
 #[glib::object_subclass]
 impl ObjectSubclass for ScrollingLabelPriv {
-    const NAME: &'static str = "ScrollingLabel";
+    const NAME: &'static str = randomize_name!("ScrollingLabel");
     type Type = super::ScrollingLabel;
     type ParentType = gtk::Widget;
 
