@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use dynisland_core::{graphics::activity_widget::ActivityWidget, module_abi::ActivityIdentifier};
-use gtk::prelude::*;
+use dynisland_abi::ActivityIdentifier;
+use gtk::{prelude::*, Widget};
 use linkme::distributed_slice;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ pub const NAME: &str = "SimpleLayout";
 static SIMPLE_LAYOUT: LayoutDefinition = (NAME, SimpleLayout::new);
 
 pub struct SimpleLayout {
-    widget_map: HashMap<ActivityIdentifier, ActivityWidget>,
+    widget_map: HashMap<ActivityIdentifier, Widget>,
     container: gtk::Box,
     focused: Option<ActivityIdentifier>,
     config: SimpleLayoutConfig,
@@ -76,9 +76,10 @@ impl Default for SimpleLayoutConfig {
 
 impl LayoutManager for SimpleLayout {
     fn new() -> Box<dyn LayoutManager> {
+        let bx = gtk::Box::new(gtk::Orientation::Horizontal, 5);
         Box::new(Self {
             widget_map: HashMap::new(),
-            container: gtk::Box::new(gtk::Orientation::Horizontal, 5),
+            container: bx,
             focused: None,
             config: SimpleLayoutConfig::default(),
         })
@@ -99,7 +100,7 @@ impl LayoutManager for SimpleLayout {
     fn get_primary_widget(&self) -> gtk::Widget {
         self.container.clone().upcast()
     }
-    fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: ActivityWidget) {
+    fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: Widget) {
         if self.widget_map.contains_key(activity_id) {
             return;
         }
@@ -110,7 +111,7 @@ impl LayoutManager for SimpleLayout {
             self.focused = Some(activity_id.clone());
         }
     }
-    fn get_activity(&self, activity: &ActivityIdentifier) -> Option<&ActivityWidget> {
+    fn get_activity(&self, activity: &ActivityIdentifier) -> Option<&Widget> {
         self.widget_map.get(activity)
     }
     fn remove_activity(&mut self, activity: &ActivityIdentifier) {
@@ -172,7 +173,7 @@ impl LayoutManager for SimpleLayout {
 }
 
 impl SimpleLayout {
-    fn configure_widget(&self, widget: &ActivityWidget) {
+    fn configure_widget(&self, widget: &Widget) {
         match self.config.orientation_horizontal {
             true => {
                 widget.set_valign(self.config.child_align.into_gtk());

@@ -9,7 +9,8 @@ license = "mit"
 [dependencies]
 
 dynisland-core = { path = "../dynisland-core"}
-dynisland-modules = { path = "../dynisland-modules"}
+dynisland-abi = { path = "../dynisland-abi"}
+# dynisland-modules = { path = "../dynisland-modules"}
 
 anyhow = {workspace = true}
 gtk = {workspace = true}
@@ -20,11 +21,12 @@ serde = { workspace = true, features = ["serde_derive"] }
 log = {workspace = true}
 ron = {workspace = true}
 linkme = {workspace = true}
+abi_stable = {workspace = true}
+env_logger = {workspace = true}
 
 
 notify = { version = "6.1.1", features = ["fsevent-sys"] }
 grass = {version = "0.13.1", default-features = false} #scss parsing
 colored="2.1.0"
-env_logger = "0.11.2"
 
 # css-anim = {path = "../../css-anim", version = "*"}
