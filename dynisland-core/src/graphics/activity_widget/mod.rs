@@ -206,7 +206,7 @@ impl ActivityWidget {
             ActivityMode::Overlay => self.overlay_mode().clone(),
         }
     }
-
+    //TODO remove
     pub fn set_minimal_height(&self, height: i32, module: bool) {
         self.imp()
             .local_css_context

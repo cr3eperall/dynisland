@@ -1,7 +1,5 @@
 use dynisland_core::{
-    base_module::{DynamicActivity, PropertyUpdate},
-    cast_dyn_any,
-    graphics::activity_widget::{boxed_activity_mode::ActivityMode, ActivityWidget},
+    cast_dyn_any, dynamic_activity::DynamicActivity, dynamic_property::PropertyUpdate, graphics::activity_widget::{boxed_activity_mode::ActivityMode, ActivityWidget}
 };
 use gtk::{prelude::*, Widget};
 

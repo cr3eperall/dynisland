@@ -1,15 +1,35 @@
 use anyhow::{anyhow, bail, Ok, Result};
+use dyn_clone::DynClone;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
-use crate::base_module::{
-    DynamicActivity, DynamicProperty, PropertyUpdate, SubscribableProperty, ValidDynType,
-    ValidDynamicClosure,
-};
+use crate::dynamic_property::{DynamicProperty, PropertyUpdate, ValidDynType};
 
 use dynisland_abi::ActivityIdentifier;
 
-use super::activity_widget::ActivityWidget;
+use super::graphics::activity_widget::ActivityWidget;
+
+pub trait ValidDynamicClosure: Fn(&dyn ValidDynType) + DynClone {}
+impl<T: Fn(&dyn ValidDynType) + DynClone + Clone> ValidDynamicClosure for T {}
+
+impl Clone for Box<dyn ValidDynamicClosure> {
+    fn clone(&self) -> Self {
+        dyn_clone::clone_box(self.as_ref())
+    }
+}
+
+/// Bundles a `DynamicProperty` with all of its subscribers
+pub struct SubscribableProperty {
+    pub property: Arc<Mutex<DynamicProperty>>,
+    pub subscribers: Vec<Box<dyn ValidDynamicClosure>>,
+}
+
+pub struct DynamicActivity {
+    pub(crate) widget: ActivityWidget,
+    pub(crate) property_dictionary: HashMap<String, SubscribableProperty>,
+    pub(crate) ui_send: UnboundedSender<PropertyUpdate>,
+    pub(crate) identifier: ActivityIdentifier,
+}
 
 impl DynamicActivity {
     pub fn new(

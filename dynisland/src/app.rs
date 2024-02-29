@@ -23,7 +23,7 @@ use crate::{
     config::{self, Config, GeneralConfig},
     layout_manager::{
         layout_manager_base::LayoutManager,
-        simple_layout::{self, SimpleLayout},
+        simple_layout::SimpleLayout,
     },
 };
 
@@ -130,25 +130,11 @@ impl App {
                             &self.config.general_style_config,
                             &activity,
                         );
-                        // let map_lock = module_map.lock().await;
-                        // let module = map_lock
-                        //     .get(&module_identifier)
-                        //     .unwrap_or_else(|| panic!("module {} not found", module_identifier));
-                        // module.register_activity(activity).await; //add inside its module //FIXME keep track of registered activities and producers outside of the module
                         log::info!("registered activity on {}", activity_identifier.module());
                     }
                     UIServerCommand::RemoveActivity(activity_identifier) => {
-                        // let map_lock = module_map.lock().await;
-                        // let module = map_lock
-                        //     .get(&module_identifier)
-                        //     .unwrap_or_else(|| panic!("module {} not found", module_identifier));
-                        // let activity_map = module.get_registered_activities();
-                        // let activity_map = activity_map.lock().await;
-                        // let act = activity_map.get_activity(&name).unwrap(); //TODO log error
 
                         layout.lock().await.remove_activity(&activity_identifier);
-
-                        // module.unregister_activity(&name).await;
                     }
                 }
             }
@@ -173,13 +159,13 @@ impl App {
                 gtk::STYLE_PROVIDER_PRIORITY_USER,
             );
             self.load_css(); //load user's scss
-
-            glib::timeout_future(Duration::from_millis(1000)).await; //start producers on loaded modules
+            
             self.restart_producer_rt();
             while let Some(command) = server_recv.recv().await {
                 match command {
                     BackendServerCommand::ReloadConfig() => {
-                        //TODO split config and css reload (producers don't need to be restarted if only css changed)
+                        //FIXME split config and css reload (producers don't need to be restarted if only css changed)
+
                         // without this sleep, reading the config file sometimes gives an empty file.
                         glib::timeout_future(std::time::Duration::from_millis(50)).await;
                         self.load_configs();
@@ -382,10 +368,7 @@ impl App {
     }
 
     fn update_general_configs_on_activity(config: &GeneralConfig, activity: &Widget) {
-        // let props=activity.list_properties();
-        // for prop in props{
-        //     log::info!("prop: {:#?}", prop.name());
-        // }
+        //TODO define property names as constants
         activity.set_property("config-minimal-height-app", config.minimal_height as i32);
         activity.set_property("config-blur-radius-app", config.blur_radius);
     }
@@ -404,7 +387,7 @@ impl App {
         //     .layout
         //     .clone()
         //     .unwrap_or(simple_layout::NAME.to_string());
-        let mut layout: Option<Box<dyn LayoutManager>> = None;
+        // let mut layout: Option<Box<dyn LayoutManager>> = None;
 
         // for (layout_name, layout_constructor) in LAYOUTS.iter() {
         //     if layout_name == &layout_to_load {
@@ -412,10 +395,10 @@ impl App {
         //         break;
         //     }
         // }
+        // let lay = layout.unwrap_or(SimpleLayout::new());
+
         log::debug!("loading SimpleLayout");
-        let lay = layout.unwrap_or(SimpleLayout::new());
-        log::debug!("SimpleLayout loaded");
-        lay
+        SimpleLayout::new()
     }
 
     fn load_layout_config(&self) {
@@ -460,26 +443,6 @@ impl Default for App {
         }
     }
 }
-
-// // doesn't work when called trough a function, idk why
-// fn init_notifiers(server_send: UnboundedSender<BackendServerCommand>) {
-//     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-//         match res {
-//             Ok(evt) => {
-//                 match evt.kind {
-//                     notify::EventKind::Create(_) | notify::EventKind::Modify(_) => {
-//                         debug!("filesystem event");
-//                         server_send.send(BackendServerCommand::ReloadConfig()).expect("failed to send notification")
-//                     },
-//                     _ => {}
-//                 }
-//                 debug!("{evt:?}");
-//             },
-//             Err(err) => {error!("notify watcher error: {err}")},
-//         }
-//     }).expect("failed to start file watcher");
-//     watcher.watch(Path::new(config::CONFIG_FILE), notify::RecursiveMode::NonRecursive).expect("error starting watcher");
-// }
 
 pub fn get_window() -> gtk::Window {
     gtk::Window::builder()

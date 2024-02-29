@@ -2,8 +2,7 @@ use gtk::CssProvider;
 use rand::{distributions::Alphanumeric, Rng};
 
 use crate::{
-    graphics::{config_variable::ConfigVariable, util::CssSize},
-    implement_config_get_set,
+    config_variable::ConfigVariable, graphics::util::CssSize, implement_config_get_set
 };
 
 #[derive(Clone, glib::Boxed, Debug)]

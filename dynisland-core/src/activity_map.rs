@@ -1,9 +1,15 @@
-use std::{rc::Rc, sync::Arc};
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use tokio::sync::Mutex;
 
-use crate::base_module::{ActivityMap, DynamicActivity, DynamicProperty};
+use crate::{dynamic_activity::DynamicActivity, dynamic_property::DynamicProperty};
 use anyhow::{anyhow, bail, Result};
+
+
+#[derive(Default)]
+pub struct ActivityMap {
+    pub map: HashMap<String, Rc<Mutex<DynamicActivity>>>,
+}
 
 impl ActivityMap {
     pub fn new() -> Self {

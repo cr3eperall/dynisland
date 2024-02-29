@@ -1,7 +1,7 @@
 use gtk::CssProvider;
 use rand::{distributions::Alphanumeric, Rng};
 
-use crate::{graphics::config_variable::ConfigVariable, implement_config_get_set, randomize_name};
+use crate::{config_variable::ConfigVariable, implement_config_get_set, randomize_name};
 
 use super::boxed_activity_mode::ActivityMode;
 

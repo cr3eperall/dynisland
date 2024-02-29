@@ -28,6 +28,7 @@ pub trait SabiModule {
 
     fn restart_producers(&self);
 }
+
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(kind(Prefix(prefix_ref = ModuleBuilderRef)))]

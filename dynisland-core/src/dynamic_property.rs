@@ -1,11 +1,29 @@
+use std::any::Any;
+
 use anyhow::{bail, Result};
+use dyn_clone::DynClone;
+use dynisland_abi::ActivityIdentifier;
 
-use crate::base_module::{DynamicProperty, PropertyUpdate, ValidDynType, ValidDynamicClosure};
 
-impl Clone for Box<dyn ValidDynamicClosure> {
-    fn clone(&self) -> Self {
-        dyn_clone::clone_box(&**self)
+pub trait ValidDynType: Any + Sync + Send + DynClone {
+    fn as_any(&self) -> &dyn Any;
+}
+impl<T: Any + Sync + Send + Clone> ValidDynType for T {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
+}
+
+pub struct PropertyUpdate {
+    pub activity_id: ActivityIdentifier,
+    pub property_name: String,
+    pub value: Box<dyn ValidDynType>,
+}
+pub struct DynamicProperty {
+    pub backend_channel: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
+    pub activity_id: ActivityIdentifier,
+    pub property_name: String,
+    pub value: Box<dyn ValidDynType>,
 }
 
 impl Clone for DynamicProperty {
@@ -47,6 +65,15 @@ impl DynamicProperty {
             Ok(_) => Ok(()),
             Err(err) => bail!("error sending update request to ui: {:?}", err),
         }
+    }
+}
+
+pub trait AsAny {
+    fn as_any(&self) -> &dyn Any;
+}
+impl<T: Any> AsAny for T {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc, sync::Arc, vec};
+use std::vec;
 
 use abi_stable::{
     external_types::crossbeam_channel::RSender,
@@ -11,19 +11,13 @@ use abi_stable::{
     },
 };
 use anyhow::Context;
-use dynisland_abi::{ActivityIdentifier, ModuleType, SabiModule, SabiModule_TO, UIServerCommand};
+use dynisland_abi::{ModuleType, SabiModule, SabiModule_TO, UIServerCommand};
 use env_logger::Env;
-use glib::{self, object::Cast};
-use gtk::Widget;
 use log::Level;
 use serde::{Deserialize, Serialize};
-use tokio::{
-    runtime::Handle,
-    sync::{mpsc::UnboundedSender, Mutex},
-};
 
 use dynisland_core::{
-    base_module::{ActivityMap, DynamicActivity, Module, Producer, PropertyUpdate},
+    base_module::{ProducerRuntime, BaseModule},
     graphics::activity_widget::boxed_activity_mode::ActivityMode,
 };
 //FIXME fix logging
@@ -39,7 +33,7 @@ pub struct ExampleConfig {
     pub string: String,
     #[serde(default)]
     pub vec: Vec<String>,
-
+    #[serde(default)]
     pub duration: u64,
 }
 
@@ -55,13 +49,8 @@ impl Default for ExampleConfig {
     }
 }
 pub struct ExampleModule {
-    // name: String,
-    app_send: RSender<UIServerCommand>,
-    prop_send: UnboundedSender<PropertyUpdate>,
-    pub registered_activities: Rc<Mutex<ActivityMap>>,
-    registered_producers: Arc<Mutex<HashSet<Producer<Self>>>>,
-    pub producers_handle: Mutex<Handle>,
-    pub producers_shutdown: Mutex<tokio::sync::mpsc::Sender<()>>,
+    base_module: BaseModule<ExampleModule>,
+    producers_rt: ProducerRuntime,
     config: ExampleConfig,
 }
 
@@ -69,17 +58,11 @@ pub struct ExampleModule {
 pub fn new(app_send: RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError> {
     env_logger::Builder::from_env(Env::default().default_filter_or(Level::Warn.as_str())).init();
 
-    let registered_activities = Rc::new(Mutex::new(ActivityMap::new()));
-    let prop_send = ExampleModule::spawn_property_update_loop(&registered_activities);
-    let (hdl, shutdown) = get_new_tokio_rt();
+    let base_module= BaseModule::new(NAME, app_send);
     let this = ExampleModule {
         // name: "ExampleModule".to_string(),
-        app_send,
-        prop_send,
-        registered_activities,
-        registered_producers: Arc::new(Mutex::new(HashSet::new())),
-        producers_handle: Mutex::new(hdl),
-        producers_shutdown: Mutex::new(shutdown),
+        base_module,
+        producers_rt: ProducerRuntime::new(),
         config: ExampleConfig::default(),
     };
     ROk(SabiModule_TO::from_value(this, TD_CanDowncast))
@@ -88,19 +71,14 @@ pub fn new(app_send: RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError>
 impl SabiModule for ExampleModule {
     #[allow(clippy::let_and_return)]
     fn init(&self) {
-        let app_send = self.app_send.clone();
-        let prop_send = self.prop_send.clone();
-        let registered_activities = self.registered_activities.clone();
-        let registered_producers = self.registered_producers.clone();
+        let base_module= self.base_module.clone();
         glib::MainContext::default().spawn_local(async move {
-            //FIXME this assumes that init is called from the main thread, now it is but it may change
-
             //create activity
-            let act = widget::get_activity(prop_send, NAME, "exampleActivity1");
+            let act = widget::get_activity(base_module.prop_send(), NAME, "exampleActivity1");
 
             //register activity and data producer
-            register_activity(registered_activities, &app_send, act);
-            Self::register_producer(registered_producers, producer);
+            base_module.register_activity(act).unwrap();
+            base_module.register_producer(producer);
         });
     }
 
@@ -123,90 +101,36 @@ impl SabiModule for ExampleModule {
     }
 }
 
-impl Module for ExampleModule {
-    // fn new(app_send: UnboundedSender<UIServerCommand> ) -> Box<dyn Module> {
-
-    // }
-
-    // fn restart_producers(&mut self) {
-    //     self.restart_producer_rt();
-    // }
-
-    // fn update_config(&mut self, config: Value) -> Result<()> {
-    //     self.config = config
-    //         .into_rust()
-    //         .with_context(|| "failed to parse config")
-    //         .unwrap();
-    //     Ok(())
-    // }
-
-    // fn init(&self) {
-    //     let app_send = self.app_send.clone();
-    //     let prop_send = self.prop_send.clone();
-    //     let registered_activities = self.registered_activities.clone();
-    //     // glib::MainContext::default().spawn_local(async move { //FIXME this assumes that init is called from the main thread, now it is but it may change
-
-    //         //create activity
-    //         let act = widget::get_activity(
-    //             prop_send,
-    //             NAME,
-    //             "exampleActivity1",
-    //         );
-
-    //         //register activity and data producer
-    //         register_activity(registered_activities, &app_send, act);
-    //     // });
-    //     self.register_producer(producer);
-    // }
-}
-
 impl ExampleModule {
-    fn register_producer(
-        registered_producers: Arc<Mutex<HashSet<Producer<Self>>>>,
-        producer: Producer<Self>,
-    ) {
-        registered_producers.blocking_lock().insert(producer);
-    }
-
     fn restart_producer_rt(&self) {
-        let mut producers_shutdown = self.producers_shutdown.blocking_lock();
-        producers_shutdown
-            .blocking_send(())
-            .expect("failed to shutdown old producer runtime"); //stop current producers_runtime
-        let (handle, shutdown) = get_new_tokio_rt(); //start new producers_runtime
-
-        *self.producers_handle.blocking_lock() = handle.clone();
-        *producers_shutdown = shutdown;
+        self.producers_rt.reset_blocking();
         //restart producers
-        for producer in self.get_registered_producers().blocking_lock().iter() {
-            producer(self, &handle, self.app_send.clone())
+        for producer in self.base_module.registered_producers().blocking_lock().iter() {
+            producer(self)
         }
-    }
-
-    fn get_registered_producers(&self) -> Arc<Mutex<HashSet<Producer<Self>>>> {
-        self.registered_producers.clone()
     }
 }
 
 //TODO add reference to module and recieve messages from main
 #[allow(unused_variables)]
-fn producer(module: &ExampleModule, rt: &Handle, _app_send: RSender<UIServerCommand>) {
+fn producer(module: &ExampleModule) {
     // let module = cast_dyn_any!(module, ExampleModule).unwrap();
     //data producer
     let config: &ExampleConfig = &module.config;
 
     //TODO shouldn't be blocking locks, maybe execute async with glib::MainContext
-    let act = module.registered_activities.blocking_lock();
-    let mode = act
+    let registered_activities = module.base_module.registered_activities();
+    let registered_activities_lock = registered_activities.blocking_lock();
+    let mode = registered_activities_lock
         .get_property_blocking("exampleActivity1", "mode")
         .unwrap();
-    let label = act
+    let label = registered_activities_lock
         .get_property_blocking("exampleActivity1", "comp-label")
         .unwrap();
-    let scrolling_text = act
+    let scrolling_text = registered_activities_lock
         .get_property_blocking("exampleActivity1", "scrolling-label-text")
         .unwrap();
-    let rolling_char = act
+    let rolling_char = registered_activities_lock
         .get_property_blocking("exampleActivity1", "rolling-char")
         .unwrap();
     // label.blocking_lock().set(config.string.clone()).unwrap();
@@ -224,7 +148,7 @@ fn producer(module: &ExampleModule, rt: &Handle, _app_send: RSender<UIServerComm
 
     let config = config.clone();
     // debug!("starting task");
-    rt.spawn(async move {
+    module.producers_rt.handle().spawn(async move {
         // debug!("task started");
         mode.lock().await.set(ActivityMode::Minimal).unwrap();
         loop {
@@ -303,65 +227,4 @@ fn producer(module: &ExampleModule, rt: &Handle, _app_send: RSender<UIServerComm
             // tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
         }
     });
-}
-
-fn register_activity(
-    registered_activities: Rc<Mutex<ActivityMap>>,
-    app_send: &RSender<UIServerCommand>,
-    activity: DynamicActivity,
-) {
-    let widget = activity.get_activity_widget();
-    let id = activity.get_identifier();
-    let activity = Rc::new(Mutex::new(activity));
-
-    app_send
-        .send(UIServerCommand::AddActivity(
-            id,
-            widget.upcast::<Widget>().into(),
-        ))
-        .unwrap();
-    let mut reg = registered_activities.blocking_lock();
-    reg.insert_activity(activity)
-        .with_context(|| "failed to register activity")
-        .unwrap();
-}
-fn _unregister_activity(
-    registered_activities: Rc<Mutex<ActivityMap>>,
-    app_send: &UnboundedSender<UIServerCommand>,
-    activity_name: &str,
-) {
-    app_send
-        .send(UIServerCommand::RemoveActivity(ActivityIdentifier::new(
-            NAME,
-            activity_name,
-        )))
-        .unwrap();
-
-    registered_activities
-        .blocking_lock()
-        .map
-        .remove(activity_name)
-        .expect("activity isn't registered");
-}
-
-pub fn get_new_tokio_rt() -> (Handle, tokio::sync::mpsc::Sender<()>) {
-    let (rt_send, rt_recv) =
-        tokio::sync::oneshot::channel::<(Handle, tokio::sync::mpsc::Sender<()>)>();
-    let (shutdown_send, mut shutdown_recv) = tokio::sync::mpsc::channel::<()>(1);
-    std::thread::Builder::new()
-        .name("dyn-producers".to_string())
-        .spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("idk tokio rt failed");
-            let handle = rt.handle();
-            rt_send
-                .send((handle.clone(), shutdown_send))
-                .expect("failed to send rt");
-            rt.block_on(async { shutdown_recv.recv().await }); //keep thread alive
-        })
-        .expect("failed to spawn new trhread");
-
-    rt_recv.blocking_recv().expect("failed to receive rt")
 }
