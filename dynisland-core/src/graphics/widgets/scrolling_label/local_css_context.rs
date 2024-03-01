@@ -2,11 +2,11 @@ use gtk::CssProvider;
 use rand::{distributions::Alphanumeric, Rng};
 
 use crate::{
-    config_variable::ConfigVariable, graphics::util::CssSize, implement_config_get_set
+    config_variable::ConfigVariable, graphics::util::CssSize, implement_config_get_set,
+    randomize_name,
 };
 
-#[derive(Clone, glib::Boxed, Debug)]
-#[boxed_type(name = "BoxedScrollingLabelLocalCssContext")]
+#[derive(Clone, Debug)]
 pub struct ScrollingLabelLocalCssContext {
     //IMPORTANT add some way to globally configure and swap the animations (maybe get a string to format from a config)
     css_provider: CssProvider,
@@ -20,7 +20,6 @@ pub struct ScrollingLabelLocalCssContext {
     config_delay: ConfigVariable<u64>, //millis
 }
 
-#[allow(unused_braces)]
 impl ScrollingLabelLocalCssContext {
     pub fn new(name: &str) -> Self {
         Self {
@@ -136,5 +135,182 @@ impl Default for ScrollingLabelLocalCssContext {
                 .collect::<String>()
                 .as_str(),
         )
+    }
+}
+
+// Recursive expansion of glib::Boxed macro
+// =========================================
+
+impl glib::subclass::boxed::BoxedType for ScrollingLabelLocalCssContext {
+    const NAME: &'static ::core::primitive::str =
+        randomize_name!("BoxedScrollingLabelLocalCssContext");
+}
+impl glib::prelude::StaticType for ScrollingLabelLocalCssContext {
+    #[inline]
+    fn static_type() -> glib::Type {
+        static TYPE: ::std::sync::OnceLock<glib::Type> = ::std::sync::OnceLock::new();
+        *TYPE.get_or_init(glib::subclass::register_boxed_type::<ScrollingLabelLocalCssContext>)
+    }
+}
+impl glib::value::ValueType for ScrollingLabelLocalCssContext {
+    type Type = ScrollingLabelLocalCssContext;
+}
+impl glib::value::ToValue for ScrollingLabelLocalCssContext {
+    #[inline]
+    fn to_value(&self) -> glib::Value {
+        unsafe {
+            let ptr: *mut ScrollingLabelLocalCssContext =
+                ::std::boxed::Box::into_raw(::std::boxed::Box::new(self.clone()));
+            let mut value = glib::Value::from_type_unchecked(
+                <ScrollingLabelLocalCssContext as glib::prelude::StaticType>::static_type(),
+            );
+            glib::gobject_ffi::g_value_take_boxed(
+                glib::translate::ToGlibPtrMut::to_glib_none_mut(&mut value).0,
+                ptr as *mut _,
+            );
+            value
+        }
+    }
+    #[inline]
+    fn value_type(&self) -> glib::Type {
+        <ScrollingLabelLocalCssContext as glib::prelude::StaticType>::static_type()
+    }
+}
+impl ::std::convert::From<ScrollingLabelLocalCssContext> for glib::Value {
+    #[inline]
+    fn from(v: ScrollingLabelLocalCssContext) -> Self {
+        unsafe {
+            let mut value = glib::Value::from_type_unchecked(
+                <ScrollingLabelLocalCssContext as glib::prelude::StaticType>::static_type(),
+            );
+            glib::gobject_ffi::g_value_take_boxed(
+                glib::translate::ToGlibPtrMut::to_glib_none_mut(&mut value).0,
+                glib::translate::IntoGlibPtr::<*mut ScrollingLabelLocalCssContext>::into_glib_ptr(v)
+                    as *mut _,
+            );
+            value
+        }
+    }
+}
+unsafe impl<'a> glib::value::FromValue<'a> for ScrollingLabelLocalCssContext {
+    type Checker = glib::value::GenericValueTypeChecker<Self>;
+    #[inline]
+    unsafe fn from_value(value: &'a glib::Value) -> Self {
+        let ptr =
+            glib::gobject_ffi::g_value_dup_boxed(glib::translate::ToGlibPtr::to_glib_none(value).0);
+        debug_assert!(!ptr.is_null());
+        *::std::boxed::Box::from_raw(ptr as *mut ScrollingLabelLocalCssContext)
+    }
+}
+unsafe impl<'a> glib::value::FromValue<'a> for &'a ScrollingLabelLocalCssContext {
+    type Checker = glib::value::GenericValueTypeChecker<Self>;
+    #[inline]
+    unsafe fn from_value(value: &'a glib::Value) -> Self {
+        let ptr =
+            glib::gobject_ffi::g_value_get_boxed(glib::translate::ToGlibPtr::to_glib_none(value).0);
+        debug_assert!(!ptr.is_null());
+        &*(ptr as *mut ScrollingLabelLocalCssContext)
+    }
+}
+impl glib::translate::GlibPtrDefault for ScrollingLabelLocalCssContext {
+    type GlibType = *mut ScrollingLabelLocalCssContext;
+}
+impl glib::translate::FromGlibPtrBorrow<*const ScrollingLabelLocalCssContext>
+    for ScrollingLabelLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_borrow(
+        ptr: *const ScrollingLabelLocalCssContext,
+    ) -> glib::translate::Borrowed<Self> {
+        glib::translate::FromGlibPtrBorrow::from_glib_borrow(ptr as *mut _)
+    }
+}
+impl glib::translate::FromGlibPtrBorrow<*mut ScrollingLabelLocalCssContext>
+    for ScrollingLabelLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_borrow(
+        ptr: *mut ScrollingLabelLocalCssContext,
+    ) -> glib::translate::Borrowed<Self> {
+        debug_assert!(!ptr.is_null());
+        glib::translate::Borrowed::new(std::ptr::read(ptr))
+    }
+}
+impl glib::translate::FromGlibPtrNone<*const ScrollingLabelLocalCssContext>
+    for ScrollingLabelLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_none(ptr: *const ScrollingLabelLocalCssContext) -> Self {
+        debug_assert!(!ptr.is_null());
+        (*ptr).clone()
+    }
+}
+impl glib::translate::FromGlibPtrNone<*mut ScrollingLabelLocalCssContext>
+    for ScrollingLabelLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_none(ptr: *mut ScrollingLabelLocalCssContext) -> Self {
+        glib::translate::FromGlibPtrNone::from_glib_none(ptr as *const _)
+    }
+}
+impl glib::translate::FromGlibPtrFull<*mut ScrollingLabelLocalCssContext>
+    for ScrollingLabelLocalCssContext
+{
+    #[inline]
+    unsafe fn from_glib_full(ptr: *mut ScrollingLabelLocalCssContext) -> Self {
+        debug_assert!(!ptr.is_null());
+        *::std::boxed::Box::from_raw(ptr)
+    }
+}
+impl glib::translate::IntoGlibPtr<*mut ScrollingLabelLocalCssContext>
+    for ScrollingLabelLocalCssContext
+{
+    #[inline]
+    unsafe fn into_glib_ptr(self) -> *mut ScrollingLabelLocalCssContext {
+        ::std::boxed::Box::into_raw(::std::boxed::Box::new(self)) as *mut _
+    }
+}
+impl<'a> glib::translate::ToGlibPtr<'a, *const ScrollingLabelLocalCssContext>
+    for ScrollingLabelLocalCssContext
+{
+    type Storage = std::marker::PhantomData<&'a Self>;
+    #[inline]
+    fn to_glib_none(
+        &'a self,
+    ) -> glib::translate::Stash<'a, *const ScrollingLabelLocalCssContext, Self> {
+        glib::translate::Stash(
+            self as *const ScrollingLabelLocalCssContext,
+            std::marker::PhantomData,
+        )
+    }
+    #[inline]
+    fn to_glib_full(&self) -> *const ScrollingLabelLocalCssContext {
+        ::std::boxed::Box::into_raw(::std::boxed::Box::new(self.clone()))
+    }
+}
+impl<'a> glib::translate::ToGlibPtr<'a, *mut ScrollingLabelLocalCssContext>
+    for ScrollingLabelLocalCssContext
+{
+    type Storage = std::marker::PhantomData<&'a Self>;
+    #[inline]
+    fn to_glib_none(
+        &'a self,
+    ) -> glib::translate::Stash<'a, *mut ScrollingLabelLocalCssContext, Self> {
+        glib::translate::Stash(
+            self as *const ScrollingLabelLocalCssContext as *mut _,
+            std::marker::PhantomData,
+        )
+    }
+    #[inline]
+    fn to_glib_full(&self) -> *mut ScrollingLabelLocalCssContext {
+        ::std::boxed::Box::into_raw(::std::boxed::Box::new(self.clone())) as *mut _
+    }
+}
+impl glib::prelude::HasParamSpec for ScrollingLabelLocalCssContext {
+    type ParamSpec = glib::ParamSpecBoxed;
+    type SetValue = Self;
+    type BuilderFn = fn(&::core::primitive::str) -> glib::ParamSpecBoxedBuilder<Self>;
+    fn param_spec_builder() -> Self::BuilderFn {
+        Self::ParamSpec::builder
     }
 }

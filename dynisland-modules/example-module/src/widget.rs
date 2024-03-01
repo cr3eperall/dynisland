@@ -1,8 +1,11 @@
 use dynisland_core::{
-    cast_dyn_any, dynamic_activity::DynamicActivity, dynamic_property::PropertyUpdate, graphics::{
+    cast_dyn_any,
+    dynamic_activity::DynamicActivity,
+    dynamic_property::PropertyUpdate,
+    graphics::{
         activity_widget::{boxed_activity_mode::ActivityMode, ActivityWidget},
         widgets::{rolling_char::RollingChar, scrolling_label::ScrollingLabel},
-    }
+    },
 };
 
 use gtk::{prelude::*, GestureClick, Label};

@@ -22,7 +22,6 @@ use dynisland_core::{
 
 use crate::{widget, NAME};
 
-
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct MusicConfig {
     //allowed_players: cider2, (?cider1, ?spotify...)
@@ -39,7 +38,7 @@ pub struct MusicModule {
 pub fn new(app_send: RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError> {
     env_logger::Builder::from_env(Env::default().default_filter_or(Level::Warn.as_str())).init();
 
-    let base_module=BaseModule::new(NAME, app_send);
+    let base_module = BaseModule::new(NAME, app_send);
     let this = MusicModule {
         base_module,
         producers_rt: ProducerRuntime::new(),
@@ -51,9 +50,8 @@ pub fn new(app_send: RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError>
 impl SabiModule for MusicModule {
     #[allow(clippy::let_and_return)]
     fn init(&self) {
-        let base_module=self.base_module.clone();
+        let base_module = self.base_module.clone();
         glib::MainContext::default().spawn_local(async move {
-
             //create activity
             let act = widget::get_activity(base_module.prop_send(), NAME, "music-activity");
 
@@ -80,12 +78,16 @@ impl SabiModule for MusicModule {
     fn restart_producers(&self) {
         self.producers_rt.reset_blocking();
         //restart producers
-        for producer in self.base_module.registered_producers().blocking_lock().iter() {
+        for producer in self
+            .base_module
+            .registered_producers()
+            .blocking_lock()
+            .iter()
+        {
             producer(self);
         }
     }
 }
-
 
 //TODO add reference to module and recieve messages from main
 #[allow(unused_variables)]

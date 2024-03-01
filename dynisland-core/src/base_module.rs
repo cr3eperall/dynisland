@@ -1,5 +1,8 @@
 use std::{collections::HashSet, rc::Rc, sync::Arc};
 
+use crate::{
+    activity_map::ActivityMap, dynamic_activity::DynamicActivity, dynamic_property::PropertyUpdate,
+};
 use abi_stable::external_types::crossbeam_channel::RSender;
 use anyhow::{Context, Result};
 use dynisland_abi::{ActivityIdentifier, UIServerCommand};
@@ -9,7 +12,6 @@ use tokio::{
     runtime::Handle,
     sync::{mpsc::UnboundedSender, Mutex},
 };
-use crate::{activity_map::ActivityMap, dynamic_activity::DynamicActivity, dynamic_property::PropertyUpdate};
 
 pub type Producer<T> = fn(module: &T);
 
@@ -46,10 +48,18 @@ impl ProducerRuntime {
         *self.shutdown.blocking_lock() = shutdown;
     }
     pub async fn shutdown(&self) {
-        self.shutdown.lock().await.send(()).await.expect("failed to shutdown old producer runtime");
+        self.shutdown
+            .lock()
+            .await
+            .send(())
+            .await
+            .expect("failed to shutdown old producer runtime");
     }
     pub fn shutdown_blocking(&self) {
-        self.shutdown.blocking_lock().blocking_send(()).expect("failed to shutdown old producer runtime");
+        self.shutdown
+            .blocking_lock()
+            .blocking_send(())
+            .expect("failed to shutdown old producer runtime");
     }
     fn get_new_tokio_rt() -> (Handle, tokio::sync::mpsc::Sender<()>) {
         let (rt_send, rt_recv) =
@@ -69,14 +79,12 @@ impl ProducerRuntime {
                 rt.block_on(async { shutdown_recv.recv().await }); //keep thread alive
             })
             .expect("failed to spawn new trhread");
-    
+
         rt_recv.blocking_recv().expect("failed to receive rt")
     }
-    
 }
 
-
-pub struct BaseModule<T>{
+pub struct BaseModule<T> {
     name: &'static str,
     app_send: RSender<UIServerCommand>,
     prop_send: UnboundedSender<PropertyUpdate>,
@@ -96,8 +104,8 @@ impl<T> Clone for BaseModule<T> {
     }
 }
 
-impl<T> BaseModule<T>{
-    pub fn new(name: &'static str, app_send: RSender<UIServerCommand>)-> Self{
+impl<T> BaseModule<T> {
+    pub fn new(name: &'static str, app_send: RSender<UIServerCommand>) -> Self {
         let registered_activities = Rc::new(Mutex::new(ActivityMap::default()));
         let registered_producers = Arc::new(Mutex::new(HashSet::new()));
         let prop_send = Self::spawn_property_update_loop(&registered_activities);
@@ -109,7 +117,7 @@ impl<T> BaseModule<T>{
             registered_producers,
         }
     }
-    pub fn register_producer(&self, producer: Producer<T>,) {
+    pub fn register_producer(&self, producer: Producer<T>) {
         self.registered_producers.blocking_lock().insert(producer);
     }
 
@@ -117,14 +125,11 @@ impl<T> BaseModule<T>{
         self.registered_producers.clone()
     }
 
-    pub fn register_activity(
-        &self,
-        activity: DynamicActivity,
-    ) -> Result<()> {
+    pub fn register_activity(&self, activity: DynamicActivity) -> Result<()> {
         let widget = activity.get_activity_widget();
         let id = activity.get_identifier();
         let activity = Rc::new(Mutex::new(activity));
-    
+
         self.app_send
             .send(UIServerCommand::AddActivity(
                 id,
@@ -138,17 +143,14 @@ impl<T> BaseModule<T>{
     pub fn registered_activities(&self) -> Rc<Mutex<ActivityMap>> {
         self.registered_activities.clone()
     }
-    pub fn unregister_activity(
-        &self,
-        activity_name: &str,
-    ) {
+    pub fn unregister_activity(&self, activity_name: &str) {
         self.app_send
             .send(UIServerCommand::RemoveActivity(ActivityIdentifier::new(
                 self.name,
                 activity_name,
             )))
             .unwrap();
-    
+
         self.registered_activities
             .blocking_lock()
             .map

@@ -4,7 +4,6 @@ use anyhow::{bail, Result};
 use dyn_clone::DynClone;
 use dynisland_abi::ActivityIdentifier;
 
-
 pub trait ValidDynType: Any + Sync + Send + DynClone {
     fn as_any(&self) -> &dyn Any;
 }

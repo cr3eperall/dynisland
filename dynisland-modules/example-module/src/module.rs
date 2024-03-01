@@ -17,7 +17,7 @@ use log::Level;
 use serde::{Deserialize, Serialize};
 
 use dynisland_core::{
-    base_module::{ProducerRuntime, BaseModule},
+    base_module::{BaseModule, ProducerRuntime},
     graphics::activity_widget::boxed_activity_mode::ActivityMode,
 };
 //FIXME fix logging
@@ -58,7 +58,7 @@ pub struct ExampleModule {
 pub fn new(app_send: RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError> {
     env_logger::Builder::from_env(Env::default().default_filter_or(Level::Warn.as_str())).init();
 
-    let base_module= BaseModule::new(NAME, app_send);
+    let base_module = BaseModule::new(NAME, app_send);
     let this = ExampleModule {
         // name: "ExampleModule".to_string(),
         base_module,
@@ -71,7 +71,7 @@ pub fn new(app_send: RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError>
 impl SabiModule for ExampleModule {
     #[allow(clippy::let_and_return)]
     fn init(&self) {
-        let base_module= self.base_module.clone();
+        let base_module = self.base_module.clone();
         glib::MainContext::default().spawn_local(async move {
             //create activity
             let act = widget::get_activity(base_module.prop_send(), NAME, "exampleActivity1");
@@ -105,7 +105,12 @@ impl ExampleModule {
     fn restart_producer_rt(&self) {
         self.producers_rt.reset_blocking();
         //restart producers
-        for producer in self.base_module.registered_producers().blocking_lock().iter() {
+        for producer in self
+            .base_module
+            .registered_producers()
+            .blocking_lock()
+            .iter()
+        {
             producer(self)
         }
     }
