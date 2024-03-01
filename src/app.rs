@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ffi::OsStr, path::PathBuf, rc::Rc, thread, time::Duration};
+use std::{collections::HashMap, ffi::OsStr, path::PathBuf, rc::Rc, thread};
 
 use abi_stable::{
     external_types::crossbeam_channel::RSender,
@@ -11,20 +11,14 @@ use abi_stable::{
 };
 use anyhow::Result;
 use colored::Colorize;
-use gtk::{prelude::*, CssProvider, Widget};
+use gtk::{prelude::*, CssProvider, Widget, Window};
 use notify::Watcher;
 use ron::ser::PrettyConfig;
-use tokio::{
-    runtime::Handle,
-    sync::{mpsc::unbounded_channel, Mutex},
-};
+use tokio::sync::{mpsc::unbounded_channel, Mutex};
 
 use crate::{
     config::{self, Config, GeneralConfig},
-    layout_manager::{
-        layout_manager_base::LayoutManager,
-        simple_layout::SimpleLayout,
-    },
+    layout_manager::{layout_manager_base::LayoutManager, simple_layout::SimpleLayout},
 };
 
 use dynisland_abi::{ModuleBuilderRef, ModuleType, UIServerCommand};
@@ -74,9 +68,6 @@ impl App {
 
         self.init_loaded_modules(&module_order);
 
-        // let rt = self.producers_handle.clone();
-        // let module_map = self.module_map.clone();
-
         // let app_send1=self.app_send.clone().unwrap();
         // glib::MainContext::default().spawn_local(async move {
         //     glib::timeout_future_seconds(10).await;
@@ -91,6 +82,7 @@ impl App {
             let window = gtk::ApplicationWindow::new(app);
             window.set_child(Some(&widget));
 
+            init_window(&window.clone().upcast());
             // gtk::Window::set_interactive_debugging(true);
 
             //show window
@@ -104,21 +96,6 @@ impl App {
             // TODO check if there are too many tasks on the UI thread and it begins to lag
             while let Some(command) = app_recv_async.recv().await {
                 match command {
-                    // UIServerCommand::AddProducer(module_identifier, producer) => {
-                    //     let map_lock = module_map.lock().await;
-                    //     let module = map_lock
-                    //         .get(&module_identifier)
-                    //         .unwrap_or_else(|| panic!("module {} not found", module_identifier));
-
-                    //     // module.register_producer(producer).await; //add inside module
-                    //     producer(
-                    //         // execute //TODO make sure this doesn't get executed twice at the same time when the configuration is being reloaded
-                    //         module.as_ref(),
-                    //         &rt,
-                    //         app_send.clone(),
-                    //     );
-                    //     info!("registered producer {}", module_identifier);
-                    // }
                     UIServerCommand::AddActivity(activity_identifier, activity) => {
                         let activity: Widget = activity.try_into().unwrap();
                         layout
@@ -133,7 +110,6 @@ impl App {
                         log::info!("registered activity on {}", activity_identifier.module());
                     }
                     UIServerCommand::RemoveActivity(activity_identifier) => {
-
                         layout.lock().await.remove_activity(&activity_identifier);
                     }
                 }
@@ -144,6 +120,16 @@ impl App {
         let app = self.application.clone();
         //server command consumer
         glib::MainContext::default().spawn_local(async move {
+            let renderer_name = self.application.windows()[0]
+                .native()
+                .unwrap()
+                .renderer()
+                .unwrap()
+                .type_()
+                .name();
+
+            log::info!("using renderer: {}", renderer_name);
+
             let fallback_provider = gtk::CssProvider::new();
             fallback_provider.load_from_string(include_str!("../default.css"));
             gtk::style_context_add_provider_for_display(
@@ -159,8 +145,8 @@ impl App {
                 gtk::STYLE_PROVIDER_PRIORITY_USER,
             );
             self.load_css(); //load user's scss
-            
-            self.restart_producer_rt();
+
+            self.restart_producer_runtimes();
             while let Some(command) = server_recv.recv().await {
                 match command {
                     BackendServerCommand::ReloadConfig() => {
@@ -173,7 +159,7 @@ impl App {
                         self.load_layout_config();
                         self.load_css();
 
-                        self.restart_producer_rt();
+                        self.restart_producer_runtimes();
                     }
                 }
             }
@@ -381,6 +367,7 @@ impl App {
         }
     }
 
+    //FIXME
     fn load_layout_manager(&mut self) -> Box<dyn LayoutManager> {
         // let layout_to_load = self
         //     .config
@@ -419,7 +406,7 @@ impl App {
         }
     }
 
-    fn restart_producer_rt(&self) {
+    fn restart_producer_runtimes(&self) {
         for module in self.module_map.blocking_lock().values_mut() {
             module.restart_producers();
         }
@@ -444,38 +431,9 @@ impl Default for App {
     }
 }
 
-pub fn get_window() -> gtk::Window {
-    gtk::Window::builder()
-        .title("test")
-        .height_request(500)
-        .width_request(800)
-        .build()
+pub fn init_window(_window: &Window) {
     // gtk_layer_shell::init_for_window(&window);
     // gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
     // gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, true);
     // gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, 5);
-
-    // window
-}
-
-pub fn get_new_tokio_rt() -> (Handle, tokio::sync::mpsc::Sender<()>) {
-    let (rt_send, rt_recv) =
-        tokio::sync::oneshot::channel::<(Handle, tokio::sync::mpsc::Sender<()>)>();
-    let (shutdown_send, mut shutdown_recv) = tokio::sync::mpsc::channel::<()>(1);
-    std::thread::Builder::new()
-        .name("dyn-producers".to_string())
-        .spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("idk tokio rt failed");
-            let handle = rt.handle();
-            rt_send
-                .send((handle.clone(), shutdown_send))
-                .expect("failed to send rt");
-            rt.block_on(async { shutdown_recv.recv().await }); //keep thread alive
-        })
-        .expect("failed to spawn new trhread");
-
-    rt_recv.blocking_recv().expect("failed to receive rt")
 }
