@@ -15,10 +15,10 @@ fn main() -> Result<()> {
     gtk::init().with_context(|| "failed to init gtk")?;
 
     env_logger::Builder::new()
-        .filter_module("dynisland", log::LevelFilter::Debug)
-        .filter_module("dynisland_core", log::LevelFilter::Debug)
+        // .filter_module("dynisland", log::LevelFilter::Debug)
+        // .filter_module("dynisland_core", log::LevelFilter::Debug)
         // .filter_module("dynisland_modules", log::LevelFilter::Debug)
-        .parse_env(Env::default().default_filter_or(Level::Warn.as_str()))
+        .parse_env(Env::default().default_filter_or(Level::Info.as_str()))
         .init();
 
     let app = App::default();
