@@ -1,3 +1,4 @@
+.vscode
 /target
 perf.*
 timings.txt

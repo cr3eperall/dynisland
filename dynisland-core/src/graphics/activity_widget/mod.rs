@@ -50,27 +50,7 @@ impl ActivityWidget {
         widget.add_css_class("mode-minimal");
         widget.set_overflow(gtk::Overflow::Hidden);
         priv_.minimal_mode_widget.replace(Some(widget.clone()));
-        let min_height = self.local_css_context().get_config_minimal_height();
-        let widget_size = util::get_final_widget_size(widget, self.mode(), min_height);
-        if let ActivityMode::Minimal = self.mode() {
-            self.imp()
-                .local_css_context
-                .borrow_mut()
-                .set_size(widget_size);
-
-            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
-        } else {
-            let current_size = self
-                .imp()
-                .get_final_widget_size_for_mode(self.mode(), min_height);
-            self.local_css_context().set_stretch(
-                ActivityMode::Minimal,
-                (
-                    current_size.0 / widget_size.0 as f64,
-                    current_size.1 / widget_size.1 as f64,
-                ),
-            );
-        }
+        self.set_mode(self.mode()); //update the size and the position of the widget
         self.queue_draw(); // Queue a draw call with the updated widget
     }
 
@@ -84,27 +64,7 @@ impl ActivityWidget {
         widget.add_css_class("mode-compact");
         widget.set_overflow(gtk::Overflow::Hidden);
         priv_.compact_mode_widget.replace(Some(widget.clone()));
-        let min_height = self.local_css_context().get_config_minimal_height();
-        let widget_size = util::get_final_widget_size(widget, self.mode(), min_height);
-        if let ActivityMode::Compact = self.mode() {
-            self.imp()
-                .local_css_context
-                .borrow_mut()
-                .set_size(widget_size);
-
-            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
-        } else {
-            let current_size = self
-                .imp()
-                .get_final_widget_size_for_mode(self.mode(), min_height);
-            self.local_css_context().set_stretch(
-                ActivityMode::Compact,
-                (
-                    current_size.0 / widget_size.0 as f64,
-                    current_size.1 / widget_size.1 as f64,
-                ),
-            );
-        }
+        self.set_mode(self.mode()); //update the size and the position of the widget
         self.queue_draw(); // Queue a draw call with the updated widget
     }
 
@@ -118,27 +78,7 @@ impl ActivityWidget {
         widget.add_css_class("mode-expanded");
         widget.set_overflow(gtk::Overflow::Hidden);
         priv_.expanded_mode_widget.replace(Some(widget.clone()));
-        let min_height = self.local_css_context().get_config_minimal_height();
-        let widget_size = util::get_final_widget_size(widget, self.mode(), min_height);
-        if let ActivityMode::Expanded = self.mode() {
-            self.imp()
-                .local_css_context
-                .borrow_mut()
-                .set_size(widget_size);
-
-            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
-        } else {
-            let current_size = self
-                .imp()
-                .get_final_widget_size_for_mode(self.mode(), min_height);
-            self.local_css_context().set_stretch(
-                ActivityMode::Expanded,
-                (
-                    current_size.0 / widget_size.0 as f64,
-                    current_size.1 / widget_size.1 as f64,
-                ),
-            );
-        }
+        self.set_mode(self.mode()); //update the size and the position of the widget
         self.queue_draw(); // Queue a draw call with the updated widget
     }
 
@@ -152,27 +92,7 @@ impl ActivityWidget {
         widget.add_css_class("mode-overlay");
         widget.set_overflow(gtk::Overflow::Hidden);
         priv_.overlay_mode_widget.replace(Some(widget.clone()));
-        let min_height = self.local_css_context().get_config_minimal_height();
-        let widget_size = util::get_final_widget_size(widget, self.mode(), min_height);
-        if let ActivityMode::Overlay = self.mode() {
-            self.imp()
-                .local_css_context
-                .borrow_mut()
-                .set_size(widget_size);
-
-            widget.insert_before(self, Option::None::<&gtk::Widget>); //put at the end of the list so it recieves the inputs
-        } else {
-            let current_size = self
-                .imp()
-                .get_final_widget_size_for_mode(self.mode(), min_height);
-            self.local_css_context().set_stretch(
-                ActivityMode::Overlay,
-                (
-                    current_size.0 / widget_size.0 as f64,
-                    current_size.1 / widget_size.1 as f64,
-                ),
-            );
-        }
+        self.set_mode(self.mode()); //update the size and the position of the widget
         self.queue_draw(); // Queue a draw call with the updated widget
     }
 

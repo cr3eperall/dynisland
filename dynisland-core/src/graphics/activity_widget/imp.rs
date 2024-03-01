@@ -121,11 +121,15 @@ impl ObjectImpl for ActivityWidgetPriv {
     fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "mode" => {
-                // Replace old values
-                self.last_mode.replace(*self.mode.borrow());
-                self.mode.replace(value.get().unwrap());
+                // Replace old values if the mode is valid
+                let mode = value.get().unwrap();
 
-                let mode = *self.mode.borrow();
+                if self.get_mode_widget(mode).borrow().is_none() {
+                    return;
+                }
+                self.last_mode.replace(*self.mode.borrow());
+                self.mode.replace(mode);
+
                 // let last_mode = *self.last_mode.borrow();
 
                 let mut css_context = self.local_css_context.borrow_mut();
@@ -154,14 +158,10 @@ impl ObjectImpl for ActivityWidgetPriv {
                 css_context.set_stretch_all(stretches);
 
                 if let Some(next) = self.get_mode_widget(mode).borrow().as_ref() {
-                    next.insert_before(self.obj().as_ref(), Option::None::<&gtk::Widget>);
                     //put at the end so it recieves the inputs
-                };
-
-                // self.raise_windows();
-                if self.get_mode_widget(*self.mode.borrow()).borrow().is_some() {
+                    next.insert_before(self.obj().as_ref(), Option::None::<&gtk::Widget>);
                     css_context.set_size((next_size.0 as i32, next_size.1 as i32));
-                }
+                };
                 self.obj().queue_draw(); // Queue a draw call with the updated value
             }
             "name" => {
