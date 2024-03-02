@@ -14,6 +14,7 @@ dynisland-abi = { path = "../dynisland-abi"}
 
 anyhow = {workspace = true}
 gtk = {workspace = true}
+gtk-layer-shell= { version = "0.2.0", package = "gtk4-layer-shell"}
 gdk = {workspace = true}
 glib = {workspace = true}
 tokio = { workspace = true, features = ["rt", "time", "sync", "macros"] }

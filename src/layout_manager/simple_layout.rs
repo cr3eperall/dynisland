@@ -1,20 +1,28 @@
 use std::collections::HashMap;
 
-use dynisland_abi::ActivityIdentifier;
-use gtk::{prelude::*, Widget};
-use linkme::distributed_slice;
+use abi_stable::{
+    sabi_extern_fn,
+    sabi_trait::TD_CanDowncast,
+    std_types::{
+        RBoxError, ROption,
+        RResult::{self, ROk},
+        RString, RVec,
+    },
+};
+use anyhow::Context;
+use dynisland_abi::{
+    layout::{LayoutManagerType, SabiLayoutManager, SabiLayoutManager_TO},
+    module::ActivityIdentifier,
+    SabiApplication, SabiWidget,
+};
+use gtk::{prelude::*, Widget, Window};
+use gtk_layer_shell::LayerShell;
 use serde::{Deserialize, Serialize};
-
-use anyhow::{anyhow, Context, Result};
-
-use super::layout_manager_base::{LayoutDefinition, LayoutManager, LAYOUTS};
 
 pub const NAME: &str = "SimpleLayout";
 
-#[distributed_slice(LAYOUTS)]
-static SIMPLE_LAYOUT: LayoutDefinition = (NAME, SimpleLayout::new);
-
 pub struct SimpleLayout {
+    app: gtk::Application,
     widget_map: HashMap<ActivityIdentifier, Widget>,
     container: gtk::Box,
     focused: Option<ActivityIdentifier>,
@@ -73,37 +81,57 @@ impl Default for SimpleLayoutConfig {
         }
     }
 }
+#[sabi_extern_fn]
+pub fn new(app: SabiApplication) -> RResult<LayoutManagerType, RBoxError> {
+    let container = gtk::Box::new(gtk::Orientation::Horizontal, 5);
+    let app = app.try_into().unwrap();
+    let this = SimpleLayout {
+        app,
+        widget_map: HashMap::new(),
+        container,
+        focused: None,
+        config: SimpleLayoutConfig::default(),
+    };
+    ROk(SabiLayoutManager_TO::from_value(this, TD_CanDowncast))
+}
 
-impl LayoutManager for SimpleLayout {
-    fn new() -> Box<dyn LayoutManager> {
-        let bx = gtk::Box::new(gtk::Orientation::Horizontal, 5);
-        Box::new(Self {
-            widget_map: HashMap::new(),
-            container: bx,
-            focused: None,
-            config: SimpleLayoutConfig::default(),
-        })
+impl SabiLayoutManager for SimpleLayout {
+    fn init(&self) {
+        let window = gtk::ApplicationWindow::new(&self.app);
+        window.set_resizable(false);
+        window.set_child(Some(&self.container));
+
+        // init_layer_shell(&window.clone().upcast());
+        gtk::Window::set_interactive_debugging(true);
+
+        //show window
+        window.connect_destroy(|_| std::process::exit(0));
+        window.present();
     }
-    fn parse_config(&mut self, config: ron::Value) -> Result<()> {
-        self.config = config.into_rust()?;
+
+    fn update_config(&mut self, config: RString) -> RResult<(), RBoxError> {
+        let conf = ron::from_str::<ron::Value>(&config)
+            .with_context(|| "failed to parse config to value")
+            .unwrap();
+        self.config = conf
+            .into_rust()
+            .with_context(|| "failed to parse config to struct")
+            .unwrap();
+
         self.configure_container();
+
         for widget in self.widget_map.values() {
             self.configure_widget(widget);
         }
-        log::debug!("SimpleLayout config parsed: {:#?}", self.config);
 
-        Ok(())
+        ROk(())
     }
-    fn get_name(&self) -> &'static str {
-        NAME
-    }
-    fn get_primary_widget(&self) -> gtk::Widget {
-        self.container.clone().upcast()
-    }
-    fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: Widget) {
+
+    fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: SabiWidget) {
         if self.widget_map.contains_key(activity_id) {
             return;
         }
+        let widget = widget.try_into().unwrap();
         self.configure_widget(&widget);
         self.container.append(&widget.clone());
         self.widget_map.insert(activity_id.clone(), widget);
@@ -111,8 +139,11 @@ impl LayoutManager for SimpleLayout {
             self.focused = Some(activity_id.clone());
         }
     }
-    fn get_activity(&self, activity: &ActivityIdentifier) -> Option<&Widget> {
-        self.widget_map.get(activity)
+    fn get_activity(&self, activity: &ActivityIdentifier) -> ROption<SabiWidget> {
+        self.widget_map
+            .get(activity)
+            .map(|wid| SabiWidget::from(wid.clone()))
+            .into()
     }
     fn remove_activity(&mut self, activity: &ActivityIdentifier) {
         if let Some(widget) = self.widget_map.get(activity) {
@@ -125,50 +156,8 @@ impl LayoutManager for SimpleLayout {
             }
         }
     }
-    fn list_activities(&self) -> Vec<&ActivityIdentifier> {
+    fn list_activities(&self) -> RVec<&ActivityIdentifier> {
         self.widget_map.keys().collect()
-    }
-    fn set_focus(&mut self, identifier: &ActivityIdentifier) -> Result<()> {
-        let widget = self
-            .widget_map
-            .get(identifier)
-            .with_context(|| format!("Activity {} not found", identifier))?;
-        self.container.set_focus_child(Some(&widget.clone()));
-        self.focused = Some(identifier.clone());
-        Ok(())
-    }
-    fn get_focused(&self) -> Option<&ActivityIdentifier> {
-        self.focused.as_ref()
-    }
-    fn cycle_focus_next(&mut self) -> Result<()> {
-        let focused = self
-            .focused
-            .as_ref()
-            .ok_or(anyhow!("No activity focused"))?;
-        let focused_widget = self
-            .widget_map
-            .get(focused)
-            .ok_or(anyhow!("No widget for focused activity"))?;
-        let next_widget = focused_widget
-            .next_sibling()
-            .ok_or(anyhow!("No next widget to focus on"))?;
-        self.container.set_focus_child(Some(&next_widget));
-        Ok(())
-    }
-    fn cycle_focus_previous(&mut self) -> Result<()> {
-        let focused = self
-            .focused
-            .as_ref()
-            .ok_or(anyhow!("No activity focused"))?;
-        let focused_widget = self
-            .widget_map
-            .get(focused)
-            .ok_or(anyhow!("No widget for focused activity"))?;
-        let next_widget = focused_widget
-            .prev_sibling()
-            .ok_or(anyhow!("No previous widget to focus on"))?;
-        self.container.set_focus_child(Some(&next_widget));
-        Ok(())
     }
 }
 
@@ -197,4 +186,13 @@ impl SimpleLayout {
             }
         }
     }
+}
+
+pub fn init_layer_shell(window: &Window) {
+    window.init_layer_shell();
+    window.set_layer(gtk_layer_shell::Layer::Overlay);
+    window.set_anchor(gtk_layer_shell::Edge::Top, true);
+    window.set_anchor(gtk_layer_shell::Edge::Top, true);
+    window.set_margin(gtk_layer_shell::Edge::Top, 5);
+    window.queue_resize();
 }

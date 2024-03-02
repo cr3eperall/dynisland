@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ffi::OsStr, path::PathBuf, rc::Rc, thread};
+use std::{collections::HashMap, path::PathBuf, rc::Rc, thread};
 
 use abi_stable::{
     external_types::crossbeam_channel::RSender,
@@ -11,17 +11,21 @@ use abi_stable::{
 };
 use anyhow::Result;
 use colored::Colorize;
-use gtk::{prelude::*, CssProvider, Widget, Window};
+use gtk::{prelude::*, CssProvider, Widget};
 use notify::Watcher;
 use ron::ser::PrettyConfig;
 use tokio::sync::{mpsc::unbounded_channel, Mutex};
 
 use crate::{
     config::{self, Config, GeneralConfig},
-    layout_manager::{layout_manager_base::LayoutManager, simple_layout::SimpleLayout},
+    layout_manager::simple_layout,
 };
 
-use dynisland_abi::{ModuleBuilderRef, ModuleType, UIServerCommand};
+use dynisland_abi::{
+    layout::{LayoutManagerBuilderRef, LayoutManagerType},
+    module::{ModuleBuilderRef, ModuleType, UIServerCommand},
+    SabiApplication,
+};
 
 pub enum BackendServerCommand {
     ReloadConfig(),
@@ -31,7 +35,7 @@ pub struct App {
     pub application: gtk::Application,
     // pub window: gtk::Window,
     pub module_map: Rc<Mutex<HashMap<String, ModuleType>>>,
-    pub layout: Option<Rc<Mutex<Box<dyn LayoutManager>>>>,
+    pub layout: Option<Rc<Mutex<(String, LayoutManagerType)>>>,
     // pub producers_handle: Handle,
     // pub producers_shutdown: tokio::sync::mpsc::Sender<()>,
     pub app_send: Option<RSender<UIServerCommand>>,
@@ -60,8 +64,10 @@ impl App {
             }
         });
 
-        self.layout = Some(Rc::new(Mutex::new(self.load_layout_manager())));
+        self.config = config::get_config();
+
         let module_order = self.load_modules();
+        self.load_layout_manager();
 
         self.load_layout_config();
         self.load_configs();
@@ -76,21 +82,22 @@ impl App {
         // });
 
         let layout = self.layout.clone().unwrap();
-        let widget = layout.blocking_lock().get_primary_widget();
         // let act_container1 = act_container.clone();
-        self.application.connect_activate(move |app| {
-            let window = gtk::ApplicationWindow::new(app);
-            window.set_child(Some(&widget));
+        self.application.connect_activate(move |_app| {
+            layout.blocking_lock().1.init();
+            // let window = gtk::ApplicationWindow::new(app);
+            // window.set_child(Some(&widget));
 
-            init_window(&window.clone().upcast());
-            // gtk::Window::set_interactive_debugging(true);
+            // init_window(&window.clone().upcast());
+            // // gtk::Window::set_interactive_debugging(true);
 
-            //show window
-            window.connect_destroy(|_| std::process::exit(0));
-            window.present();
+            // //show window
+            // window.connect_destroy(|_| std::process::exit(0));
+            // window.present();
 
             // crate::start_fps_counter(&window, log::Level::Trace, Duration::from_millis(200));
         });
+        let layout = self.layout.clone().unwrap();
         //UI command consumer
         glib::MainContext::default().spawn_local(async move {
             // TODO check if there are too many tasks on the UI thread and it begins to lag
@@ -101,7 +108,8 @@ impl App {
                         layout
                             .lock()
                             .await
-                            .add_activity(&activity_identifier, activity.clone());
+                            .1
+                            .add_activity(&activity_identifier, activity.clone().into());
 
                         Self::update_general_configs_on_activity(
                             &self.config.general_style_config,
@@ -110,7 +118,7 @@ impl App {
                         log::info!("registered activity on {}", activity_identifier.module());
                     }
                     UIServerCommand::RemoveActivity(activity_identifier) => {
-                        layout.lock().await.remove_activity(&activity_identifier);
+                        layout.lock().await.1.remove_activity(&activity_identifier);
                     }
                 }
             }
@@ -124,7 +132,6 @@ impl App {
                 .native()
                 .unwrap()
                 .renderer()
-                .unwrap()
                 .type_()
                 .name();
 
@@ -212,8 +219,6 @@ impl App {
     }
 
     pub fn load_modules(&mut self) -> Vec<String> {
-        //TODO move to config
-        self.config = config::get_config();
         let mut module_order = vec![];
         let mut module_def_map = HashMap::<
             String,
@@ -234,8 +239,22 @@ impl App {
         for file in files {
             let file = file.unwrap();
             let path = file.path();
-            if !path.is_file() || path.extension().unwrap_or(OsStr::new("")) != "so" {
+            if !path.is_file() {
                 continue;
+            }
+            match file
+                .file_name()
+                .to_str()
+                .unwrap()
+                .to_lowercase()
+                .strip_suffix(".so")
+            {
+                Some(name) => {
+                    if !name.ends_with("module") {
+                        continue;
+                    }
+                }
+                None => continue,
             }
             log::debug!("loading module file: {:#?}", path);
 
@@ -312,6 +331,113 @@ impl App {
         module_order
     }
 
+    //TODO layout loading from .so not tested yet but it should work identically to module loading
+    fn load_layout_manager(&mut self) {
+        let mut lm_def_map = HashMap::<
+            String,
+            extern "C" fn(SabiApplication) -> RResult<LayoutManagerType, RBoxError>,
+        >::new();
+        let lm_path = {
+            #[cfg(debug_assertions)]
+            {
+                PathBuf::from("/home/david/dev/rust/dynisland/dynisland-core/target/debug/")
+            }
+
+            #[cfg(not(debug_assertions))]
+            {
+                config::get_config_path().join("layouts")
+            }
+        };
+        let files = std::fs::read_dir(lm_path).unwrap();
+        for file in files {
+            let file = file.unwrap();
+            let path = file.path();
+            if !path.is_file() {
+                continue;
+            }
+            match file
+                .file_name()
+                .to_str()
+                .unwrap()
+                .to_lowercase()
+                .strip_suffix(".so")
+            {
+                Some(name) => {
+                    if !name.ends_with("layoutmanager") {
+                        continue;
+                    }
+                }
+                None => continue,
+            }
+            log::debug!("loading layout manager file: {:#?}", path);
+
+            let res = (|| {
+                let header = lib_header_from_path(&path)?;
+                header.init_root_module::<LayoutManagerBuilderRef>()
+            })();
+
+            let lm_builder = match res {
+                Ok(x) => x,
+                Err(e) => {
+                    log::error!(
+                        "error while loading {}: {e:#?}",
+                        path.file_name().unwrap().to_str().unwrap()
+                    );
+                    continue;
+                }
+            };
+            let name = lm_builder.name();
+            let constructor = lm_builder.new();
+
+            lm_def_map.insert(name.into(), constructor);
+        }
+
+        if self.config.layout.is_none() {
+            log::info!("no layout manager found, using default: SimpleLayout");
+            self.load_simple_layout();
+            return;
+        }
+        let lm_name = self.config.layout.as_ref().unwrap();
+        if lm_name == simple_layout::NAME {
+            log::info!("using layout manager: SimpleLayout");
+            self.load_simple_layout();
+            return;
+        }
+        let lm_constructor = lm_def_map.get(lm_name);
+        let lm_constructor = match lm_constructor {
+            None => {
+                log::info!(
+                    "layout manager {} not found, using default: SimpleLayout",
+                    lm_name
+                );
+                self.load_simple_layout();
+                return;
+            }
+            Some(x) => x,
+        };
+
+        let built_lm = match lm_constructor(self.application.clone().into()) {
+            ROk(x) => x,
+            RErr(e) => {
+                log::error!("error during creation of {lm_name}: {e:#?}");
+                log::info!("using default layout manager SimpleLayout");
+                self.load_simple_layout();
+                return;
+            }
+        };
+        log::info!("using layout manager: {lm_name}");
+        self.layout = Some(Rc::new(Mutex::new((lm_name.clone(), built_lm))));
+    }
+
+    fn load_simple_layout(&mut self) {
+        let layout_builder = simple_layout::new(self.application.clone().into());
+        let layout = layout_builder.unwrap();
+        self.layout = Some(Rc::new(Mutex::new((
+            simple_layout::NAME.to_string(),
+            layout,
+        ))));
+    }
+
     fn load_configs(&mut self) {
         self.config = config::get_config();
         log::debug!("general_config: {:#?}", self.config.general_style_config);
@@ -343,13 +469,14 @@ impl App {
         }
     }
 
+    //TODO let the modules handle this, something like module.update_general_config or module.update_config itself
     fn update_general_configs(&self) {
         let layout = self.layout.clone().unwrap();
         let layout = layout.blocking_lock();
-        let activities = layout.list_activities();
+        let activities = layout.1.list_activities();
         for activity in activities {
-            let activity = layout.get_activity(activity).unwrap();
-            Self::update_general_configs_on_activity(&self.config.general_style_config, activity);
+            let activity: Widget = layout.1.get_activity(activity).unwrap().try_into().unwrap();
+            Self::update_general_configs_on_activity(&self.config.general_style_config, &activity);
         }
     }
 
@@ -367,37 +494,20 @@ impl App {
         }
     }
 
-    //FIXME
-    fn load_layout_manager(&mut self) -> Box<dyn LayoutManager> {
-        // let layout_to_load = self
-        //     .config
-        //     .layout
-        //     .clone()
-        //     .unwrap_or(simple_layout::NAME.to_string());
-        // let mut layout: Option<Box<dyn LayoutManager>> = None;
-
-        // for (layout_name, layout_constructor) in LAYOUTS.iter() {
-        //     if layout_name == &layout_to_load {
-        //         layout = Some(layout_constructor());
-        //         break;
-        //     }
-        // }
-        // let lay = layout.unwrap_or(SimpleLayout::new());
-
-        log::debug!("loading SimpleLayout");
-        SimpleLayout::new()
-    }
-
     fn load_layout_config(&self) {
         let layout = self.layout.clone().unwrap();
         let mut layout = layout.blocking_lock();
-        let layout_name = layout.get_name();
-        if let Some(config) = self.config.layout_configs.get(layout_name) {
-            match layout.parse_config(config.clone()) {
-                Ok(()) => {
+        let layout_name = layout.0.clone();
+        if let Some(config) = self.config.layout_configs.get(&layout_name) {
+            let confs: RString =
+                ron::ser::to_string_pretty(&config.clone(), PrettyConfig::default())
+                    .unwrap()
+                    .into();
+            match layout.1.update_config(confs) {
+                ROk(()) => {
                     log::info!("loaded layout config for {layout_name}");
                 }
-                Err(err) => {
+                RErr(err) => {
                     log::error!("failed to parse layout config for {layout_name}, {err}");
                 }
             }
@@ -429,11 +539,4 @@ impl Default for App {
             css_provider: gtk::CssProvider::new(),
         }
     }
-}
-
-pub fn init_window(_window: &Window) {
-    // gtk_layer_shell::init_for_window(&window);
-    // gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
-    // gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, true);
-    // gtk_layer_shell::set_margin(&window, gtk_layer_shell::Edge::Top, 5);
 }
