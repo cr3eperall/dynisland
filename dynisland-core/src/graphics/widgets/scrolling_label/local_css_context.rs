@@ -306,7 +306,7 @@ impl<'a> glib::translate::ToGlibPtr<'a, *mut ScrollingLabelLocalCssContext>
         ::std::boxed::Box::into_raw(::std::boxed::Box::new(self.clone())) as *mut _
     }
 }
-impl glib::prelude::HasParamSpec for ScrollingLabelLocalCssContext {
+impl glib::HasParamSpec for ScrollingLabelLocalCssContext {
     type ParamSpec = glib::ParamSpecBoxed;
     type SetValue = Self;
     type BuilderFn = fn(&::core::primitive::str) -> glib::ParamSpecBoxedBuilder<Self>;

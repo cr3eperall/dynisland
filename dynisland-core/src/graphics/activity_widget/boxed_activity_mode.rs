@@ -158,7 +158,7 @@ impl<'a> glib::translate::ToGlibPtr<'a, *mut ActivityMode> for ActivityMode {
         ::std::boxed::Box::into_raw(::std::boxed::Box::new(*self)) as *mut _
     }
 }
-impl glib::prelude::HasParamSpec for ActivityMode {
+impl glib::HasParamSpec for ActivityMode {
     type ParamSpec = glib::ParamSpecBoxed;
     type SetValue = Self;
     type BuilderFn = fn(&::core::primitive::str) -> glib::ParamSpecBoxedBuilder<Self>;

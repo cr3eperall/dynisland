@@ -2,7 +2,7 @@ use std::any::Any;
 
 use anyhow::{bail, Result};
 use dyn_clone::DynClone;
-use dynisland_abi::ActivityIdentifier;
+use dynisland_abi::module::ActivityIdentifier;
 
 pub trait ValidDynType: Any + Sync + Send + DynClone {
     fn as_any(&self) -> &dyn Any;

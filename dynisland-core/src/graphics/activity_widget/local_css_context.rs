@@ -404,7 +404,7 @@ impl<'a> glib::translate::ToGlibPtr<'a, *mut ActivityWidgetLocalCssContext>
         ::std::boxed::Box::into_raw(::std::boxed::Box::new(self.clone())) as *mut _
     }
 }
-impl glib::prelude::HasParamSpec for ActivityWidgetLocalCssContext {
+impl glib::HasParamSpec for ActivityWidgetLocalCssContext {
     type ParamSpec = glib::ParamSpecBoxed;
     type SetValue = Self;
     type BuilderFn = fn(&::core::primitive::str) -> glib::ParamSpecBoxedBuilder<Self>;

@@ -11,7 +11,7 @@ use abi_stable::{
     },
 };
 use anyhow::Context;
-use dynisland_abi::{ModuleType, SabiModule, SabiModule_TO, UIServerCommand};
+use dynisland_abi::module::{ModuleType, SabiModule, SabiModule_TO, UIServerCommand};
 use env_logger::Env;
 use log::Level;
 use serde::{Deserialize, Serialize};

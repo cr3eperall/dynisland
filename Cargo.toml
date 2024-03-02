@@ -18,10 +18,10 @@ lto = true
 
 [workspace.dependencies]
 anyhow = "1.0.75"
-gtk = { version = "0.8.0", package = "gtk4", features = ["v4_12"] }
-gdk = { version = "0.8.0", package = "gdk4" }
-glib = {version="0.19.2"}
-glib-macros = { version="0.19.2"}
+gtk = { version = "0.7", package = "gtk4", features = ["v4_12"] }
+gdk = { version = "0.7", package = "gdk4" }
+glib = {version="0.18"}
+glib-macros = { version="0.18"}
 tokio = { version = "1.32.0"}
 serde = { version = "1.0.188", features = ["serde_derive"] }
 log = "0.4.20"

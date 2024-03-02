@@ -28,4 +28,5 @@ serde_json = "1.0.113"
 
 [lib]
 name = "music_module"
+
 crate-type = ["cdylib",'rlib']

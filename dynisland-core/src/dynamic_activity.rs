@@ -5,7 +5,7 @@ use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
 use crate::dynamic_property::{DynamicProperty, PropertyUpdate, ValidDynType};
 
-use dynisland_abi::ActivityIdentifier;
+use dynisland_abi::module::ActivityIdentifier;
 
 use super::graphics::activity_widget::ActivityWidget;
 

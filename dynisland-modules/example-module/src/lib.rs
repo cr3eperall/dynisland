@@ -1,5 +1,5 @@
 use abi_stable::{export_root_module, prefix_type::PrefixTypeTrait};
-use dynisland_abi::{ModuleBuilder, ModuleBuilderRef};
+use dynisland_abi::module::{ModuleBuilder, ModuleBuilderRef};
 
 mod module;
 mod widget;

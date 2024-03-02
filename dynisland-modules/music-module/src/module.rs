@@ -9,16 +9,12 @@ use abi_stable::{
     },
 };
 use anyhow::Context;
-use dynisland_abi::{ModuleType, SabiModule, SabiModule_TO, UIServerCommand};
+use dynisland_abi::module::{ModuleType, SabiModule, SabiModule_TO, UIServerCommand};
 use env_logger::Env;
 use log::Level;
 use serde::{Deserialize, Serialize};
 
-use dynisland_core::{
-    base_module::{BaseModule, ProducerRuntime},
-    cast_dyn_any,
-    graphics::activity_widget::boxed_activity_mode::ActivityMode,
-};
+use dynisland_core::base_module::{BaseModule, ProducerRuntime};
 
 use crate::{widget, NAME};
 
@@ -103,9 +99,9 @@ fn producer(module: &MusicModule) {
     // debug!("starting task");
     let config = config.clone();
     module.producers_rt.handle().spawn(async move {
-        let prev_mode = *cast_dyn_any!(mode.lock().await.get(), ActivityMode).unwrap();
-        if !matches!(prev_mode, ActivityMode::Expanded) {
-            mode.lock().await.set(ActivityMode::Expanded).unwrap();
-        }
+        // let prev_mode = *cast_dyn_any!(mode.lock().await.get(), ActivityMode).unwrap();
+        // if !matches!(prev_mode, ActivityMode::Expanded) {
+        //     mode.lock().await.set(ActivityMode::Expanded).unwrap();
+        // }
     });
 }

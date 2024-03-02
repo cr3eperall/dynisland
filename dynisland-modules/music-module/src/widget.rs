@@ -4,7 +4,7 @@ use dynisland_core::{
     dynamic_property::PropertyUpdate,
     graphics::activity_widget::{boxed_activity_mode::ActivityMode, ActivityWidget},
 };
-use gtk::{prelude::*, Widget};
+use gtk::{prelude::*, GestureClick, Widget};
 
 pub fn get_activity(
     prop_send: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
@@ -31,6 +31,72 @@ pub fn get_activity(
     activity
         .add_dynamic_property("mode", ActivityMode::Minimal)
         .unwrap();
+
+    let mode = activity.get_property("mode").unwrap();
+
+    let press_gesture = gtk::GestureClick::new();
+    press_gesture.set_button(gdk::BUTTON_PRIMARY);
+
+    let m1 = mode.clone();
+    press_gesture.connect_released(move |_gest, _, _, _| {
+        // debug!("primary");
+        // gest.set_state(gtk::EventSequenceState::Claimed);
+        let m1 = m1.clone();
+        glib::MainContext::default().spawn_local(async move {
+            let mode_g = m1.lock().await;
+            let mode = *cast_dyn_any!(mode_g.get(), ActivityMode).unwrap();
+            drop(mode_g);
+
+            match mode {
+                ActivityMode::Minimal => {
+                    m1.lock().await.set(ActivityMode::Compact).unwrap();
+                }
+                ActivityMode::Compact => {
+                    m1.lock().await.set(ActivityMode::Expanded).unwrap();
+                }
+                ActivityMode::Expanded => {
+                    m1.lock().await.set(ActivityMode::Overlay).unwrap();
+                }
+                ActivityMode::Overlay => {
+                    m1.lock().await.set(ActivityMode::Minimal).unwrap();
+                }
+            }
+        });
+    });
+
+    activity_widget.add_controller(press_gesture);
+
+    let m1 = mode.clone();
+    let release_gesture = GestureClick::new();
+    release_gesture.set_button(gdk::BUTTON_SECONDARY);
+    release_gesture.connect_released(move |_gest, _, _, _| {
+        // debug!("secondary");
+        // gest.set_state(gtk::EventSequenceState::Claimed);
+        let m1 = m1.clone();
+        glib::MainContext::default().spawn_local(async move {
+            let mode_g = m1.lock().await;
+            let mode = *cast_dyn_any!(mode_g.get(), ActivityMode).unwrap();
+            drop(mode_g);
+
+            match mode {
+                ActivityMode::Minimal => {
+                    log::warn!("Don't. It will crash and idk why");
+                    // m1.lock().await.set(ActivityMode::Overlay).unwrap();
+                }
+                ActivityMode::Compact => {
+                    m1.lock().await.set(ActivityMode::Minimal).unwrap();
+                }
+                ActivityMode::Expanded => {
+                    m1.lock().await.set(ActivityMode::Compact).unwrap();
+                }
+                ActivityMode::Overlay => {
+                    m1.lock().await.set(ActivityMode::Expanded).unwrap();
+                }
+            }
+        });
+    });
+
+    activity_widget.add_controller(release_gesture);
 
     //set mode when updated
     activity

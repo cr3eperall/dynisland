@@ -5,7 +5,7 @@ use crate::{
 };
 use abi_stable::external_types::crossbeam_channel::RSender;
 use anyhow::{Context, Result};
-use dynisland_abi::{ActivityIdentifier, UIServerCommand};
+use dynisland_abi::module::{ActivityIdentifier, UIServerCommand};
 use glib::object::Cast;
 use log::error;
 use tokio::{

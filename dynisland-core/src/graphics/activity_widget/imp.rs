@@ -44,6 +44,7 @@ pub struct ActivityWidgetPriv {
 }
 
 //init widget info
+//FIXME this could be implemented by hand to avoid the use of randomize_name
 #[object_subclass]
 impl ObjectSubclass for ActivityWidgetPriv {
     type ParentType = gtk::Widget;
