@@ -1,15 +1,13 @@
 use rand::{distributions::Alphanumeric, Rng};
 use std::cell::RefCell;
 
-use glib::{object_subclass, prelude::*};
+use glib::prelude::*;
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
 
-use crate::randomize_name;
-
 use super::{
-    boxed_activity_mode::ActivityMode, layout_manager::ActivityLayoutManager,
-    local_css_context::ActivityWidgetLocalCssContext, util, ActivityWidget,
+    boxed_activity_mode::ActivityMode, local_css_context::ActivityWidgetLocalCssContext, util,
+    ActivityWidget,
 };
 #[derive(Properties)]
 #[properties(wrapper_type = ActivityWidget)]
@@ -33,30 +31,14 @@ pub struct ActivityWidgetPriv {
 
     // pub(super) transition_manager: RefCell<TransitionManager>,
     pub(super) background_widget: RefCell<Option<gtk::Widget>>,
-
+    #[property(get, set, nick = "Minimal Mode Widget")]
     pub(super) minimal_mode_widget: RefCell<Option<gtk::Widget>>,
-
+    #[property(get, set, nick = "Compact Mode Widget")]
     pub(super) compact_mode_widget: RefCell<Option<gtk::Widget>>,
-
+    #[property(get, set, nick = "Expanded Mode Widget")]
     pub(super) expanded_mode_widget: RefCell<Option<gtk::Widget>>,
-
+    #[property(get, set, nick = "Overlay Mode Widget")]
     pub(super) overlay_mode_widget: RefCell<Option<gtk::Widget>>,
-}
-
-//init widget info
-//FIXME this could be implemented by hand to avoid the use of randomize_name
-#[object_subclass]
-impl ObjectSubclass for ActivityWidgetPriv {
-    type ParentType = gtk::Widget;
-    type Type = super::ActivityWidget;
-
-    const NAME: &'static str = randomize_name!("ActivityWidget");
-
-    fn class_init(klass: &mut Self::Class) {
-        klass.set_layout_manager_type::<ActivityLayoutManager>();
-
-        klass.set_css_name("activity-widget");
-    }
 }
 
 //default data
@@ -185,6 +167,70 @@ impl ObjectImpl for ActivityWidgetPriv {
                 self.local_css_context
                     .borrow_mut()
                     .set_config_blur_radius(value.get().unwrap(), false);
+            }
+            "minimal-mode-widget" => {
+                let widget: Option<gtk::Widget> = value.get().unwrap();
+                if let Some(content) = &*self.minimal_mode_widget.borrow() {
+                    content.unparent();
+                    content.remove_css_class("mode-minimal");
+                }
+                self.minimal_mode_widget.replace(widget);
+                if let Some(widget) = self.minimal_mode_widget.borrow().as_ref() {
+                    widget.set_parent(&self.obj().clone().upcast::<gtk::Widget>());
+                    widget.add_css_class("mode-minimal");
+                    widget.set_overflow(gtk::Overflow::Hidden);
+                }
+
+                self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
+                self.obj().queue_draw(); // Queue a draw call with the updated widget
+            }
+            "compact-mode-widget" => {
+                let widget: Option<gtk::Widget> = value.get().unwrap();
+                if let Some(content) = &*self.compact_mode_widget.borrow() {
+                    content.unparent();
+                    content.remove_css_class("mode-compact");
+                }
+                self.compact_mode_widget.replace(widget);
+                if let Some(widget) = self.compact_mode_widget.borrow().as_ref() {
+                    widget.set_parent(&self.obj().clone().upcast::<gtk::Widget>());
+                    widget.add_css_class("mode-compact");
+                    widget.set_overflow(gtk::Overflow::Hidden);
+                }
+
+                self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
+                self.obj().queue_draw(); // Queue a draw call with the updated widget
+            }
+            "expanded-mode-widget" => {
+                let widget: Option<gtk::Widget> = value.get().unwrap();
+                if let Some(content) = &*self.expanded_mode_widget.borrow() {
+                    content.unparent();
+                    content.remove_css_class("mode-expanded");
+                }
+                self.expanded_mode_widget.replace(widget);
+                if let Some(widget) = self.expanded_mode_widget.borrow().as_ref() {
+                    widget.set_parent(&self.obj().clone().upcast::<gtk::Widget>());
+                    widget.add_css_class("mode-expanded");
+                    widget.set_overflow(gtk::Overflow::Hidden);
+                }
+
+                self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
+                self.obj().queue_draw(); // Queue a draw call with the updated widget
+            }
+            "overlay-mode-widget" => {
+                let widget: Option<gtk::Widget> = value.get().unwrap();
+                if let Some(content) = &*self.overlay_mode_widget.borrow() {
+                    content.unparent();
+                    content.remove_css_class("mode-overlay");
+                }
+                self.overlay_mode_widget.replace(widget);
+                if let Some(widget) = self.overlay_mode_widget.borrow().as_ref() {
+                    widget.set_parent(&self.obj().clone().upcast::<gtk::Widget>());
+                    widget.add_css_class("mode-overlay");
+                    widget.set_overflow(gtk::Overflow::Hidden);
+                }
+
+                self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
+                self.obj().queue_draw(); // Queue a draw call with the updated widget
             }
 
             x => panic!("Tried to set inexistant property of ActivityWidget: {}", x),

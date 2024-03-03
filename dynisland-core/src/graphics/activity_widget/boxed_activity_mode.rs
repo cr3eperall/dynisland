@@ -1,4 +1,6 @@
-use crate::randomize_name;
+use std::ffi::CString;
+
+use glib::{ffi::GType, subclass::boxed::BoxedType, translate::FromGlib};
 
 #[derive(Clone, Debug, Copy)]
 pub enum ActivityMode {
@@ -24,13 +26,27 @@ impl ToString for ActivityMode {
 // ===================================
 
 impl glib::subclass::boxed::BoxedType for ActivityMode {
-    const NAME: &'static ::core::primitive::str = randomize_name!("BoxedActivityMode");
+    const NAME: &'static ::core::primitive::str = "BoxedActivityMode";
 }
 impl glib::prelude::StaticType for ActivityMode {
     #[inline]
     fn static_type() -> glib::Type {
         static TYPE: ::std::sync::OnceLock<glib::Type> = ::std::sync::OnceLock::new();
-        *TYPE.get_or_init(glib::subclass::register_boxed_type::<ActivityMode>)
+        *TYPE.get_or_init(|| {
+            unsafe {
+                let type_name = CString::new(<Self as BoxedType>::NAME).unwrap();
+                let gtype: GType = glib::gobject_ffi::g_type_from_name(type_name.as_ptr());
+
+                if gtype == glib::gobject_ffi::G_TYPE_INVALID {
+                    // type needs to be registered
+                    glib::subclass::register_boxed_type::<ActivityMode>()
+                } else {
+                    glib::Type::from_glib(gtype)
+                    // type was already registered by another module, it should be safe to not register it
+                }
+            }
+            // glib::subclass::register_boxed_type::<ActivityMode>()
+        })
     }
 }
 impl glib::value::ValueType for ActivityMode {

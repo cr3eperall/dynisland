@@ -3,6 +3,7 @@ pub mod boxed_activity_mode;
 pub mod imp;
 pub mod layout_manager;
 pub mod local_css_context;
+mod object_subclass_impl;
 
 use gtk::{prelude::*, subclass::prelude::*};
 
@@ -39,92 +40,17 @@ impl ActivityWidget {
         wid
     }
 
-    pub fn set_minimal_mode(&self, widget: &gtk::Widget) {
-        let priv_ = self.imp();
-        if let Some(content) = &*priv_.minimal_mode_widget.borrow() {
-            content.unparent();
-            content.remove_css_class("mode-minimal");
-        }
-
-        widget.set_parent(self);
-        widget.add_css_class("mode-minimal");
-        widget.set_overflow(gtk::Overflow::Hidden);
-        priv_.minimal_mode_widget.replace(Some(widget.clone()));
-        self.set_mode(self.mode()); //update the size and the position of the widget
-        self.queue_draw(); // Queue a draw call with the updated widget
-    }
-
-    pub fn set_compact_mode(&self, widget: &gtk::Widget) {
-        let priv_ = self.imp();
-        if let Some(content) = &*priv_.compact_mode_widget.borrow() {
-            content.unparent();
-            content.remove_css_class("mode-compact");
-        }
-        widget.set_parent(self);
-        widget.add_css_class("mode-compact");
-        widget.set_overflow(gtk::Overflow::Hidden);
-        priv_.compact_mode_widget.replace(Some(widget.clone()));
-        self.set_mode(self.mode()); //update the size and the position of the widget
-        self.queue_draw(); // Queue a draw call with the updated widget
-    }
-
-    pub fn set_expanded_mode(&self, widget: &gtk::Widget) {
-        let priv_ = self.imp();
-        if let Some(content) = &*priv_.expanded_mode_widget.borrow() {
-            content.unparent();
-            content.remove_css_class("mode-expanded");
-        }
-        widget.set_parent(self);
-        widget.add_css_class("mode-expanded");
-        widget.set_overflow(gtk::Overflow::Hidden);
-        priv_.expanded_mode_widget.replace(Some(widget.clone()));
-        self.set_mode(self.mode()); //update the size and the position of the widget
-        self.queue_draw(); // Queue a draw call with the updated widget
-    }
-
-    pub fn set_overlay_mode(&self, widget: &gtk::Widget) {
-        let priv_ = self.imp();
-        if let Some(content) = &*priv_.overlay_mode_widget.borrow() {
-            content.unparent();
-            content.remove_css_class("mode-overlay");
-        }
-        widget.set_parent(self);
-        widget.add_css_class("mode-overlay");
-        widget.set_overflow(gtk::Overflow::Hidden);
-        priv_.overlay_mode_widget.replace(Some(widget.clone()));
-        self.set_mode(self.mode()); //update the size and the position of the widget
-        self.queue_draw(); // Queue a draw call with the updated widget
-    }
-
-    pub fn minimal_mode(&self) -> Option<gtk::Widget> {
-        self.imp().minimal_mode_widget.borrow().clone()
-    }
-    pub fn compact_mode(&self) -> Option<gtk::Widget> {
-        self.imp().compact_mode_widget.borrow().clone()
-    }
-    pub fn expanded_mode(&self) -> Option<gtk::Widget> {
-        self.imp().expanded_mode_widget.borrow().clone()
-    }
-    pub fn overlay_mode(&self) -> Option<gtk::Widget> {
-        self.imp().overlay_mode_widget.borrow().clone()
-    }
-
     pub fn get_widget_for_mode(&self, mode: ActivityMode) -> Option<gtk::Widget> {
         match mode {
-            ActivityMode::Minimal => self.minimal_mode().clone(),
-            ActivityMode::Compact => self.compact_mode().clone(),
-            ActivityMode::Expanded => self.expanded_mode().clone(),
-            ActivityMode::Overlay => self.overlay_mode().clone(),
+            ActivityMode::Minimal => self.minimal_mode_widget(),
+            ActivityMode::Compact => self.compact_mode_widget(),
+            ActivityMode::Expanded => self.expanded_mode_widget(),
+            ActivityMode::Overlay => self.overlay_mode_widget(),
         }
     }
 
     pub fn current_widget(&self) -> Option<gtk::Widget> {
-        match self.mode() {
-            ActivityMode::Minimal => self.minimal_mode().clone(),
-            ActivityMode::Compact => self.compact_mode().clone(),
-            ActivityMode::Expanded => self.expanded_mode().clone(),
-            ActivityMode::Overlay => self.overlay_mode().clone(),
-        }
+        self.get_widget_for_mode(self.mode())
     }
     //TODO remove
     pub fn set_minimal_height(&self, height: i32, module: bool) {

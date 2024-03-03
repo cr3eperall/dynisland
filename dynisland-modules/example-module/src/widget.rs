@@ -28,10 +28,10 @@ pub fn get_activity(
     let overlay = get_overlay();
 
     //load widgets in the activity widget
-    activity_widget.set_minimal_mode(&minimal);
-    activity_widget.set_compact_mode(&compact);
-    activity_widget.set_expanded_mode(&expanded);
-    activity_widget.set_overlay_mode(&overlay);
+    activity_widget.set_minimal_mode_widget(&minimal);
+    activity_widget.set_compact_mode_widget(&compact);
+    activity_widget.set_expanded_mode_widget(&expanded);
+    activity_widget.set_overlay_mode_widget(&overlay);
 
     // activity_widget.connect_mode_notify(|f| {
     // let l = f.mode();
@@ -118,7 +118,7 @@ pub fn get_activity(
             match mode {
                 ActivityMode::Minimal => {
                     log::warn!("Don't. It will crash and idk why");
-                    // m1.lock().await.set(ActivityMode::Overlay).unwrap();
+                    m1.lock().await.set(ActivityMode::Overlay).unwrap();
                 }
                 ActivityMode::Compact => {
                     m1.lock().await.set(ActivityMode::Minimal).unwrap();

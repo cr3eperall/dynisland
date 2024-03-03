@@ -11,6 +11,7 @@ use abi_stable::{
 };
 use anyhow::Result;
 use colored::Colorize;
+use dynisland_core::graphics::activity_widget::ActivityWidget;
 use gtk::{prelude::*, CssProvider, Widget};
 use notify::Watcher;
 use ron::ser::PrettyConfig;
@@ -481,9 +482,19 @@ impl App {
     }
 
     fn update_general_configs_on_activity(config: &GeneralConfig, activity: &Widget) {
-        //TODO define property names as constants
-        activity.set_property("config-minimal-height-app", config.minimal_height as i32);
-        activity.set_property("config-blur-radius-app", config.blur_radius);
+        let activity_widget = activity.clone().downcast::<ActivityWidget>();
+        match activity_widget {
+            Ok(activity) => {
+                activity.set_blur_radius(config.blur_radius, false);
+                activity.set_minimal_height(config.minimal_height as i32, false);
+            }
+            Err(err) => {
+                log::warn!("failed to downcast activity to ActivityWidget, trying with raw property setting. Err: {err}");
+                //TODO define property names as constants
+                activity.set_property("config-minimal-height-app", config.minimal_height as i32);
+                activity.set_property("config-blur-radius-app", config.blur_radius);
+            }
+        }
     }
 
     fn init_loaded_modules(&self, order: &Vec<String>) {

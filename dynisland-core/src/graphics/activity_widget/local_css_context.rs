@@ -1,7 +1,10 @@
+use std::ffi::CString;
+
+use glib::{ffi::GType, subclass::boxed::BoxedType, translate::FromGlib};
 use gtk::CssProvider;
 use rand::{distributions::Alphanumeric, Rng};
 
-use crate::{config_variable::ConfigVariable, implement_config_get_set, randomize_name};
+use crate::{config_variable::ConfigVariable, implement_config_get_set};
 
 use super::boxed_activity_mode::ActivityMode;
 
@@ -240,14 +243,27 @@ impl Default for ActivityWidgetLocalCssContext {
 // =========================================
 
 impl glib::subclass::boxed::BoxedType for ActivityWidgetLocalCssContext {
-    const NAME: &'static ::core::primitive::str =
-        randomize_name!("BoxedActivityWidgetLocalCssContext");
+    const NAME: &'static ::core::primitive::str = "BoxedActivityWidgetLocalCssContext";
 }
 impl glib::prelude::StaticType for ActivityWidgetLocalCssContext {
     #[inline]
     fn static_type() -> glib::Type {
         static TYPE: ::std::sync::OnceLock<glib::Type> = ::std::sync::OnceLock::new();
-        *TYPE.get_or_init(glib::subclass::register_boxed_type::<ActivityWidgetLocalCssContext>)
+        *TYPE.get_or_init(|| {
+            unsafe {
+                let type_name = CString::new(<Self as BoxedType>::NAME).unwrap();
+                let gtype: GType = glib::gobject_ffi::g_type_from_name(type_name.as_ptr());
+
+                if gtype == glib::gobject_ffi::G_TYPE_INVALID {
+                    // type needs to be registered
+                    glib::subclass::register_boxed_type::<ActivityWidgetLocalCssContext>()
+                } else {
+                    glib::Type::from_glib(gtype)
+                    // type was already registered by another module, it should be safe to not register it
+                }
+            }
+            // glib::subclass::register_boxed_type::<ActivityMode>()
+        })
     }
 }
 impl glib::value::ValueType for ActivityWidgetLocalCssContext {
