@@ -98,7 +98,7 @@ pub fn new(app: SabiApplication) -> RResult<LayoutManagerType, RBoxError> {
 impl SabiLayoutManager for SimpleLayout {
     fn init(&self) {
         let window = gtk::ApplicationWindow::new(&self.app);
-        window.set_resizable(false);
+        // window.set_resizable(false);
         window.set_child(Some(&self.container));
 
         // init_layer_shell(&window.clone().upcast());
