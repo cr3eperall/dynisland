@@ -8,7 +8,7 @@ license = "mit"
 
 [dependencies]
 
-# dynisland-core = { path = "../dynisland-core"}
+dynisland-core = { path = "../dynisland-core"}
 dynisland-abi = { path = "../dynisland-abi"}
 # dynisland-modules = { path = "../dynisland-modules"}
 

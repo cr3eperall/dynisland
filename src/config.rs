@@ -24,12 +24,17 @@ pub struct Config {
 pub struct GeneralConfig {
     #[serde(default = "min_height")]
     pub minimal_height: u32,
+    #[serde(default = "min_width")]
+    pub minimal_width: u32,
     #[serde(default = "blur_radius")]
     pub blur_radius: f64,
 }
 
 fn min_height() -> u32 {
     40
+}
+fn min_width() -> u32 {
+    60
 }
 fn blur_radius() -> f64 {
     6.0
@@ -39,6 +44,7 @@ impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
             minimal_height: min_height(),
+            minimal_width: min_width(),
             blur_radius: blur_radius(),
             //TODO find a way to add scrolling label to settings
         }

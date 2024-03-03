@@ -11,6 +11,7 @@ use abi_stable::{
 };
 use anyhow::Result;
 use colored::Colorize;
+use dynisland_core::graphics::activity_widget::boxed_activity_mode::ActivityMode;
 use gtk::{prelude::*, CssProvider, Widget};
 use notify::Watcher;
 use ron::ser::PrettyConfig;
@@ -487,8 +488,9 @@ impl App {
         // }
         //TODO define property names as constants
         activity.set_property("config-minimal-height-app", config.minimal_height as i32);
+        activity.set_property("config-minimal-width-app", config.minimal_width as i32);
         activity.set_property("config-blur-radius-app", config.blur_radius);
-        
+        activity.set_property("mode", activity.property::<ActivityMode>("mode"));
     }
 
     fn init_loaded_modules(&self, order: &Vec<String>) {
