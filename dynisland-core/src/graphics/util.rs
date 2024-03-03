@@ -54,8 +54,10 @@ pub(super) fn get_final_widget_size(
     widget: &gtk::Widget,
     mode: ActivityMode,
     minimal_height: i32,
+    minimal_width: i32,
 ) -> (i32, i32) {
     let force_height = matches!(mode, ActivityMode::Minimal | ActivityMode::Compact);
+    let force_width = matches!(mode, ActivityMode::Minimal);
     let measured_width = widget.measure(
         gtk::Orientation::Horizontal,
         if force_height { minimal_height } else { -1 },
@@ -68,12 +70,14 @@ pub(super) fn get_final_widget_size(
     } else {
         measured_height.1
     };
-    let width = if widget.width_request() > 0 {
+    let width = if force_width {
+        minimal_width
+    } else if widget.width_request() > 0 {
         widget.width_request()
     } else {
         measured_width.1
     };
-    (width.max(minimal_height), height.max(minimal_height))
+    (width.max(minimal_width), height.max(minimal_height))
 }
 
 pub(super) fn get_child_aligned_allocation(

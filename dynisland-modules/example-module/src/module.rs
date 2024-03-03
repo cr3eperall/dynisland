@@ -116,14 +116,13 @@ impl ExampleModule {
     }
 }
 
-
 #[allow(unused_variables)]
 fn producer(module: &ExampleModule) {
     // let module = cast_dyn_any!(module, ExampleModule).unwrap();
     //data producer
     let config: &ExampleConfig = &module.config;
 
-    //TODO the locks shouldn't be blocking 
+    //TODO the locks shouldn't be blocking
     let registered_activities = module.base_module.registered_activities();
     let registered_activities_lock = registered_activities.blocking_lock();
     let mode = registered_activities_lock

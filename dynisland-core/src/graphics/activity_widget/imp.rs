@@ -20,10 +20,14 @@ pub struct ActivityWidgetPriv {
 
     #[property(get, set, nick = "Widget name")]
     pub(super) name: RefCell<String>,
-    
+
     /// To be used by dynisland::app only
     #[property(set, nick = "Minimal height")]
     pub(super) config_minimal_height_app: RefCell<i32>,
+
+    /// To be used by dynisland::app only
+    #[property(set, nick = "Minimal height")]
+    pub(super) config_minimal_width_app: RefCell<i32>,
 
     /// To be used by dynisland::app only
     #[property(set, nick = "Transition blur radius")]
@@ -58,11 +62,13 @@ impl Default for ActivityWidgetPriv {
 
         let css_ctx = ActivityWidgetLocalCssContext::new(&name);
         let min_h = css_ctx.get_config_minimal_height();
+        let min_w = css_ctx.get_config_minimal_width();
         let blur = css_ctx.get_config_blur_radius();
         Self {
             mode: RefCell::new(ActivityMode::Minimal),
             local_css_context: RefCell::new(css_ctx),
             config_minimal_height_app: RefCell::new(min_h),
+            config_minimal_width_app: RefCell::new(min_w),
             config_blur_radius_app: RefCell::new(blur),
             last_mode: RefCell::new(ActivityMode::Minimal),
             name: RefCell::new(name),
@@ -119,8 +125,9 @@ impl ObjectImpl for ActivityWidgetPriv {
 
                 let mut css_context = self.local_css_context.borrow_mut();
                 let min_height = css_context.get_config_minimal_height();
+                let min_width = css_context.get_config_minimal_width();
 
-                let next_size = self.get_final_widget_size_for_mode(mode, min_height);
+                let next_size = self.get_final_widget_size_for_mode(mode, min_height, min_width);
                 // log::debug!("next_size: {:?}", next_size);
                 // let prev_size=self.get_final_allocation_for_mode(last_mode, min_height);
 
@@ -138,7 +145,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                     blur_radius,
                 ));
 
-                let stretches = self.get_stretches(next_size, min_height);
+                let stretches = self.get_stretches(next_size, min_height, min_width);
                 log::trace!("stretches: {:?}", stretches);
                 css_context.set_stretch_all(stretches);
 
@@ -163,6 +170,12 @@ impl ObjectImpl for ActivityWidgetPriv {
                 self.local_css_context
                     .borrow_mut()
                     .set_config_minimal_height(value.get().unwrap(), false);
+            }
+            "config-minimal-width-app" => {
+                // self.config_minimal_height_app.replace(value.get().unwrap());
+                self.local_css_context
+                    .borrow_mut()
+                    .set_config_minimal_width(value.get().unwrap(), false);
             }
             "config-blur-radius-app" => {
                 // self.config_blur_radius_app.replace(value.get().unwrap());
@@ -278,9 +291,11 @@ impl ActivityWidgetPriv {
         &self,
         mode: ActivityMode,
         min_height: i32,
+        min_width: i32,
     ) -> (f64, f64) {
         if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-            let tmp = util::get_final_widget_size(widget, *self.mode.borrow(), min_height);
+            let tmp =
+                util::get_final_widget_size(widget, *self.mode.borrow(), min_height, min_width);
             (tmp.0 as f64, tmp.1 as f64)
         } else {
             (
@@ -291,7 +306,12 @@ impl ActivityWidgetPriv {
         }
     }
 
-    pub(super) fn get_stretches(&self, next_size: (f64, f64), min_height: i32) -> [(f64, f64); 4] {
+    pub(super) fn get_stretches(
+        &self,
+        next_size: (f64, f64),
+        min_height: i32,
+        min_width: i32,
+    ) -> [(f64, f64); 4] {
         let mut mode = ActivityMode::Minimal;
         let min_stretch = if matches!(*self.mode.borrow(), ActivityMode::Minimal) {
             (1.0, 1.0)
@@ -311,7 +331,7 @@ impl ActivityWidgetPriv {
                 }
                 (measure.0 as f64, measure.1 as f64)
             } else {
-                self.get_final_widget_size_for_mode(mode, min_height)
+                self.get_final_widget_size_for_mode(mode, min_height, min_width)
             };
             // log::debug!("min get_size: {:?}, alloc: {:?}", min_alloc, min_alloc);
             (next_size.0 / min_alloc.0, next_size.1 / min_alloc.1)
@@ -336,7 +356,7 @@ impl ActivityWidgetPriv {
                 }
                 (measure.0 as f64, measure.1 as f64)
             } else {
-                self.get_final_widget_size_for_mode(mode, min_height)
+                self.get_final_widget_size_for_mode(mode, min_height, min_width)
             };
             // log::debug!("min get_size: {:?}, alloc: {:?}", min_alloc, min_alloc);
             (next_size.0 / com_alloc.0, next_size.1 / com_alloc.1)
@@ -361,7 +381,7 @@ impl ActivityWidgetPriv {
                 }
                 (measure.0 as f64, measure.1 as f64)
             } else {
-                self.get_final_widget_size_for_mode(mode, min_height)
+                self.get_final_widget_size_for_mode(mode, min_height, min_width)
             };
             // log::debug!("min get_size: {:?}, alloc: {:?}", min_alloc, min_alloc);
             (next_size.0 / exp_alloc.0, next_size.1 / exp_alloc.1)
@@ -386,7 +406,7 @@ impl ActivityWidgetPriv {
                 }
                 (measure.0 as f64, measure.1 as f64)
             } else {
-                self.get_final_widget_size_for_mode(mode, min_height)
+                self.get_final_widget_size_for_mode(mode, min_height, min_width)
             };
             // log::debug!("min get_size: {:?}, alloc: {:?}", min_alloc, min_alloc);
             (next_size.0 / ove_alloc.0, next_size.1 / ove_alloc.1)

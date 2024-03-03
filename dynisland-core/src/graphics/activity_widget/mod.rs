@@ -52,20 +52,6 @@ impl ActivityWidget {
     pub fn current_widget(&self) -> Option<gtk::Widget> {
         self.get_widget_for_mode(self.mode())
     }
-    
-    pub fn set_minimal_height(&self, height: i32, module: bool) {
-        self.imp()
-            .local_css_context
-            .borrow_mut()
-            .set_config_minimal_height(height, module);
-        self.imp().config_minimal_height_app.replace(height);
-    }
-    pub fn get_minimal_height(&self) -> i32 {
-        self.imp()
-            .local_css_context
-            .borrow()
-            .get_config_minimal_height()
-    }
 
     pub fn set_blur_radius(&self, radius: f64, module: bool) {
         self.imp()

@@ -85,7 +85,6 @@ impl SabiModule for MusicModule {
     }
 }
 
-
 #[allow(unused_variables)]
 fn producer(module: &MusicModule) {
     //data producer

@@ -480,6 +480,7 @@ dependencies = [
  "anyhow",
  "colored",
  "dynisland-abi",
+ "dynisland-core",
  "env_logger",
  "gdk4",
  "glib",
