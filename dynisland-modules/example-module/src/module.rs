@@ -116,14 +116,14 @@ impl ExampleModule {
     }
 }
 
-//TODO add reference to module and recieve messages from main
+
 #[allow(unused_variables)]
 fn producer(module: &ExampleModule) {
     // let module = cast_dyn_any!(module, ExampleModule).unwrap();
     //data producer
     let config: &ExampleConfig = &module.config;
 
-    //TODO shouldn't be blocking locks, maybe execute async with glib::MainContext
+    //TODO the locks shouldn't be blocking 
     let registered_activities = module.base_module.registered_activities();
     let registered_activities_lock = registered_activities.blocking_lock();
     let mode = registered_activities_lock

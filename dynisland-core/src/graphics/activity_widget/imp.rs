@@ -20,10 +20,12 @@ pub struct ActivityWidgetPriv {
 
     #[property(get, set, nick = "Widget name")]
     pub(super) name: RefCell<String>,
-
+    
+    /// To be used by dynisland::app only
     #[property(set, nick = "Minimal height")]
     pub(super) config_minimal_height_app: RefCell<i32>,
 
+    /// To be used by dynisland::app only
     #[property(set, nick = "Transition blur radius")]
     pub(super) config_blur_radius_app: RefCell<f64>,
 
@@ -260,11 +262,7 @@ impl ObjectImpl for ActivityWidgetPriv {
     }
 }
 
-impl WidgetImpl for ActivityWidgetPriv {
-    // fn snapshot(&self, snapshot: &gtk::Snapshot) { // IMPORTANT try to fix lag on overlay transition
-
-    // }
-}
+impl WidgetImpl for ActivityWidgetPriv {}
 
 impl ActivityWidgetPriv {
     pub(super) fn get_mode_widget(&self, mode: ActivityMode) -> &RefCell<Option<gtk::Widget>> {

@@ -147,7 +147,7 @@ pub fn get_activity(
     activity
         .subscribe_to_property("rolling-char", move |new_value| {
             let real_value = cast_dyn_any!(new_value, char).unwrap();
-            let first_child = c1 //FIXME WTF is this, i need to change it, maybe with a macro
+            let first_child = c1 //TODO i need to change this, maybe with a macro
                 .clone()
                 .downcast::<gtk::Box>()
                 .unwrap()
@@ -174,7 +174,7 @@ pub fn get_activity(
     activity
         .subscribe_to_property("comp-label", move |new_value| {
             let real_value = cast_dyn_any!(new_value, String).unwrap();
-            compact //FIXME WTF is this, i need to change it, maybe with a macro
+            compact //TODO i need to change this, maybe with a macro
                 .clone()
                 .downcast::<gtk::Box>()
                 .unwrap()

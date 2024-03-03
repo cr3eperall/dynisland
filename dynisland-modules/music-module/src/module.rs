@@ -85,7 +85,7 @@ impl SabiModule for MusicModule {
     }
 }
 
-//TODO add reference to module and recieve messages from main
+
 #[allow(unused_variables)]
 fn producer(module: &MusicModule) {
     //data producer

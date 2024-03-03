@@ -30,7 +30,7 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
     ) -> (i32, i32, i32, i32) {
         let activity_widget = widget.clone().downcast::<ActivityWidget>();
         if let Err(err) = activity_widget {
-            log::error!("Error: {:?}", err); //TODO maybe change to glib assert
+            log::error!("Error: {:?}", err);
 
             return (0, 0, -1, -1);
         }
@@ -52,7 +52,7 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
     fn allocate(&self, widget: &gtk::Widget, width: i32, height: i32, baseline: i32) {
         let activity_widget = widget.clone().downcast::<ActivityWidget>();
         if let Err(err) = activity_widget {
-            log::error!("Error: {:?}", err); //TODO maybe change to glib assert
+            log::error!("Error: {:?}", err);
             return;
         }
         let binding = activity_widget.unwrap();

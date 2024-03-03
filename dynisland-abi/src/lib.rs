@@ -9,7 +9,7 @@ pub mod module;
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct SabiWidget {
-    //FIXME check if lifetimes are actually needed
+    //FIXME check if lifetimes are needed
     pub widget_ref: *mut core::ffi::c_void,
 }
 
@@ -39,7 +39,7 @@ impl TryInto<Widget> for SabiWidget {
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct SabiApplication {
-    //FIXME check if lifetimes are actually needed
+    //FIXME check if lifetimes are needed
     pub widget_ref: *mut core::ffi::c_void,
 }
 

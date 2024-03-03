@@ -52,7 +52,7 @@ impl ActivityWidget {
     pub fn current_widget(&self) -> Option<gtk::Widget> {
         self.get_widget_for_mode(self.mode())
     }
-    //TODO remove
+    
     pub fn set_minimal_height(&self, height: i32, module: bool) {
         self.imp()
             .local_css_context
