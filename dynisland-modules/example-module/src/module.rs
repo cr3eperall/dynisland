@@ -126,16 +126,16 @@ fn producer(module: &ExampleModule) {
     let registered_activities = module.base_module.registered_activities();
     let registered_activities_lock = registered_activities.blocking_lock();
     let mode = registered_activities_lock
-        .get_property_blocking("exampleActivity1", "mode")
+        .get_property_any_blocking("exampleActivity1", "mode")
         .unwrap();
     let label = registered_activities_lock
-        .get_property_blocking("exampleActivity1", "comp-label")
+        .get_property_any_blocking("exampleActivity1", "comp-label")
         .unwrap();
     let scrolling_text = registered_activities_lock
-        .get_property_blocking("exampleActivity1", "scrolling-label-text")
+        .get_property_any_blocking("exampleActivity1", "scrolling-label-text")
         .unwrap();
     let rolling_char = registered_activities_lock
-        .get_property_blocking("exampleActivity1", "rolling-char")
+        .get_property_any_blocking("exampleActivity1", "rolling-char")
         .unwrap();
     // label.blocking_lock().set(config.string.clone()).unwrap();
 

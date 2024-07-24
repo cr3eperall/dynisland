@@ -69,7 +69,7 @@ pub fn get_activity(
         })
         .unwrap();
 
-    let mode = activity.get_property("mode").unwrap();
+    let mode = activity.get_property_any("mode").unwrap();
 
     let press_gesture = gtk::GestureClick::new();
     press_gesture.set_button(gdk::BUTTON_PRIMARY);

@@ -5,6 +5,7 @@ pub mod module;
 pub mod player_info;
 pub mod visualizer;
 pub mod widget;
+pub mod utils;
 
 use module::new;
 

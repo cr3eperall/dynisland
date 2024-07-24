@@ -52,15 +52,16 @@ impl App {
         log::info!("pid: {}", std::process::id());
         //default css
 
-        let (app_send, app_recv) =
+        let (abi_app_send, abi_app_recv) =
             abi_stable::external_types::crossbeam_channel::unbounded::<UIServerCommand>();
 
-        self.app_send = Some(app_send.clone());
+        self.app_send = Some(abi_app_send.clone());
 
         let (app_send_async, mut app_recv_async) = unbounded_channel::<UIServerCommand>();
 
+        //forward message to app reciever
         thread::spawn(move || {
-            while let Ok(msg) = app_recv.recv() {
+            while let Ok(msg) = abi_app_recv.recv() {
                 app_send_async.send(msg).expect("failed to send message");
             }
         });

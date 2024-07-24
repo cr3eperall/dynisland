@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use tokio::sync::Mutex;
 
-use crate::{dynamic_activity::DynamicActivity, dynamic_property::DynamicProperty};
+use crate::{dynamic_activity::DynamicActivity, dynamic_property::DynamicPropertyAny};
 use anyhow::{anyhow, bail, Result};
 
 #[derive(Default)]
@@ -28,23 +28,23 @@ impl ActivityMap {
         self.map.insert(activity_id.activity(), activity.clone());
         Ok(())
     }
-    pub fn get_property_blocking(
+    pub fn get_property_any_blocking(
         &self,
         activity_id: &str,
         property_name: &str,
-    ) -> Result<Arc<Mutex<DynamicProperty>>> {
+    ) -> Result<Arc<Mutex<DynamicPropertyAny>>> {
         self.get_activity(activity_id)?
             .blocking_lock()
-            .get_property(property_name)
+            .get_property_any(property_name)
     }
-    pub async fn get_property(
+    pub async fn get_property_any(
         &self,
         activity_id: &str,
         property_name: &str,
-    ) -> Result<Arc<Mutex<DynamicProperty>>> {
+    ) -> Result<Arc<Mutex<DynamicPropertyAny>>> {
         self.get_activity(activity_id)?
             .lock()
             .await
-            .get_property(property_name)
+            .get_property_any(property_name)
     }
 }

@@ -3,7 +3,7 @@ use dyn_clone::DynClone;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
-use crate::dynamic_property::{DynamicProperty, PropertyUpdate, ValidDynType};
+use crate::dynamic_property::{DynamicPropertyAny, PropertyUpdate, ValidDynType};
 
 use dynisland_abi::module::ActivityIdentifier;
 
@@ -20,7 +20,7 @@ impl Clone for Box<dyn ValidDynamicClosure> {
 
 /// Bundles a `DynamicProperty` with all of its subscribers
 pub struct SubscribableProperty {
-    pub property: Arc<Mutex<DynamicProperty>>,
+    pub property: Arc<Mutex<DynamicPropertyAny>>,
     pub subscribers: Vec<Box<dyn ValidDynamicClosure>>,
 }
 
@@ -64,7 +64,7 @@ impl DynamicActivity {
         if self.property_dictionary.contains_key(name) {
             bail!("propery already added")
         }
-        let prop = DynamicProperty {
+        let prop = DynamicPropertyAny {
             backend_channel: self.ui_send.clone(),
             activity_id: self.get_identifier(),
             property_name: name.to_string(),
@@ -100,7 +100,7 @@ impl DynamicActivity {
     }
 
     /// for producer, returns Err if the property doesn't exist
-    pub fn get_property(&self, name: &str) -> Result<Arc<Mutex<DynamicProperty>>> {
+    pub fn get_property_any(&self, name: &str) -> Result<Arc<Mutex<DynamicPropertyAny>>> {
         match self.property_dictionary.get(name) {
             Some(property) => Ok(property.property.clone()),
             None => bail!("property {} doesn't exist on this activity", name),

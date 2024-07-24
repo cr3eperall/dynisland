@@ -17,7 +17,8 @@ pub trait SabiModule {
     fn init(&self);
 
     fn update_config(&mut self, config: RString) -> RResult<(), RBoxError>;
-
+    //TODO
+    /// !Rename to update_configs
     fn restart_producers(&self);
 }
 
