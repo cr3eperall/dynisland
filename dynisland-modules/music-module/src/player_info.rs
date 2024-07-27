@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use mpris::{PlaybackStatus, TrackID};
+use mpris::{DBusError, PlaybackStatus, Player, TrackID};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 #[derive(serde::Deserialize, Debug)]
@@ -35,6 +35,7 @@ pub struct CurrentSongArtwork {
     pub height: Option<u64>,
 }
 
+#[derive(Debug)]
 pub enum MprisProgressEvent {
     PlayerQuit,
     Progress(MprisProgress),
@@ -48,8 +49,11 @@ pub struct MprisProgress {
     pub playback_status: mpris::PlaybackStatus,
     pub shuffle: bool,
     pub loop_status: mpris::LoopStatus,
+    pub can_playpause: bool,
     pub can_go_next: bool,
     pub can_go_prev: bool,
+    pub can_loop: bool,
+    pub can_shuffle: bool,
 
     /// When this Progress was constructed, in order to calculate how old it is.
     instant: Instant,
@@ -68,8 +72,11 @@ impl<'a> From<mpris::ProgressTick<'a>> for MprisProgress {
             playback_status: progress.progress.playback_status(),
             shuffle: progress.progress.shuffle(),
             loop_status: progress.progress.loop_status(),
+            can_playpause: true,
             can_go_next: true,
             can_go_prev: true,
+            can_loop: true,
+            can_shuffle: true,
             instant: *progress.progress.created_at(),
             position: progress.progress.position(),
             rate: progress.progress.playback_rate(),
@@ -102,96 +109,109 @@ pub struct MprisPlayer {
 
 impl MprisPlayer {
     ///uses active player as fallback
-    pub fn new(name: &str) -> Self {
-        let player = mpris::PlayerFinder::new()
-            .expect("Could not connect to D-Bus")
-            .find_by_name(name)
-            .unwrap_or_else(|_| {
-                mpris::PlayerFinder::new()
-                    .expect("Could not connect to D-Bus")
-                    .find_active()
-                    .unwrap()
-            });
+    pub fn new(name: &str) -> Result<Self> {
+        let player = Self::find_new_player(name)?;
 
-        Self {
+        Ok(Self {
             player: Rc::new(std::sync::Mutex::new(player)),
-        }
+        })
+    }
+}
+
+impl Clone for MprisPlayer {
+    fn clone(&self) -> Self {
+        Self::new(self.player.lock().unwrap().bus_name_player_name_part()).unwrap()
     }
 }
 
 unsafe impl Send for MprisPlayer {}
 impl MprisPlayer {
-    pub fn play(&self) -> Result<()> {
+    pub fn play(&self) -> Result<(), DBusError> {
         self.player.lock().unwrap().play()?;
         Ok(())
     }
 
-    pub fn pause(&self) -> Result<()> {
+    pub fn pause(&self) -> Result<(), DBusError> {
         self.player.lock().unwrap().pause()?;
         Ok(())
     }
 
-    pub fn play_pause(&self) -> Result<()> {
+    pub fn play_pause(&self) -> Result<(), DBusError> {
         self.player.lock().unwrap().play_pause()?;
         Ok(())
     }
 
-    pub fn next(&self) -> Result<()> {
+    pub fn next(&self) -> Result<(), DBusError> {
         self.player.lock().unwrap().next()?;
         Ok(())
     }
 
-    pub fn previous(&self) -> Result<()> {
+    pub fn previous(&self) -> Result<(), DBusError> {
         self.player.lock().unwrap().previous()?;
         Ok(())
     }
 
-    pub fn stop(&self) -> Result<()> {
+    pub fn stop(&self) -> Result<(), DBusError> {
         self.player.lock().unwrap().stop()?;
         Ok(())
     }
 
-    pub fn get_playback_status(&self) -> Result<mpris::PlaybackStatus> {
+    pub fn get_playback_status(&self) -> Result<mpris::PlaybackStatus, DBusError> {
         let playback_status = self.player.lock().unwrap().get_playback_status()?;
         Ok(playback_status)
     }
 
-    pub fn can_go_next(&self) -> Result<bool> {
+    pub fn can_playpause(&self) -> Result<bool, DBusError> {
+        let res = self.player.lock().unwrap().can_play()? && self.player.lock().unwrap().can_pause()?;
+        Ok(res)
+    }
+
+    pub fn can_go_next(&self) -> Result<bool, DBusError> {
         let res = self.player.lock().unwrap().can_go_next()?;
         Ok(res)
     }
 
-    pub fn can_go_prev(&self) -> Result<bool> {
+    pub fn can_go_prev(&self) -> Result<bool, DBusError> {
         let res = self.player.lock().unwrap().can_go_previous()?;
         Ok(res)
     }
 
-    pub fn set_shuffle(&self, shuffle: bool) -> Result<()> {
+    pub fn can_loop(&self) -> Result<bool, DBusError> {
+        let res = self.player.lock().unwrap().can_loop()?;
+        Ok(res)
+    }
+
+    pub fn can_shuffle(&self) -> Result<bool, DBusError> {
+        let res = self.player.lock().unwrap().can_shuffle()?;
+        Ok(res)
+    }
+
+    pub fn set_shuffle(&self, shuffle: bool) -> Result<(), DBusError> {
         self.player.lock().unwrap().set_shuffle(shuffle)?;
         Ok(())
     }
 
-    pub fn get_shuffle(&self) -> Result<bool> {
+    pub fn get_shuffle(&self) -> Result<bool, DBusError> {
         let shuffle = self.player.lock().unwrap().get_shuffle()?;
         Ok(shuffle)
     }
 
-    pub fn set_loop(&self, repeat: mpris::LoopStatus) -> Result<()> {
+    pub fn set_loop(&self, repeat: mpris::LoopStatus) -> Result<(), DBusError> {
         self.player.lock().unwrap().set_loop_status(repeat)?;
         Ok(())
     }
 
-    pub fn get_loop(&self) -> Result<mpris::LoopStatus> {
+    pub fn get_loop(&self) -> Result<mpris::LoopStatus, DBusError> {
         let loop_status = self.player.lock().unwrap().get_loop_status()?;
         Ok(loop_status)
     }
 
-    pub fn seek(&self, offset: i64) -> Result<()> {
+    pub fn seek(&self, offset: i64) -> Result<(), DBusError> {
         self.player.lock().unwrap().seek(offset * 1_000_000)?;
         Ok(())
     }
 
-    pub fn get_position(&self) -> Result<Duration> {
+    pub fn get_position(&self) -> Result<Duration, DBusError> {
         let position = self.player.lock().unwrap().get_position()?;
         Ok(position)
     }
@@ -219,17 +239,17 @@ impl MprisPlayer {
         ))
     }
 
-    pub fn set_volume(&self, volume: f64) -> Result<()> {
+    pub fn set_volume(&self, volume: f64) -> Result<(), DBusError> {
         self.player.lock().unwrap().set_volume(volume)?;
         Ok(())
     }
 
-    pub fn get_volume(&self) -> Result<f64> {
+    pub fn get_volume(&self) -> Result<f64, DBusError> {
         let volume = self.player.lock().unwrap().get_volume()?;
         Ok(volume)
     }
 
-    pub fn get_metadata(&self) -> Result<mpris::Metadata> {
+    pub fn get_metadata(&self) -> Result<mpris::Metadata, DBusError> {
         let metadata = self.player.lock().unwrap().get_metadata()?;
         Ok(metadata)
     }
@@ -284,17 +304,17 @@ impl MprisPlayer {
 
     pub fn start_signal_listener(&self) -> Result<UnboundedReceiver<mpris::Event>> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        let player_id = self.player.lock().unwrap().identity().to_string();
+        let player_id = self.player.lock().unwrap().bus_name_player_name_part().to_string();
         std::thread::spawn(move || {
             let player = mpris::PlayerFinder::new()
                 .expect("Could not connect to D-Bus")
                 .find_by_name(&player_id)
                 .unwrap_or_else(|err| {
-                    log::warn!("error finding player: {:?}", err);
+                    log::error!("error finding player: {:?}", err);
                     panic!()
                 });
             let iter = player.events().unwrap_or_else(|err| {
-                log::warn!("error getting events: {:?}", err);
+                log::error!("error getting events: {:?}", err);
                 panic!()
             });
             for event in iter {
@@ -323,53 +343,76 @@ impl MprisPlayer {
     )> {
         let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
         let (refresh_tx, mut seek_rx) = tokio::sync::mpsc::unbounded_channel::<Duration>();
-        let player_id = self.player.lock().unwrap().identity().to_string();
+        let player_id = self.player.lock().unwrap().bus_name_player_name_part().to_string();
         std::thread::spawn(move || {
-            let player = mpris::PlayerFinder::new()
-                .expect("Could not connect to D-Bus")
-                .find_by_name(&player_id)
-                .unwrap_or_else(|err| {
-                    log::warn!("error finding player: {:?}", err);
-                    panic!()
-                });
-            let mut prog_tracker = player
-                .track_progress(interval.as_millis() as u32)
-                .unwrap_or_else(|err| {
-                    log::warn!("error getting progress tracker: {:?}", err);
-                    panic!()
-                });
+            let player = match Self::find_new_player(&player_id) {
+                Ok(player) => player,
+                Err(err) => {
+                    log::warn!("error getting a player: {}",err);
+                    return;
+                },
+            };
+            let mut prog_tracker = match player
+                            .track_progress(interval.as_millis() as u32) {
+                Ok(prog) => prog,
+                Err(err) => {
+                    log::warn!("error getting progress tracker: {}",err);
+                    return;
+                },
+            };
 
             let mut last_refresh = Instant::now();
             let tick = prog_tracker.tick();
             let mut progress = MprisProgress::from(tick);
+
             loop {
                 // FIXME it's too convoluted
                 let mut refresh = false;
                 if interval.saturating_sub(last_refresh.elapsed()).is_zero() {
                     last_refresh = Instant::now();
                     refresh = true;
-                    prog_tracker
-                        .force_refresh()
-                        .expect("failed to refresh player");
+                    if prog_tracker.force_refresh().is_err() {
+                        break;
+                    }
                 }
                 let tick = prog_tracker.tick();
+                refresh |= tick.progress_changed;
                 if tick.player_quit {
                     event_tx.send(MprisProgressEvent::PlayerQuit).unwrap();
                 }
-                if refresh || tick.progress_changed {
+                if refresh {
                     progress = MprisProgress::from(tick);
                 }
-                if progress.playback_status == PlaybackStatus::Playing || progress.progress_changed
-                {
+                if progress.playback_status == PlaybackStatus::Playing || refresh {
                     if let Ok(val) = seek_rx.try_recv() {
                         progress.position = val;
+                        //wait for mpris server to update position
                         last_refresh = Instant::now().checked_add(interval).unwrap();
                     }
                     if refresh {
-                        progress.can_go_next =
-                            player.can_go_next().expect("failed to reach player");
-                        progress.can_go_prev =
-                            player.can_go_previous().expect("failed to reach player");
+                        progress.can_go_next = match player.can_go_next() {
+                            Ok(b) => b,
+                            Err(_) => break,
+                        };
+                        progress.can_go_prev = match player.can_go_previous() {
+                            Ok(b) => b,
+                            Err(_) => break,
+                        };
+                        progress.can_loop = match player.can_loop() {
+                            Ok(b) => b,
+                            Err(_) => break,
+                        };
+                        progress.can_shuffle = match player.can_shuffle() {
+                            Ok(b) => b,
+                            Err(_) => break,
+                        };
+                        progress.can_playpause = match player.can_play() {
+                            Ok(a) => match player.can_pause() {
+                                Ok(b) => a && b,
+                                Err(_) => break,
+                            },
+                            Err(_) => break,
+                        };
                     }
                     if event_tx
                         .send(MprisProgressEvent::Progress(progress.clone()))
@@ -381,6 +424,26 @@ impl MprisPlayer {
             }
         });
         Ok((event_rx, refresh_tx))
+    }
+
+    pub fn find_new_player(name: &str) -> Result<Player> {
+        let players = match mpris::PlayerFinder::new()
+            .expect("Could not connect to D-Bus")
+            .iter_players()
+        {
+            Ok(player) => player,
+            Err(_) => bail!("no player found"),
+        };
+        for player in players.flatten() {
+            let player_name = player.bus_name_player_name_part();
+            if name.to_lowercase() == player_name.to_lowercase() {
+                return Ok(player);
+            }
+        }
+        log::info!("could not find player {}, using active", name);
+        Ok(mpris::PlayerFinder::new()
+            .expect("Could not connect to D-Bus")
+            .find_active()?)
     }
 }
 

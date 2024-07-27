@@ -14,6 +14,11 @@ use glib::Bytes;
 use gtk::{prelude::*, GestureClick, Image, Widget};
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::{
+    module,
+    visualizer::{self, get_visualizer},
+};
+
 pub enum UIAction {
     Shuffle,
     Previous,
@@ -25,8 +30,11 @@ pub enum UIAction {
 #[derive(Debug, Clone)]
 pub struct UIPlaybackStatus {
     pub playback_status: mpris::PlaybackStatus,
+    pub can_playpause: bool,
     pub can_go_next: bool,
     pub can_go_previous: bool,
+    pub can_loop: bool,
+    pub can_shuffle: bool,
     pub shuffle: bool,
     pub loop_status: mpris::LoopStatus,
 }
@@ -34,8 +42,11 @@ impl Default for UIPlaybackStatus {
     fn default() -> Self {
         UIPlaybackStatus {
             playback_status: mpris::PlaybackStatus::Stopped,
+            can_playpause: false,
             can_go_next: false,
             can_go_previous: false,
+            can_loop: false,
+            can_shuffle: false,
             shuffle: false,
             loop_status: mpris::LoopStatus::None,
         }
@@ -111,10 +122,8 @@ pub fn get_activity(
             .unwrap();
     }
 
-    let empty:Vec<u8>=Vec::new();
-    activity
-        .add_dynamic_property("album-art", empty)
-        .unwrap();
+    let empty: Vec<u8> = Vec::new();
+    activity.add_dynamic_property("album-art", empty).unwrap();
     {
         let album_art = activity_widget
             .expanded_mode_widget()
@@ -124,19 +133,65 @@ pub fn get_activity(
             .first_child()
             .unwrap()
             .first_child()
-            .unwrap().downcast::<Image>().unwrap();
+            .unwrap()
+            .downcast::<Image>()
+            .unwrap();
 
         activity
             .subscribe_to_property("album-art", move |new_value| {
                 let buf = cast_dyn_any!(new_value, Vec<u8>).unwrap();
-                let data=buf.as_slice();
-                let data =Bytes::from(data);
-                let mut pixbuf = Pixbuf::from_stream(&MemoryInputStream::from_bytes(&data), None::<&gtk::gio::Cancellable>).ok();
-                if pixbuf.is_none(){
-                    pixbuf=Pixbuf::new(gdk::gdk_pixbuf::Colorspace::Rgb, true, 8, 10, 10);
+                let data = buf.as_slice();
+                let data = Bytes::from(data);
+                let mut pixbuf = Pixbuf::from_stream(
+                    &MemoryInputStream::from_bytes(&data),
+                    None::<&gtk::gio::Cancellable>,
+                )
+                .ok();
+                if pixbuf.is_none() {
+                    pixbuf = Pixbuf::new(gdk::gdk_pixbuf::Colorspace::Rgb, true, 8, 10, 10);
                 }
-                let texture=gdk::Texture::for_pixbuf(&pixbuf.unwrap());
+                // let mut pixbuf=pixbuf.unwrap().scale_simple(6, 3, gdk::gdk_pixbuf::InterpType::Bilinear);
+                let texture = gdk::Texture::for_pixbuf(&pixbuf.unwrap());
                 album_art.set_paintable(Some(&texture));
+            })
+            .unwrap();
+    }
+
+    let bar_height_css_provider = gtk::CssProvider::new();
+    gtk::style_context_add_provider_for_display(
+        &gdk::Display::default().unwrap(),
+        &bar_height_css_provider,
+        gtk::STYLE_PROVIDER_PRIORITY_USER,
+    );
+    activity
+        .add_dynamic_property("visualizer-data", [0_u8; 6])
+        .unwrap();
+    {
+        let aw = activity_widget.clone();
+        activity
+            .subscribe_to_property("visualizer-data", move |new_value| {
+                let data = cast_dyn_any!(new_value, [u8; 6]).unwrap();
+                if let ActivityMode::Expanded = aw.mode() {
+                    bar_height_css_provider.load_from_string(&visualizer::get_bar_css(data, 32, 55))
+                }
+            })
+            .unwrap();
+    }
+
+    let gradient_css_provider = gtk::CssProvider::new();
+    gtk::style_context_add_provider_for_display(
+        &gdk::Display::default().unwrap(),
+        &gradient_css_provider,
+        gtk::STYLE_PROVIDER_PRIORITY_USER,
+    );
+    activity
+        .add_dynamic_property("visualizer-gradient", [[[0_u8; 3]; 6]; 3])
+        .unwrap();
+    {
+        activity
+            .subscribe_to_property("visualizer-gradient", move |new_value| {
+                let data = cast_dyn_any!(new_value, [[[u8; 3]; 6]; 3]).unwrap();
+                gradient_css_provider.load_from_string(&visualizer::get_gradient_css(data))
             })
             .unwrap();
     }
@@ -167,29 +222,32 @@ pub fn get_activity(
             .unwrap()
             .downcast::<gtk::Label>()
             .unwrap();
+        let aw = activity_widget.clone();
         activity
             .subscribe_to_property("music-time", move |new_value| {
                 let (mut current_time, mut total_duration) =
                     cast_dyn_any!(new_value, (Duration, Duration)).unwrap();
-                progress_bar.set_range(0.0, total_duration.as_millis() as f64);
+                if let ActivityMode::Expanded = aw.mode() {
+                    progress_bar.set_range(0.0, total_duration.as_millis() as f64);
 
-                if !progress_bar.has_css_class("dragging") {
-                    progress_bar.set_value(current_time.as_millis() as f64);
-                    // log::warn!("{}",progress_bar.value());
+                    if !progress_bar.has_css_class("dragging") {
+                        progress_bar.set_value(current_time.as_millis() as f64);
+                        // log::warn!("{}",progress_bar.value());
+                    }
+                    current_time = Duration::from_secs(current_time.as_secs());
+                    total_duration = Duration::from_secs(total_duration.as_secs());
+                    elapsed.set_label(&format!(
+                        "{:02}:{:02}",
+                        current_time.as_secs() / 60,
+                        current_time.as_secs() % 60
+                    ));
+                    let remaining_time = total_duration.saturating_sub(current_time);
+                    remaining.set_label(&format!(
+                        "-{:02}:{:02}",
+                        remaining_time.as_secs() / 60,
+                        remaining_time.as_secs() % 60
+                    ));
                 }
-                current_time = Duration::from_secs(current_time.as_secs());
-                total_duration = Duration::from_secs(total_duration.as_secs());
-                elapsed.set_label(&format!(
-                    "{:02}:{:02}",
-                    current_time.as_secs() / 60,
-                    current_time.as_secs() % 60
-                ));
-                let remaining_time = total_duration.saturating_sub(current_time);
-                remaining.set_label(&format!(
-                    "-{:02}:{:02}",
-                    remaining_time.as_secs() / 60,
-                    remaining_time.as_secs() % 60
-                ));
             })
             .unwrap();
     }
@@ -236,55 +294,84 @@ pub fn get_activity(
         activity
             .subscribe_to_property("playback-status", move |new_value| {
                 let playback_status = cast_dyn_any!(new_value, UIPlaybackStatus).unwrap();
-
-                match playback_status.shuffle {
+                match playback_status.can_shuffle {
                     true => {
-                        shuffle.set_label("ON");
+                        match playback_status.shuffle {
+                            true => {
+                                shuffle.set_icon_name("media-playlist-shuffle-symbolic");
+                            }
+                            false => {
+                                shuffle.set_icon_name("media-playlist-consecutive-symbolic");
+                            }
+                        }
+                        shuffle.set_sensitive(true);
                     }
                     false => {
-                        shuffle.set_label("OFF");
+                        shuffle.set_icon_name("media-playlist-shuffle-symbolic");
+                        shuffle.set_sensitive(false);
                     }
                 }
+
                 match playback_status.can_go_previous {
                     true => {
-                        previous.set_label("<-");
+                        // previous.set_icon_name("media-seek-backward-symbolic");
                         previous.set_sensitive(true);
                     }
                     false => {
-                        previous.set_label("--");
+                        // previous.set_icon_name("list-remove-symbolic");
                         previous.set_sensitive(false);
                     }
                 }
-                match playback_status.playback_status {
-                    mpris::PlaybackStatus::Playing => {
-                        play_pause.set_label("Ps");
-                    }
-                    mpris::PlaybackStatus::Paused => {
-                        play_pause.set_label("Pl");
-                    }
-                    mpris::PlaybackStatus::Stopped => {
-                        play_pause.set_label("St");
-                    }
+                match playback_status.can_playpause{
+                    true => {
+                        match playback_status.playback_status {
+                            mpris::PlaybackStatus::Playing => {
+                                //TODO find another icon because i don't like it
+                                play_pause.set_icon_name("media-playback-pause-symbolic");
+                            }
+                            mpris::PlaybackStatus::Paused => {
+                                play_pause.set_icon_name("media-playback-start-symbolic");
+                            }
+                            mpris::PlaybackStatus::Stopped => {
+                                play_pause.set_icon_name("media-playback-stop-symbolic");
+                            }
+                        }
+                        play_pause.set_sensitive(true);
+                    },
+                    false => {
+                        play_pause.set_icon_name("media-playback-stop-symbolic");
+                        play_pause.set_sensitive(false);
+                    },
                 }
+                
                 match playback_status.can_go_next {
                     true => {
-                        next.set_label("->");
+                        // next.set_icon_name("media-seek-forward-symbolic");
                         next.set_sensitive(true);
                     }
                     false => {
                         next.set_sensitive(false);
-                        next.set_label("--");
+                        // next.set_icon_name("list-remove-symbolic");
                     }
                 }
-                match playback_status.loop_status {
-                    mpris::LoopStatus::None => {
-                        repeat.set_label("OFF");
+                match playback_status.can_loop {
+                    true => {
+                        match playback_status.loop_status {
+                            mpris::LoopStatus::None => {
+                                repeat.set_icon_name("mail-forward");
+                            }
+                            mpris::LoopStatus::Track => {
+                                repeat.set_icon_name("media-playlist-repeat-song-symbolic");
+                            }
+                            mpris::LoopStatus::Playlist => {
+                                repeat.set_icon_name("media-playlist-repeat-symbolic");
+                            }
+                        }
+                        repeat.set_sensitive(true);
                     }
-                    mpris::LoopStatus::Track => {
-                        repeat.set_label("TRK");
-                    }
-                    mpris::LoopStatus::Playlist => {
-                        repeat.set_label("PL");
+                    false => {
+                        repeat.set_icon_name("media-playlist-repeat-symbolic");
+                        repeat.set_sensitive(false);
                     }
                 }
             })
@@ -498,7 +585,7 @@ fn info_container(width: f32, height: f32) -> Widget {
         album_art.add_css_class("album-art");
         {
             let image = gtk::Image::builder()
-                .file("/home/david/Pictures/Music_not_playing.svg")
+                .file(module::DEFAULT_ALBUM_ART_PATH)
                 .hexpand(true)
                 .halign(gtk::Align::Center)
                 .valign(gtk::Align::Center)
@@ -540,6 +627,7 @@ fn info_container(width: f32, height: f32) -> Widget {
                     song_name.set_valign(gtk::Align::Center);
                     song_name.set_hexpand(false);
                     song_name.add_css_class("song-name");
+                    song_name.set_scroll_speed(20.0, true);
                 }
 
                 let artist_name = gtk::Label::builder() //TODO maybe replace with scrollable label, for now ellipses are enough
@@ -560,20 +648,18 @@ fn info_container(width: f32, height: f32) -> Widget {
         }
 
         let visualizer_size = height.min(width * 0.2); //TODO replace with actual visualizer
-        let visualizer = gtk::Box::builder()
-            .width_request(visualizer_size as i32)
-            .build();
-        visualizer.add_css_class("visualizer");
-        {
-            let image = gtk::Image::builder()
-                .file("/home/david/Pictures/visualizer_tmp.jpeg")
-                .width_request((visualizer_size * 0.8) as i32)
-                .height_request((visualizer_size * 0.8) as i32)
-                .hexpand(true)
-                .halign(gtk::Align::Center)
-                .build();
-            visualizer.append(&image);
-        }
+        let visualizer = get_visualizer(visualizer_size, visualizer_size);
+        // visualizer.add_css_class("visualizer");
+        // {
+        //     let image = gtk::Image::builder()
+        //         .file("/home/david/Pictures/visualizer_tmp.jpeg")
+        //         .width_request((visualizer_size * 0.8) as i32)
+        //         .height_request((visualizer_size * 0.8) as i32)
+        //         .hexpand(true)
+        //         .halign(gtk::Align::Center)
+        //         .build();
+        //     visualizer.append(&image);
+        // }
 
         container.append(&album_art);
         container.append(&music_info_container);
@@ -598,13 +684,15 @@ fn progress_container(width: f32, height: f32, action_tx: UnboundedSender<UIActi
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .width_request((width * 0.15) as i32)
+            .margin_start((width * 0.05) as i32)
             .build();
         elapsed.add_css_class("elapsed-time");
 
+        //TODO add time when dragging scale
         let progress_bar = gtk::Scale::builder()
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
-            .width_request((width * 0.7) as i32)
+            .width_request((width * 0.6) as i32)
             .draw_value(false)
             .build();
         progress_bar.add_css_class("progress-bar");
@@ -617,7 +705,9 @@ fn progress_container(width: f32, height: f32, action_tx: UnboundedSender<UIActi
             release_gesture.set_button(gdk::BUTTON_PRIMARY);
             release_gesture.connect_unpaired_release(move |_gest, _, _, _, _| {
                 action_tx
-                    .send(UIAction::SetPosition(Duration::from_millis(prog_1.value() as u64)))
+                    .send(UIAction::SetPosition(Duration::from_millis(
+                        prog_1.value() as u64
+                    )))
                     .expect("failed to send seek message");
             });
             progress_bar.add_controller(release_gesture);
@@ -628,6 +718,7 @@ fn progress_container(width: f32, height: f32, action_tx: UnboundedSender<UIActi
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .width_request((width * 0.15) as i32)
+            .margin_end((width * 0.05) as i32)
             .build();
         remaining.add_css_class("remaining-time");
 
@@ -652,11 +743,13 @@ fn controls_container(width: f32, height: f32, action_tx: UnboundedSender<UIActi
     container.add_css_class("controls");
     {
         let shuffle = gtk::Button::builder()
-            .label("Sh")
+            // .label("Sh")
+            .icon_name("media-playlist-shuffle-symbolic")
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .height_request((height.min(width * 0.15)) as i32)
             .width_request((width * 0.15) as i32)
+            .sensitive(false)
             .build();
         shuffle.add_css_class("shuffle");
         {
@@ -667,11 +760,13 @@ fn controls_container(width: f32, height: f32, action_tx: UnboundedSender<UIActi
         }
 
         let previous = gtk::Button::builder()
-            .label("Pr")
+            // .label("Pr")
+            .icon_name("media-seek-backward")
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .height_request((height.min(width * 0.2)) as i32)
             .width_request((width * 0.2) as i32)
+            .sensitive(false)
             .build();
         previous.add_css_class("previous");
         {
@@ -682,7 +777,8 @@ fn controls_container(width: f32, height: f32, action_tx: UnboundedSender<UIActi
         }
 
         let play_pause = gtk::Button::builder()
-            .label("Pl")
+            // .label("Pl")
+            .icon_name("media-playback-start-symbolic")
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .height_request((height.min(width * 0.2)) as i32)
@@ -697,11 +793,13 @@ fn controls_container(width: f32, height: f32, action_tx: UnboundedSender<UIActi
         }
 
         let next = gtk::Button::builder()
-            .label("Nx")
+            // .label("Nx")
+            .icon_name("media-seek-forward")
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .height_request((height.min(width * 0.2)) as i32)
             .width_request((width * 0.2) as i32)
+            .sensitive(false)
             .build();
         next.add_css_class("next");
         {
@@ -712,11 +810,13 @@ fn controls_container(width: f32, height: f32, action_tx: UnboundedSender<UIActi
         }
 
         let repeat = gtk::Button::builder()
-            .label("Rp")
+            // .label("Rp")
+            .icon_name("media-playlist-repeat-symbolic")
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .height_request((height.min(width * 0.15)) as i32)
             .width_request((width * 0.15) as i32)
+            .sensitive(false)
             .build();
         repeat.add_css_class("loop");
         {

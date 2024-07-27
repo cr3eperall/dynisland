@@ -14,7 +14,7 @@ gtk = {workspace = true, features = ["unsafe-assume-initialized"]}
 gdk = {workspace = true}
 glib = {workspace = true}
 glib-macros = {workspace = true}
-tokio = { workspace = true, features = ["rt", "time", "sync", "macros"] }
+tokio = { workspace = true, features = ["rt", "time", "sync", "macros", "process"] }
 serde = { workspace = true, features = ["serde_derive"] }
 env_logger = {workspace = true}
 log = {workspace = true}

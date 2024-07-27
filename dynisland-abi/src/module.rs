@@ -46,6 +46,7 @@ pub enum UIServerCommand {
     AddActivity(ActivityIdentifier, SabiWidget),
     // AddProducer(RString, Producer),
     RemoveActivity(ActivityIdentifier), //TODO needs to be tested
+    RestartProducers(RString)
 }
 
 #[repr(C)]
