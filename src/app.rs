@@ -100,6 +100,7 @@ impl App {
             // crate::start_fps_counter(&window, log::Level::Trace, Duration::from_millis(200));
         });
         let layout = self.layout.clone().unwrap();
+        let module_map=self.module_map.clone();
         //UI command consumer
         glib::MainContext::default().spawn_local(async move {
             // TODO check if there are too many tasks on the UI thread and it begins to lag
@@ -121,6 +122,11 @@ impl App {
                     }
                     UIServerCommand::RemoveActivity(activity_identifier) => {
                         layout.lock().await.1.remove_activity(&activity_identifier);
+                    }
+                    UIServerCommand::RestartProducers(module) => {
+                        if let Some(module)=module_map.lock().await.get(module.as_str()) {
+                            module.restart_producers();   
+                        }
                     }
                 }
             }
@@ -176,10 +182,14 @@ impl App {
         let mut watcher =
             notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
                 Ok(evt) => {
+                    // log::info!("config event: {:?}",evt.kind);
                     match evt.kind {
-                        notify::EventKind::Create(_) | notify::EventKind::Modify(_) => server_send
+                        notify::EventKind::Modify(notify::event::ModifyKind::Data(_)) => server_send
                             .send(BackendServerCommand::ReloadConfig())
                             .expect("failed to send notification"),
+                            notify::EventKind::Create(_) => {
+                                // log::info!("file create event");
+                            }
                         _ => {}
                     }
                     // debug!("{evt:?}");
