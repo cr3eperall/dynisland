@@ -99,7 +99,6 @@ pub fn get_activity(
                 // m1.lock().await.set(ActivityMode::Compact).unwrap();
             }
             ActivityMode::Compact => {
-                log::info!("set expanded");
                 aw.set_mode(ActivityMode::Expanded);
             }
             ActivityMode::Expanded => {

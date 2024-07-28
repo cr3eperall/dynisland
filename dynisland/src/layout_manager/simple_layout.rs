@@ -18,7 +18,7 @@ use dynisland_abi::{
 use dynisland_core::graphics::activity_widget::{
     boxed_activity_mode::ActivityMode, ActivityWidget,
 };
-use gtk::{prelude::*, GestureClick, StateFlags, Window};
+use gtk::{prelude::*, StateFlags, Window};
 use gtk_layer_shell::LayerShell;
 use serde::{Deserialize, Serialize};
 
@@ -198,7 +198,6 @@ impl SimpleLayout {
         let aw = widget.clone();
         press_gesture.connect_released(move |gest, _, _, _| {
             if let ActivityMode::Minimal = aw.mode() {
-                // log::info!("set compact");
                 aw.set_mode(ActivityMode::Compact);
                 gest.set_state(gtk::EventSequenceState::Claimed);
             }
@@ -214,10 +213,8 @@ impl SimpleLayout {
                 return;
             }
             glib::timeout_add_seconds_local_once(5, move ||{
-                log::info!("time");
                 if !aw.state_flags().contains(StateFlags::PRELIGHT) && aw.mode()==mode {//mouse is not on widget and mode hasn't changed
                     aw.set_mode(ActivityMode::Compact);
-                    log::info!("updated");
                 }
             });
         });
