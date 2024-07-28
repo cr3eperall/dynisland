@@ -37,9 +37,9 @@ use tokio::{
 };
 
 use crate::{
-    player_info::{MprisPlayer, MprisProgress},
-    utils, visualizer,
-    widget::{self, UIAction, UIPlaybackStatus},
+    player_info::MprisPlayer,
+    utils,
+    widget::{self, UIAction, UIPlaybackStatus, visualizer},
     NAME,
 };
 
@@ -148,10 +148,6 @@ impl SabiModule for MusicModule {
 fn producer(module: &MusicModule) {
     let config = &module.config;
     let activities = &module.base_module.registered_activities();
-    let mode = activities
-        .blocking_lock()
-        .get_property_any_blocking("music-activity", "mode")
-        .unwrap();
     let album_art = activities
         .blocking_lock()
         .get_property_any_blocking("music-activity", "album-art")
@@ -286,6 +282,7 @@ fn producer(module: &MusicModule) {
                     if new_trackid != track_id {
                         set_album_art(prog.metadata.art_url(), &album_art, &visualizer_gradient)
                             .await;
+                        track_id=new_trackid;
                     }
 
                     metadata_1
@@ -319,13 +316,11 @@ fn action_task(module: &MusicModule, seek_tx: UnboundedSender<Duration>) {
         while let Some(action) = action_rx.lock().await.recv().await {
             match action {
                 UIAction::Shuffle => {
-                    log::warn!("shuffle {}", player.get_shuffle().unwrap());
                     let res = player.set_shuffle(!player.get_shuffle().unwrap());
                     if matches!(res, Err(DBusError::TransportError(_))) {
                         find_new_player_channel.send(()).unwrap();
                         break;
                     }
-                    log::warn!("{:?} {}", res, player.get_shuffle().unwrap());
                 }
                 UIAction::Previous => {
                     if matches!(player.previous(), Err(DBusError::TransportError(_))) {
@@ -363,7 +358,6 @@ fn action_task(module: &MusicModule, seek_tx: UnboundedSender<Duration>) {
                 UIAction::SetPosition(pos) => {
                     let tid = player.get_current_track_id().expect("no track id");
                     let _ = player.set_position(tid.as_str(), pos);
-                    // log::warn!("seeked to {:?}", pos);
                     seek_tx.send(pos).expect("failed to refresh time");
                 }
             }

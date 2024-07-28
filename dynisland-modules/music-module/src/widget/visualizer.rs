@@ -1,3 +1,4 @@
+use dynisland_core::graphics::activity_widget::boxed_activity_mode::ActivityMode;
 use gdk::{gdk_pixbuf::Pixbuf, gio::MemoryInputStream};
 use glib::{Bytes, Cast};
 use gtk::{
@@ -46,25 +47,26 @@ pub fn parse_input(line:&str)-> [u8;6]{
     [vec[0], vec[1], vec[2], vec[3], vec[4], vec[5],]
 }
 
-pub fn get_bar_css(cava_data: &[u8; 6], pre_max_height: u8, post_max_height: u8) -> String{
+pub fn get_bar_css(cava_data: &[u8; 6], pre_max_height: u8, post_max_height: u8, mode: ActivityMode) -> String{
+    let mode = mode.to_string();
     let (d0, d1, d2, d3, d4, d5)=(remap_num(cava_data[0],0,pre_max_height,0,post_max_height), remap_num(cava_data[1],0,pre_max_height,0,post_max_height), remap_num(cava_data[2],0,pre_max_height,0,post_max_height), remap_num(cava_data[3],0,pre_max_height,0,post_max_height), remap_num(cava_data[4],0,pre_max_height,0,post_max_height), remap_num(cava_data[5],0,pre_max_height,0,post_max_height));
     format!(r"
-        .music-activity .visualizer .bar-0{{
+        .music-activity .mode-{mode} .visualizer .bar-0{{
             min-height: {d0}px;
         }}
-        .music-activity .visualizer .bar-1{{
+        .music-activity .mode-{mode} .visualizer .bar-1{{
             min-height: {d1}px;
         }}
-        .music-activity .visualizer .bar-2{{
+        .music-activity .mode-{mode} .visualizer .bar-2{{
             min-height: {d2}px;
         }}
-        .music-activity .visualizer .bar-3{{
+        .music-activity .mode-{mode} .visualizer .bar-3{{
             min-height: {d3}px;
         }}
-        .music-activity .visualizer .bar-4{{
+        .music-activity .mode-{mode} .visualizer .bar-4{{
             min-height: {d4}px;
         }}
-        .music-activity .visualizer .bar-5{{
+        .music-activity .mode-{mode} .visualizer .bar-5{{
             min-height: {d5}px;
         }}
     ")
