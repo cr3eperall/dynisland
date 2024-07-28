@@ -2,7 +2,7 @@ use std::ffi::CString;
 
 use glib::{ffi::GType, subclass::boxed::BoxedType, translate::FromGlib};
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum ActivityMode {
     Minimal = 0,
     Compact = 1,
