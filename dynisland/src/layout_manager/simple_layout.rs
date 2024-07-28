@@ -15,7 +15,10 @@ use dynisland_abi::{
     module::ActivityIdentifier,
     SabiApplication, SabiWidget,
 };
-use gtk::{prelude::*, Widget, Window};
+use dynisland_core::graphics::activity_widget::{
+    boxed_activity_mode::ActivityMode, ActivityWidget,
+};
+use gtk::{prelude::*, GestureClick, StateFlags, Window};
 use gtk_layer_shell::LayerShell;
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +26,7 @@ pub const NAME: &str = "SimpleLayout";
 
 pub struct SimpleLayout {
     app: gtk::Application,
-    widget_map: HashMap<ActivityIdentifier, Widget>,
+    widget_map: HashMap<ActivityIdentifier, ActivityWidget>,
     container: gtk::Box,
     focused: Option<ActivityIdentifier>,
     config: SimpleLayoutConfig,
@@ -49,6 +52,9 @@ impl Alignment {
 fn bool_true() -> bool {
     true
 }
+fn bool_false() -> bool {
+    false
+}
 fn align_start() -> Alignment {
     Alignment::Start
 }
@@ -70,6 +76,8 @@ pub struct SimpleLayoutConfig {
     valign: Alignment,
     #[serde(default = "align_start")]
     child_align: Alignment,
+    #[serde(default = "bool_false")]
+    debugging: bool,
 }
 impl Default for SimpleLayoutConfig {
     fn default() -> Self {
@@ -78,12 +86,14 @@ impl Default for SimpleLayoutConfig {
             halign: Alignment::Center,
             valign: Alignment::Start,
             child_align: Alignment::Center,
+            debugging: false,
         }
     }
 }
 #[sabi_extern_fn]
 pub fn new(app: SabiApplication) -> RResult<LayoutManagerType, RBoxError> {
     let container = gtk::Box::new(gtk::Orientation::Horizontal, 5);
+    container.add_css_class("activity-container");
     let app = app.try_into().unwrap();
     let this = SimpleLayout {
         app,
@@ -100,9 +110,8 @@ impl SabiLayoutManager for SimpleLayout {
         let window = gtk::ApplicationWindow::new(&self.app);
         // window.set_resizable(false);
         window.set_child(Some(&self.container));
-
         // init_layer_shell(&window.clone().upcast());
-        gtk::Window::set_interactive_debugging(true);
+        gtk::Window::set_interactive_debugging(self.config.debugging);
 
         //show window
         window.connect_destroy(|_| std::process::exit(0));
@@ -113,10 +122,14 @@ impl SabiLayoutManager for SimpleLayout {
         let conf = ron::from_str::<ron::Value>(&config)
             .with_context(|| "failed to parse config to value")
             .unwrap();
+        let old_config = self.config.clone();
         self.config = conf
             .into_rust()
             .with_context(|| "failed to parse config to struct")
-            .unwrap();
+            .unwrap_or_else(|err| {
+                log::error!("parsing error: {:#?}", err);
+                old_config
+            });
 
         self.configure_container();
 
@@ -131,7 +144,14 @@ impl SabiLayoutManager for SimpleLayout {
         if self.widget_map.contains_key(activity_id) {
             return;
         }
-        let widget = widget.try_into().unwrap();
+        let widget: gtk::Widget = widget.try_into().unwrap();
+        let widget = match widget.downcast::<ActivityWidget>() {
+            Ok(widget) => widget,
+            Err(_) => {
+                log::error!("widget {} is not an ActivityWidget", activity_id);
+                return;
+            }
+        };
         self.configure_widget(&widget);
         self.container.append(&widget.clone());
         self.widget_map.insert(activity_id.clone(), widget);
@@ -142,7 +162,7 @@ impl SabiLayoutManager for SimpleLayout {
     fn get_activity(&self, activity: &ActivityIdentifier) -> ROption<SabiWidget> {
         self.widget_map
             .get(activity)
-            .map(|wid| SabiWidget::from(wid.clone()))
+            .map(|wid| SabiWidget::from(wid.clone().upcast::<gtk::Widget>()))
             .into()
     }
     fn remove_activity(&mut self, activity: &ActivityIdentifier) {
@@ -162,7 +182,7 @@ impl SabiLayoutManager for SimpleLayout {
 }
 
 impl SimpleLayout {
-    fn configure_widget(&self, widget: &Widget) {
+    fn configure_widget(&self, widget: &ActivityWidget) {
         match self.config.orientation_horizontal {
             true => {
                 widget.set_valign(self.config.child_align.into_gtk());
@@ -171,7 +191,40 @@ impl SimpleLayout {
                 widget.set_halign(self.config.child_align.into_gtk());
             }
         }
+
+        let press_gesture = gtk::GestureClick::new();
+        press_gesture.set_button(gdk::BUTTON_PRIMARY);
+
+        let aw = widget.clone();
+        press_gesture.connect_released(move |gest, _, _, _| {
+            if let ActivityMode::Minimal = aw.mode() {
+                // log::info!("set compact");
+                aw.set_mode(ActivityMode::Compact);
+                gest.set_state(gtk::EventSequenceState::Claimed);
+            }
+        });
+        widget.add_controller(press_gesture);
+
+        let focus_in = gtk::EventControllerMotion::new();
+        let aw = widget.clone();
+        focus_in.connect_leave(move|_|{
+            let aw = aw.clone();
+            let mode = aw.mode();
+            if matches!(mode, ActivityMode::Minimal | ActivityMode::Compact){
+                return;
+            }
+            glib::timeout_add_seconds_local_once(5, move ||{
+                log::info!("time");
+                if !aw.state_flags().contains(StateFlags::PRELIGHT) && aw.mode()==mode {//mouse is not on widget and mode hasn't changed
+                    aw.set_mode(ActivityMode::Compact);
+                    log::info!("updated");
+                }
+            });
+        });
+        widget.add_controller(focus_in);
+        
     }
+
     fn configure_container(&self) {
         match self.config.orientation_horizontal {
             true => {
@@ -190,9 +243,12 @@ impl SimpleLayout {
 
 pub fn init_layer_shell(window: &Window) {
     window.init_layer_shell();
-    window.set_layer(gtk_layer_shell::Layer::Overlay);
+    window.set_layer(gtk_layer_shell::Layer::Top);
     window.set_anchor(gtk_layer_shell::Edge::Top, true);
     window.set_anchor(gtk_layer_shell::Edge::Top, true);
-    window.set_margin(gtk_layer_shell::Edge::Top, 5);
+    window.set_margin(gtk_layer_shell::Edge::Top, 3);
+    window.set_namespace("dynisland");
+    window.set_exclusive_zone(-1); // TODO add to config
+    window.set_resizable(false);
     window.queue_resize();
 }
