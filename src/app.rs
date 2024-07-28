@@ -546,6 +546,7 @@ impl Default for App {
         // let (hdl, shutdown) = get_new_tokio_rt();
         let app =
             gtk::Application::new(Some("com.github.cr3eperall.dynisland"), Default::default());
+            
         App {
             application: app,
             module_map: Rc::new(Mutex::new(HashMap::new())),
