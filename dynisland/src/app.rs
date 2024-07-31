@@ -100,7 +100,7 @@ impl App {
             // crate::start_fps_counter(&window, log::Level::Trace, Duration::from_millis(200));
         });
         let layout = self.layout.clone().unwrap();
-        let module_map=self.module_map.clone();
+        let module_map = self.module_map.clone();
         //UI command consumer
         glib::MainContext::default().spawn_local(async move {
             // TODO check if there are too many tasks on the UI thread and it begins to lag
@@ -124,8 +124,8 @@ impl App {
                         layout.lock().await.1.remove_activity(&activity_identifier);
                     }
                     UIServerCommand::RestartProducers(module) => {
-                        if let Some(module)=module_map.lock().await.get(module.as_str()) {
-                            module.restart_producers();   
+                        if let Some(module) = module_map.lock().await.get(module.as_str()) {
+                            module.restart_producers();
                         }
                     }
                 }
@@ -184,12 +184,14 @@ impl App {
                 Ok(evt) => {
                     // log::info!("config event: {:?}",evt.kind);
                     match evt.kind {
-                        notify::EventKind::Modify(notify::event::ModifyKind::Data(_)) => server_send
-                            .send(BackendServerCommand::ReloadConfig())
-                            .expect("failed to send notification"),
-                            notify::EventKind::Create(_) => {
-                                // log::info!("file create event");
-                            }
+                        notify::EventKind::Modify(notify::event::ModifyKind::Data(_)) => {
+                            server_send
+                                .send(BackendServerCommand::ReloadConfig())
+                                .expect("failed to send notification")
+                        }
+                        notify::EventKind::Create(_) => {
+                            // log::info!("file create event");
+                        }
                         _ => {}
                     }
                     // debug!("{evt:?}");
@@ -198,13 +200,13 @@ impl App {
                     log::error!("notify watcher error: {err}")
                 }
             })
-            .expect("failed to start file watcher");
-        watcher
-            .watch(
-                &config::get_config_path(),
-                notify::RecursiveMode::NonRecursive,
-            )
-            .expect("error starting watcher");
+            .expect("failed to get file watcher");
+        if let Err(err) = watcher.watch(
+            &config::get_config_path(),
+            notify::RecursiveMode::NonRecursive,
+        ) {
+            log::warn!("failed to start config file watcher, restart dynisland to get automatic config updates: {err}")
+        }
         //start application
         app.run();
         Ok(())
@@ -221,11 +223,7 @@ impl App {
                     .load_from_string(&content);
             }
             Err(err) => {
-                log::error!(
-                    "{} {:?}",
-                    "failed to parse css:".red(),
-                    err.to_string().red()
-                );
+                log::warn!("{} {}", "failed to parse css:".red(), err.to_string().red());
             }
         }
     }
@@ -546,7 +544,7 @@ impl Default for App {
         // let (hdl, shutdown) = get_new_tokio_rt();
         let app =
             gtk::Application::new(Some("com.github.cr3eperall.dynisland"), Default::default());
-            
+
         App {
             application: app,
             module_map: Rc::new(Mutex::new(HashMap::new())),

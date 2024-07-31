@@ -1,7 +1,7 @@
-pub mod visualizer;
-pub mod minimal;
 pub mod compact;
 pub mod expanded;
+pub mod minimal;
+pub mod visualizer;
 
 use std::time::Duration;
 
@@ -18,6 +18,8 @@ use gdk::{gdk_pixbuf::Pixbuf, gio::MemoryInputStream};
 use glib::Bytes;
 use gtk::{prelude::*, GestureClick, Image, Widget};
 use tokio::sync::mpsc::UnboundedSender;
+
+use crate::module::MusicConfig;
 
 pub enum UIAction {
     Shuffle,
@@ -57,6 +59,7 @@ pub fn get_activity(
     prop_send: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
     module: &str,
     name: &str,
+    config: &MusicConfig,
     action_tx: UnboundedSender<UIAction>,
 ) -> DynamicActivity {
     let mut activity = DynamicActivity::new(prop_send, module, name);
@@ -65,9 +68,9 @@ pub fn get_activity(
     let activity_widget = activity.get_activity_widget();
     // set_act_widget(&mut activity_widget);
     //get widgets
-    let minimal = minimal::get_minimal();
-    let compact = compact::get_compact();
-    let expanded = expanded::get_expanded(action_tx);
+    let minimal = minimal::get_minimal(config);
+    let compact = compact::get_compact(config);
+    let expanded = expanded::get_expanded(config, action_tx);
     // let overlay = Self::get_overlay();
 
     //load widgets in the activity widget
@@ -88,12 +91,13 @@ pub fn get_activity(
 
     setup_playback_status_prop(&mut activity, &activity_widget);
 
+    setup_scrolling_label_speed_prop(&mut activity, &activity_widget);
+
     let press_gesture = gtk::GestureClick::new();
     press_gesture.set_button(gdk::BUTTON_PRIMARY);
-    
+
     let aw = activity_widget.clone();
     press_gesture.connect_released(move |_gest, _, _, _| {
-        
         match aw.mode() {
             ActivityMode::Minimal => {
                 // m1.lock().await.set(ActivityMode::Compact).unwrap();
@@ -116,7 +120,6 @@ pub fn get_activity(
     release_gesture.set_button(gdk::BUTTON_SECONDARY);
     let aw = activity_widget.clone();
     release_gesture.connect_released(move |_gest, _, _, _| {
-
         match aw.mode() {
             ActivityMode::Minimal => {
                 // m1.lock().await.set(ActivityMode::Compact).unwrap();
@@ -133,6 +136,8 @@ pub fn get_activity(
         }
     });
     activity_widget.add_controller(release_gesture);
+
+    // TODO add property and config for scrolling label speed
 
     activity
 }
@@ -358,7 +363,13 @@ fn setup_visualizer_data_prop(activity: &mut DynamicActivity, activity_widget: &
         activity
             .subscribe_to_property("visualizer-data", move |new_value| {
                 let data = cast_dyn_any!(new_value, [u8; 6]).unwrap();
-                bar_height_css_provider.load_from_string(&visualizer::get_bar_css(data, 32, 35, aw.mode()));
+                bar_height_css_provider.load_from_string(&visualizer::get_bar_css(
+                    data,
+                    32,
+                    30,
+                    60,
+                    aw.mode(),
+                ));
             })
             .unwrap();
     }
@@ -467,23 +478,45 @@ fn setup_music_metadata_prop(activity: &mut DynamicActivity, activity_widget: &A
     }
 }
 
-// fn get_overlay() -> gtk::Widget {
-//     let overlay = gtk::Box::builder()
-//         .height_request(1080)
-//         .width_request(1920)
-//         .valign(gtk::Align::Center)
-//         .halign(gtk::Align::Center)
-//         .vexpand(false)
-
-//         .hexpand(false)
-//         .build();
-//     overlay.add(
-//         &gtk::Label::builder()
-//             .label("Overlay label,\n Hello Hello \n Hello Hello")
-//             .halign(gtk::Align::Center)
-//             .valign(gtk::Align::Center)
-//             .hexpand(true)
-//             .build(),
-//     );
-//     overlay.upcast()
-// }
+fn setup_scrolling_label_speed_prop(
+    activity: &mut DynamicActivity,
+    activity_widget: &ActivityWidget,
+) {
+    activity
+        .add_dynamic_property("scrolling-label-speed", 30.0_f32)
+        .unwrap();
+    {
+        let expanded_label = activity_widget
+            .expanded_mode_widget()
+            .unwrap()
+            .first_child()
+            .unwrap()
+            .first_child()
+            .unwrap()
+            .next_sibling()
+            .unwrap()
+            .first_child()
+            .unwrap()
+            .first_child()
+            .unwrap()
+            .downcast::<ScrollingLabel>()
+            .unwrap();
+        let compact_label = activity_widget
+            .compact_mode_widget()
+            .unwrap()
+            .first_child()
+            .unwrap()
+            .next_sibling()
+            .unwrap()
+            .downcast::<ScrollingLabel>()
+            .unwrap();
+        activity
+            .subscribe_to_property("scrolling-label-speed", move |new_value| {
+                let data = cast_dyn_any!(new_value, f32).unwrap();
+                // log::info!("setting speed: {}", data);
+                expanded_label.set_scroll_speed(*data, true);
+                compact_label.set_scroll_speed(*data, true);
+            })
+            .unwrap();
+    }
+}

@@ -6,14 +6,14 @@ where
     T: DynClone,
 {
     pub value: T,
-    pub set_by_module: bool,
+    pub set_by_user: bool,
 }
 
 impl<T: DynClone> ConfigVariable<T> {
     pub fn new(value: T) -> Self {
         ConfigVariable {
             value,
-            set_by_module: false,
+            set_by_user: false,
         }
     }
 }
@@ -26,20 +26,20 @@ macro_rules! implement_config_get_set {
                 self.$val.value.clone()
             }
         });
-        concat_idents::concat_idents!(name = get_, $val, _set_by_module {
+        concat_idents::concat_idents!(name = get_, $val, _set_by_user {
             $vis fn name(&self) -> bool {
-                self.$val.set_by_module
+                self.$val.set_by_user
             }
         });
         concat_idents::concat_idents!(name = set_, $val {
-            $vis fn name(&mut self, value: $type, module: bool){
+            $vis fn name(&mut self, value: $type, user: bool){
                 // trace!("tried to set value {:?}", value);
                 // if self.$val.value.eq(&value) {
                 //     return Ok(());
                 // }
-                if module {
-                    self.$val.set_by_module = true;
-                } else if self.$val.set_by_module {
+                if user {
+                    self.$val.set_by_user = true;
+                } else if self.$val.set_by_user {
                     return
                 }
                 self.$val.value = value;
@@ -54,18 +54,18 @@ macro_rules! implement_config_get_set {
         });
         concat_idents::concat_idents!(name = get_, $val, _set_by_module {
             $vis fn name(&self) -> bool {
-                self.$val.set_by_module
+                self.$val.set_by_user
             }
         });
         concat_idents::concat_idents!(name = set_, $val {
-            $vis fn name(&mut $_self, value: $type, module: bool) {
+            $vis fn name(&mut $_self, value: $type, user: bool) {
                 // trace!("tried to set value {:?}", value);
                 // if self.$val.value.eq(&value) {
                 //     return Ok(());
                 // }
-                if module {
-                    $_self.$val.set_by_module = true;
-                } else if $_self.$val.set_by_module {
+                if user {
+                    $_self.$val.set_by_user = true;
+                } else if $_self.$val.set_by_user {
                     return
                 }
                 $_self.$val.value = value;

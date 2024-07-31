@@ -120,9 +120,13 @@ impl WidgetImpl for ScrollingLabelPriv {
         );
 
         // log::debug!("sw: {}, bw: {}, lw: {}", self.obj().width(), bin.width(), label.width());
-        let width =self.obj().width();
-        let fade_size = self.local_css_context.borrow().get_config_fade_size().get_for_size(width as f32) as i32;
-        if width-2*fade_size < label.width() {
+        let width = self.obj().width();
+        let fade_size = self
+            .local_css_context
+            .borrow()
+            .get_config_fade_size()
+            .get_for_size(width as f32) as i32;
+        if width - 2 * fade_size < label.width() {
             self.local_css_context
                 .borrow_mut()
                 .set_active(true, bin.width());

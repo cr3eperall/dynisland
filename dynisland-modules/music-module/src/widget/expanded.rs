@@ -5,9 +5,11 @@ use glib::Cast;
 use gtk::{prelude::*, GestureClick, Widget};
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::module::MusicConfig;
+
 use super::{visualizer::get_visualizer, UIAction};
 
-pub fn get_expanded(action_tx: UnboundedSender<UIAction>) -> gtk::Widget {
+pub fn get_expanded(config: &MusicConfig, action_tx: UnboundedSender<UIAction>) -> gtk::Widget {
     let height = 300;
     let width = 450;
     let v_container = gtk::Box::builder()
@@ -20,7 +22,7 @@ pub fn get_expanded(action_tx: UnboundedSender<UIAction>) -> gtk::Widget {
         .hexpand(false)
         .build();
     {
-        let info_container = info_container(width as f32, height as f32 * 0.45);
+        let info_container = info_container(config, width as f32, height as f32 * 0.45);
         let progress_container =
             progress_container(width as f32, height as f32 * 0.15, action_tx.clone());
         let controls_container = controls_container(width as f32, height as f32 * 0.40, action_tx);
@@ -32,7 +34,7 @@ pub fn get_expanded(action_tx: UnboundedSender<UIAction>) -> gtk::Widget {
     v_container.upcast()
 }
 
-fn info_container(width: f32, height: f32) -> Widget {
+fn info_container(config: &MusicConfig, width: f32, height: f32) -> Widget {
     let container = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
         .height_request(height as i32)
@@ -52,7 +54,7 @@ fn info_container(width: f32, height: f32) -> Widget {
         album_art.add_css_class("album-art");
         {
             let image = gtk::Image::builder()
-                .file(crate::module::DEFAULT_ALBUM_ART_PATH)
+                .file(config.default_album_art_path.clone())
                 .hexpand(true)
                 .halign(gtk::Align::Center)
                 .valign(gtk::Align::Center)
@@ -94,7 +96,7 @@ fn info_container(width: f32, height: f32) -> Widget {
                     song_name.set_valign(gtk::Align::Center);
                     song_name.set_hexpand(false);
                     song_name.add_css_class("song-name");
-                    song_name.set_scroll_speed(20.0, true);
+                    song_name.set_scroll_speed(20.0, false);
                 }
 
                 let artist_name = gtk::Label::builder() //TODO maybe replace with scrollable label, for now ellipses are enough

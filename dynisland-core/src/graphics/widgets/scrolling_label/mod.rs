@@ -29,22 +29,22 @@ impl ScrollingLabel {
         );
         label
     }
-    pub fn set_fade_size(&self, size: CssSize, module: bool) {
+    pub fn set_fade_size(&self, size: CssSize, user: bool) {
         self.imp()
             .local_css_context
             .borrow_mut()
-            .set_config_fade_size(size, module);
+            .set_config_fade_size(size, user);
     }
-    pub fn set_scroll_speed(&self, speed: f32, module: bool) {
+    pub fn set_scroll_speed(&self, speed: f32, user: bool) {
         self.imp()
             .local_css_context
             .borrow_mut()
-            .set_config_speed(speed, module);
+            .set_config_speed(speed, user);
     }
-    pub fn set_delay(&self, delay: u64, module: bool) {
+    pub fn set_delay(&self, delay: u64, user: bool) {
         self.imp()
             .local_css_context
             .borrow_mut()
-            .set_config_delay(delay, module);
+            .set_config_delay(delay, user);
     }
 }

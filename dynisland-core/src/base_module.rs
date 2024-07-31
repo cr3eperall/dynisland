@@ -19,17 +19,17 @@ pub type Producer<T> = fn(module: &T);
 pub struct ProducerRuntime {
     pub handle: Arc<Mutex<Handle>>,
     pub shutdown: Arc<Mutex<tokio::sync::mpsc::Sender<()>>>,
-    pub cleanup_notifier: Sender<UnboundedSender<()>>
+    pub cleanup_notifier: Sender<UnboundedSender<()>>,
 }
 
 impl Default for ProducerRuntime {
     fn default() -> Self {
         let (handle, shutdown) = Self::get_new_tokio_rt();
-        let (cl_tx, _)=tokio::sync::broadcast::channel(32);
+        let (cl_tx, _) = tokio::sync::broadcast::channel(32);
         Self {
             handle: Arc::new(Mutex::new(handle)),
             shutdown: Arc::new(Mutex::new(shutdown)),
-            cleanup_notifier: cl_tx
+            cleanup_notifier: cl_tx,
         }
     }
 }
@@ -61,28 +61,25 @@ impl ProducerRuntime {
     }
     pub fn shutdown_blocking(&self) {
         let num = self.cleanup_notifier.receiver_count();
-        log::debug!("restarting producer runtime: {} cleanup recievers",num);
+        log::debug!("restarting producer runtime: {} cleanup recievers", num);
         let (res_tx, mut res_rx) = tokio::sync::mpsc::unbounded_channel();
-        match self.cleanup_notifier.send(res_tx){
+        match self.cleanup_notifier.send(res_tx) {
             Ok(_) => {
-                for i in 0..num{
-                    log::info!("waiting on cleanup {}",i+1);
-                    if res_rx.blocking_recv().is_none(){
+                for i in 0..num {
+                    log::debug!("waiting on cleanup {}", i + 1);
+                    if res_rx.blocking_recv().is_none() {
                         //all the recievers already quit/crashed
                         break;
                     }
                 }
-            },
+            }
             Err(_) => {
                 log::debug!("no cleanup needed");
-            },
-        }
-        if self.shutdown
-            .blocking_lock()
-            .blocking_send(())
-            .is_err() {
-                log::debug!("producer runtime has already quit")
             }
+        }
+        if self.shutdown.blocking_lock().blocking_send(()).is_err() {
+            log::debug!("producer runtime has already quit")
+        }
     }
     fn get_new_tokio_rt() -> (Handle, tokio::sync::mpsc::Sender<()>) {
         let (rt_send, rt_recv) =
@@ -100,7 +97,7 @@ impl ProducerRuntime {
                     .send((handle.clone(), shutdown_send))
                     .expect("failed to send rt");
                 rt.block_on(async { shutdown_recv.recv().await }); //keep thread alive
-                // log::info!("shutting down runtime");
+                                                                   // log::info!("shutting down runtime");
             })
             .expect("failed to spawn new trhread");
 

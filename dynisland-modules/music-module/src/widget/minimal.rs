@@ -1,9 +1,11 @@
 use glib::Cast;
 use gtk::prelude::*;
 
-pub fn get_minimal() -> gtk::Widget {
-    let height: f32=40.0;
-    let width: f32=80.0;
+use crate::module::MusicConfig;
+
+pub fn get_minimal(config: &MusicConfig) -> gtk::Widget {
+    let height: f32 = 40.0;
+    let width: f32 = 80.0;
     let minimal = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
         .height_request(height as i32)
@@ -15,7 +17,7 @@ pub fn get_minimal() -> gtk::Widget {
         .homogeneous(true)
         .build();
     {
-        let album_art_width=width * 0.45;
+        let album_art_width = width * 0.45;
         let album_art_size = height.min(width);
         let album_art = gtk::Box::builder()
             .width_request(album_art_width as i32)
@@ -26,7 +28,7 @@ pub fn get_minimal() -> gtk::Widget {
         album_art.add_css_class("album-art");
         {
             let image = gtk::Image::builder()
-                .file(crate::module::DEFAULT_ALBUM_ART_PATH)
+                .file(config.default_album_art_path.clone())
                 .hexpand(true)
                 .halign(gtk::Align::Center)
                 .valign(gtk::Align::Center)
@@ -38,7 +40,7 @@ pub fn get_minimal() -> gtk::Widget {
             // log::debug!("{}", (album_art_size * 0.7) as i32);
             album_art.append(&image);
         }
-    
+
         minimal.append(&album_art);
     }
     minimal.upcast()

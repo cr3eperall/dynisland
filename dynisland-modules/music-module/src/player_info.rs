@@ -162,7 +162,8 @@ impl MprisPlayer {
     }
 
     pub fn can_playpause(&self) -> Result<bool, DBusError> {
-        let res = self.player.lock().unwrap().can_play()? && self.player.lock().unwrap().can_pause()?;
+        let res =
+            self.player.lock().unwrap().can_play()? && self.player.lock().unwrap().can_pause()?;
         Ok(res)
     }
 
@@ -304,7 +305,12 @@ impl MprisPlayer {
 
     pub fn start_signal_listener(&self) -> Result<UnboundedReceiver<mpris::Event>> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        let player_id = self.player.lock().unwrap().bus_name_player_name_part().to_string();
+        let player_id = self
+            .player
+            .lock()
+            .unwrap()
+            .bus_name_player_name_part()
+            .to_string();
         std::thread::spawn(move || {
             let player = mpris::PlayerFinder::new()
                 .expect("Could not connect to D-Bus")
@@ -343,22 +349,26 @@ impl MprisPlayer {
     )> {
         let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
         let (refresh_tx, mut seek_rx) = tokio::sync::mpsc::unbounded_channel::<Duration>();
-        let player_id = self.player.lock().unwrap().bus_name_player_name_part().to_string();
+        let player_id = self
+            .player
+            .lock()
+            .unwrap()
+            .bus_name_player_name_part()
+            .to_string();
         std::thread::spawn(move || {
             let player = match Self::find_new_player(&player_id) {
                 Ok(player) => player,
                 Err(err) => {
-                    log::warn!("error getting a player: {}",err);
+                    log::warn!("error getting a player: {}", err);
                     return;
-                },
+                }
             };
-            let mut prog_tracker = match player
-                            .track_progress(interval.as_millis() as u32) {
+            let mut prog_tracker = match player.track_progress(interval.as_millis() as u32) {
                 Ok(prog) => prog,
                 Err(err) => {
-                    log::warn!("error getting progress tracker: {}",err);
+                    log::warn!("error getting progress tracker: {}", err);
                     return;
-                },
+                }
             };
 
             let mut last_refresh = Instant::now();
@@ -422,6 +432,7 @@ impl MprisPlayer {
                     }
                 }
             }
+            let _ = event_tx.send(MprisProgressEvent::PlayerQuit);
         });
         Ok((event_rx, refresh_tx))
     }
@@ -440,7 +451,7 @@ impl MprisPlayer {
                 return Ok(player);
             }
         }
-        log::info!("could not find player {}, using active", name);
+        log::debug!("could not find player {}, using active", name);
         Ok(mpris::PlayerFinder::new()
             .expect("Could not connect to D-Bus")
             .find_active()?)

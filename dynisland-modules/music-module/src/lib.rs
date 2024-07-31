@@ -3,8 +3,8 @@ use dynisland_abi::module::{ModuleBuilder, ModuleBuilderRef};
 
 pub mod module;
 pub mod player_info;
-pub mod widget;
 pub mod utils;
+pub mod widget;
 
 use module::new;
 

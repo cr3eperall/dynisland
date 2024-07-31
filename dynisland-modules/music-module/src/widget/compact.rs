@@ -2,11 +2,13 @@ use dynisland_core::graphics::widgets::scrolling_label::ScrollingLabel;
 use glib::Cast;
 use gtk::prelude::*;
 
+use crate::module::MusicConfig;
+
 use super::visualizer::get_visualizer;
 
-pub fn get_compact() -> gtk::Widget {
-    let height: f32=40.0;
-    let width: f32=280.0;
+pub fn get_compact(config: &MusicConfig) -> gtk::Widget {
+    let height: f32 = 40.0;
+    let width: f32 = 280.0;
     let compact = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
         .height_request(height as i32)
@@ -18,7 +20,7 @@ pub fn get_compact() -> gtk::Widget {
         .homogeneous(false)
         .build();
     {
-        let album_art_width=width * 0.2;
+        let album_art_width = width * 0.2;
         let album_art_size = height.min(width);
         let album_art = gtk::Box::builder()
             .width_request(album_art_width as i32)
@@ -29,7 +31,7 @@ pub fn get_compact() -> gtk::Widget {
         album_art.add_css_class("album-art");
         {
             let image = gtk::Image::builder()
-                .file(crate::module::DEFAULT_ALBUM_ART_PATH)
+                .file(config.default_album_art_path.clone())
                 .hexpand(true)
                 .halign(gtk::Align::Center)
                 .valign(gtk::Align::Center)
@@ -41,7 +43,7 @@ pub fn get_compact() -> gtk::Widget {
             // log::debug!("{}", (album_art_size * 0.7) as i32);
             album_art.append(&image);
         }
-        
+
         let song_name = ScrollingLabel::new(None);
         {
             song_name.label().set_text("Song name");
@@ -50,16 +52,16 @@ pub fn get_compact() -> gtk::Widget {
             song_name.set_valign(gtk::Align::Center);
             song_name.set_hexpand(false);
             song_name.add_css_class("song-name");
-            song_name.set_scroll_speed(20.0, true);
+            song_name.set_scroll_speed(20.0, false);
         }
 
         let visualizer_width = width * 0.2;
-        let visualizer_container=gtk::Box::builder()
-        .width_request(visualizer_width as i32)
-        .homogeneous(false)
-        .halign(gtk::Align::Center)
-        .hexpand(false)
-        .build();
+        let visualizer_container = gtk::Box::builder()
+            .width_request(visualizer_width as i32)
+            .homogeneous(false)
+            .halign(gtk::Align::Center)
+            .hexpand(false)
+            .build();
         visualizer_container.add_css_class("visualizer-container");
         {
             let visualizer_size = height.min(visualizer_width); //TODO replace with actual visualizer

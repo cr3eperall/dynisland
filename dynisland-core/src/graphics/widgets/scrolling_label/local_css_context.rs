@@ -79,7 +79,7 @@ impl ScrollingLabelLocalCssContext {
         duration += delay;
         let start_percentage = (delay / duration) * 100.0;
 
-        // log::debug!("size: {size}");
+        // log::info!("speed: {}",self.config_speed.value);
         // debug!("{size_timing_function}");
         let scroll_anim = if self.anim_restart_flag {
             "scroll-clone"
