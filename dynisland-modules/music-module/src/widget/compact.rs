@@ -48,6 +48,7 @@ pub fn get_compact(config: &MusicConfig) -> gtk::Widget {
         {
             song_name.label().set_text("Song name");
             song_name.set_width_request((width * 0.6) as i32);
+            song_name.set_size_request((width * 0.6) as i32, height as i32);
             song_name.set_halign(gtk::Align::Start);
             song_name.set_valign(gtk::Align::Center);
             song_name.set_hexpand(false);

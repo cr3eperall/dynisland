@@ -96,8 +96,15 @@ pub fn get_activity(
     let press_gesture = gtk::GestureClick::new();
     press_gesture.set_button(gdk::BUTTON_PRIMARY);
 
-    let aw = activity_widget.clone();
-    press_gesture.connect_released(move |_gest, _, _, _| {
+    press_gesture.connect_released(move |gest, _, x, y| {
+        let aw = gest.widget().downcast::<ActivityWidget>().unwrap();
+        if x < 0.0
+            || y < 0.0
+            || x > aw.size(gtk::Orientation::Horizontal).into()
+            || y > aw.size(gtk::Orientation::Vertical).into()
+        {
+            return;
+        }
         match aw.mode() {
             ActivityMode::Minimal => {
                 // m1.lock().await.set(ActivityMode::Compact).unwrap();
@@ -118,8 +125,15 @@ pub fn get_activity(
 
     let release_gesture = GestureClick::new();
     release_gesture.set_button(gdk::BUTTON_SECONDARY);
-    let aw = activity_widget.clone();
-    release_gesture.connect_released(move |_gest, _, _, _| {
+    release_gesture.connect_released(move |gest, _, x, y| {
+        let aw = gest.widget().downcast::<ActivityWidget>().unwrap();
+        if x < 0.0
+            || y < 0.0
+            || x > aw.size(gtk::Orientation::Horizontal).into()
+            || y > aw.size(gtk::Orientation::Vertical).into()
+        {
+            return;
+        }
         match aw.mode() {
             ActivityMode::Minimal => {
                 // m1.lock().await.set(ActivityMode::Compact).unwrap();

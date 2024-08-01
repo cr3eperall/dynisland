@@ -90,12 +90,16 @@ impl ObjectImpl for ScrollingLabelPriv {
 }
 
 impl WidgetImpl for ScrollingLabelPriv {
+    /// if width_request is specified, that becomes the max width of the widget
     fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
         let bin = self.bin.borrow();
         let mut measure = bin.measure(orientation, for_size);
         match orientation {
             gtk::Orientation::Horizontal => {
                 measure.0 = 0;
+                if self.obj().width_request() > 0 {
+                    measure.1 = measure.1.clamp(0, self.obj().width_request());
+                }
                 measure.2 = measure.2.clamp(-1, measure.0);
             }
             gtk::Orientation::Vertical => {
@@ -104,6 +108,7 @@ impl WidgetImpl for ScrollingLabelPriv {
             }
             _ => {}
         }
+        // log::info!("min: {}, nat: {}", measure.0, measure.1);
         measure
     }
 

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 
 use glib::prelude::*;
 use glib_macros::Properties;
-use gtk::{prelude::*, subclass::prelude::*};
+use gtk::{prelude::*, subclass::prelude::*, StateFlags};
 
 use super::{
     boxed_activity_mode::ActivityMode, local_css_context::ActivityWidgetLocalCssContext, util,
@@ -15,7 +15,7 @@ pub struct ActivityWidgetPriv {
     #[property(get, set, nick = "Change mode", blurb = "The Activity Mode")]
     pub(super) mode: RefCell<ActivityMode>,
 
-    #[property(get, nick = "Local CSS Provider")]
+    #[property(get, nick = "Local CSS Context")]
     pub(super) local_css_context: RefCell<ActivityWidgetLocalCssContext>,
 
     #[property(get, set, nick = "Widget name")]
@@ -32,6 +32,10 @@ pub struct ActivityWidgetPriv {
     /// To be used by dynisland::app only
     #[property(set, nick = "Transition blur radius")]
     pub(super) config_blur_radius_app: RefCell<f64>,
+
+    /// To be used by dynisland::app only
+    #[property(set, nick = "Enable stretching on drag")]
+    pub(super) config_enable_drag_stretch_app: RefCell<bool>,
 
     pub(super) last_mode: RefCell<ActivityMode>,
 
@@ -64,12 +68,14 @@ impl Default for ActivityWidgetPriv {
         let min_h = css_ctx.get_config_minimal_height();
         let min_w = css_ctx.get_config_minimal_width();
         let blur = css_ctx.get_config_blur_radius();
+        let enable_stretch = css_ctx.get_config_enable_drag_stretch();
         Self {
             mode: RefCell::new(ActivityMode::Minimal),
             local_css_context: RefCell::new(css_ctx),
             config_minimal_height_app: RefCell::new(min_h),
             config_minimal_width_app: RefCell::new(min_w),
             config_blur_radius_app: RefCell::new(blur),
+            config_enable_drag_stretch_app: RefCell::new(enable_stretch),
             last_mode: RefCell::new(ActivityMode::Minimal),
             name: RefCell::new(name),
             minimal_mode_widget: RefCell::new(None),
@@ -100,6 +106,8 @@ impl ObjectImpl for ActivityWidgetPriv {
         background.append(&label);
         background.add_css_class("activity-background");
 
+        self.add_drag_controller();
+
         background.set_parent(&*self.obj());
         self.background_widget
             .replace(Some(background.upcast::<gtk::Widget>()));
@@ -114,6 +122,7 @@ impl ObjectImpl for ActivityWidgetPriv {
             "mode" => {
                 // Replace old values if the mode is valid
                 let mode = value.get().unwrap();
+                let obj = self.obj();
 
                 if self.get_mode_widget(mode).borrow().is_none() {
                     return;
@@ -127,7 +136,8 @@ impl ObjectImpl for ActivityWidgetPriv {
                 let min_height = css_context.get_config_minimal_height();
                 let min_width = css_context.get_config_minimal_width();
 
-                let next_size = self.get_final_widget_size_for_mode(mode, min_height, min_width);
+                let next_size =
+                    Self::get_final_widget_size_for_mode(&obj, mode, min_height, min_width);
                 // log::debug!("next_size: {:?}", next_size);
                 // let prev_size=self.get_final_allocation_for_mode(last_mode, min_height);
 
@@ -145,7 +155,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                     blur_radius,
                 ));
 
-                let stretches = self.get_stretches(next_size, min_height, min_width);
+                let stretches = Self::get_stretches(&obj, next_size, min_height, min_width);
                 log::trace!("stretches: {:?}", stretches);
                 css_context.set_stretch_all(stretches);
 
@@ -182,6 +192,11 @@ impl ObjectImpl for ActivityWidgetPriv {
                 self.local_css_context
                     .borrow_mut()
                     .set_config_blur_radius(value.get().unwrap(), false);
+            }
+            "config-enable-drag-stretch-app" => {
+                self.local_css_context
+                    .borrow_mut()
+                    .set_config_enable_drag_stretch(value.get().unwrap(), false);
             }
             "minimal-mode-widget" => {
                 let widget: Option<gtk::Widget> = value.get().unwrap();
@@ -278,6 +293,95 @@ impl ObjectImpl for ActivityWidgetPriv {
 impl WidgetImpl for ActivityWidgetPriv {}
 
 impl ActivityWidgetPriv {
+    fn add_drag_controller(&self) {
+        let drag_controller = gtk::GestureDrag::builder()
+            .button(gdk::BUTTON_PRIMARY)
+            .name("drag-gesture")
+            .build();
+        drag_controller.connect_drag_begin(|gest, _, _| {
+            let obj = gest.widget().downcast::<ActivityWidget>().unwrap();
+            if !obj.local_css_context().get_config_enable_drag_stretch() {
+                return;
+            }
+            obj.add_css_class("dragging");
+        });
+        drag_controller.connect_drag_update(|gest, x, y| {
+            let obj = gest.widget().downcast::<ActivityWidget>().unwrap();
+            // log::info!("enable stretch: {}", obj.local_css_context().get_config_enable_drag_stretch());
+            if !obj.local_css_context().get_config_enable_drag_stretch() {
+                return;
+            }
+            let mut css_context = obj.local_css_context();
+            let min_height = css_context.get_config_minimal_height();
+            let min_width = css_context.get_config_minimal_width();
+            let starting_size =
+                Self::get_final_widget_size_for_mode(&obj, obj.mode(), min_height, min_width);
+            let x = if gest.start_point().unwrap().0 < starting_size.0 / 2.0 {
+                -x
+            } else {
+                x
+            };
+            let y = y.abs();
+            // log::info!("{:?} {:?}",start, starting_size);
+            // log::info!("continue: {x} {y}");
+            let current_size =
+                Self::get_final_widget_size_for_mode(&obj, obj.mode(), min_height, min_width);
+            let max_screen_size = util::get_max_monitors_size();
+            // log::info!("max: {:?}", max_screen_size);
+            let next_size = (
+                current_size.0 * (1.0 + (x / max_screen_size.0 as f64)),
+                current_size.1 * (1.0 + (y / max_screen_size.1 as f64)),
+            );
+            let mut stretches = Self::get_stretches(&obj, next_size, min_height, min_width);
+            let current_stretch = (next_size.0 / starting_size.0, next_size.1 / starting_size.1);
+            stretches[obj.mode() as usize] = current_stretch;
+            // log::trace!("stretches: {:?}", stretches);
+            css_context.set_stretch_all(stretches);
+
+            css_context.set_size((next_size.0 as i32, next_size.1 as i32));
+            obj.queue_draw();
+        });
+        drag_controller.connect_drag_end(|gest, _, _| {
+            let obj = gest.widget().downcast::<ActivityWidget>().unwrap();
+            if !obj.local_css_context().get_config_enable_drag_stretch() {
+                return;
+            }
+            if obj.has_css_class("dragging") {
+                obj.remove_css_class("dragging");
+                let mut css_context = obj.local_css_context();
+                let min_height = css_context.get_config_minimal_height();
+                let min_width = css_context.get_config_minimal_width();
+                let next_size =
+                    Self::get_final_widget_size_for_mode(&obj, obj.mode(), min_height, min_width);
+                let stretches = Self::get_stretches(&obj, next_size, min_height, min_width);
+                // log::trace!("stretches: {:?}", stretches);
+                css_context.set_stretch_all(stretches);
+
+                css_context.set_size((next_size.0 as i32, next_size.1 as i32));
+                obj.queue_draw();
+            }
+        });
+        self.obj().connect_state_flags_changed(|obj, _| {
+            if !obj.local_css_context().get_config_enable_drag_stretch() {
+                return;
+            }
+            if obj.has_css_class("dragging") && !obj.state_flags().contains(StateFlags::ACTIVE) {
+                obj.remove_css_class("dragging");
+                let mut css_context = obj.local_css_context();
+                let min_height = css_context.get_config_minimal_height();
+                let min_width = css_context.get_config_minimal_width();
+                let next_size =
+                    Self::get_final_widget_size_for_mode(obj, obj.mode(), min_height, min_width);
+                let stretches = Self::get_stretches(obj, next_size, min_height, min_width);
+                // log::trace!("stretches: {:?}", stretches);
+                css_context.set_stretch_all(stretches);
+
+                css_context.set_size((next_size.0 as i32, next_size.1 as i32));
+                obj.queue_draw();
+            }
+        });
+        self.obj().add_controller(drag_controller);
+    }
     pub(super) fn get_mode_widget(&self, mode: ActivityMode) -> &RefCell<Option<gtk::Widget>> {
         match mode {
             ActivityMode::Minimal => &self.minimal_mode_widget,
@@ -288,35 +392,34 @@ impl ActivityWidgetPriv {
     }
 
     pub(super) fn get_final_widget_size_for_mode(
-        &self,
+        obj: &ActivityWidget,
         mode: ActivityMode,
         min_height: i32,
         min_width: i32,
     ) -> (f64, f64) {
-        if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
-            let tmp =
-                util::get_final_widget_size(widget, *self.mode.borrow(), min_height, min_width);
+        if let Some(widget) = &obj.get_widget_for_mode(mode) {
+            let tmp = util::get_final_widget_size(widget, obj.mode(), min_height, min_width);
             (tmp.0 as f64, tmp.1 as f64)
         } else {
             (
                 // default
-                self.obj().width() as f64,
-                self.obj().height() as f64,
+                obj.width() as f64,
+                obj.height() as f64,
             )
         }
     }
 
     pub(super) fn get_stretches(
-        &self,
+        obj: &ActivityWidget,
         next_size: (f64, f64),
         min_height: i32,
         min_width: i32,
     ) -> [(f64, f64); 4] {
         let mut mode = ActivityMode::Minimal;
-        let min_stretch = if matches!(*self.mode.borrow(), ActivityMode::Minimal) {
+        let min_stretch = if matches!(obj.mode(), ActivityMode::Minimal) {
             (1.0, 1.0)
         } else {
-            let min_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
+            let min_alloc = if let Some(widget) = &obj.get_widget_for_mode(mode) {
                 let mut measure = util::get_child_aligned_allocation(
                     (next_size.0 as i32, next_size.1 as i32, -1),
                     widget,
@@ -331,17 +434,17 @@ impl ActivityWidgetPriv {
                 }
                 (measure.0 as f64, measure.1 as f64)
             } else {
-                self.get_final_widget_size_for_mode(mode, min_height, min_width)
+                Self::get_final_widget_size_for_mode(obj, mode, min_height, min_width)
             };
             // log::debug!("min get_size: {:?}, alloc: {:?}", min_alloc, min_alloc);
             (next_size.0 / min_alloc.0, next_size.1 / min_alloc.1)
         };
 
         mode = ActivityMode::Compact;
-        let com_stretch = if matches!(*self.mode.borrow(), ActivityMode::Compact) {
+        let com_stretch = if matches!(obj.mode(), ActivityMode::Compact) {
             (1.0, 1.0)
         } else {
-            let com_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
+            let com_alloc = if let Some(widget) = &obj.get_widget_for_mode(mode) {
                 let mut measure = util::get_child_aligned_allocation(
                     (next_size.0 as i32, next_size.1 as i32, -1),
                     widget,
@@ -356,17 +459,17 @@ impl ActivityWidgetPriv {
                 }
                 (measure.0 as f64, measure.1 as f64)
             } else {
-                self.get_final_widget_size_for_mode(mode, min_height, min_width)
+                Self::get_final_widget_size_for_mode(obj, mode, min_height, min_width)
             };
             // log::debug!("min get_size: {:?}, alloc: {:?}", min_alloc, min_alloc);
             (next_size.0 / com_alloc.0, next_size.1 / com_alloc.1)
         };
 
         mode = ActivityMode::Expanded;
-        let exp_stretch = if matches!(*self.mode.borrow(), ActivityMode::Expanded) {
+        let exp_stretch = if matches!(obj.mode(), ActivityMode::Expanded) {
             (1.0, 1.0)
         } else {
-            let exp_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
+            let exp_alloc = if let Some(widget) = &obj.get_widget_for_mode(mode) {
                 let mut measure = util::get_child_aligned_allocation(
                     (next_size.0 as i32, next_size.1 as i32, -1),
                     widget,
@@ -381,17 +484,17 @@ impl ActivityWidgetPriv {
                 }
                 (measure.0 as f64, measure.1 as f64)
             } else {
-                self.get_final_widget_size_for_mode(mode, min_height, min_width)
+                Self::get_final_widget_size_for_mode(obj, mode, min_height, min_width)
             };
             // log::debug!("min get_size: {:?}, alloc: {:?}", min_alloc, min_alloc);
             (next_size.0 / exp_alloc.0, next_size.1 / exp_alloc.1)
         };
 
         mode = ActivityMode::Overlay;
-        let ove_stretch = if matches!(*self.mode.borrow(), ActivityMode::Overlay) {
+        let ove_stretch = if matches!(obj.mode(), ActivityMode::Overlay) {
             (1.0, 1.0)
         } else {
-            let ove_alloc = if let Some(widget) = &*self.get_mode_widget(mode).borrow() {
+            let ove_alloc = if let Some(widget) = &obj.get_widget_for_mode(mode) {
                 let mut measure = util::get_child_aligned_allocation(
                     (next_size.0 as i32, next_size.1 as i32, -1),
                     widget,
@@ -406,7 +509,7 @@ impl ActivityWidgetPriv {
                 }
                 (measure.0 as f64, measure.1 as f64)
             } else {
-                self.get_final_widget_size_for_mode(mode, min_height, min_width)
+                Self::get_final_widget_size_for_mode(obj, mode, min_height, min_width)
             };
             // log::debug!("min get_size: {:?}, alloc: {:?}", min_alloc, min_alloc);
             (next_size.0 / ove_alloc.0, next_size.1 / ove_alloc.1)

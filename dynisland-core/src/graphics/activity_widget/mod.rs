@@ -5,7 +5,7 @@ pub mod layout_manager;
 pub mod local_css_context;
 mod object_subclass_impl;
 
-use gtk::{prelude::*, subclass::prelude::*};
+use gtk::prelude::*;
 
 use self::boxed_activity_mode::ActivityMode;
 
@@ -53,17 +53,17 @@ impl ActivityWidget {
         self.get_widget_for_mode(self.mode())
     }
 
-    pub fn set_blur_radius(&self, radius: f64, module: bool) {
-        self.imp()
-            .local_css_context
-            .borrow_mut()
-            .set_config_blur_radius(radius, module);
-        self.imp().config_blur_radius_app.replace(radius);
-    }
-    pub fn get_blur_radius(&self) -> f64 {
-        self.imp()
-            .local_css_context
-            .borrow()
-            .get_config_blur_radius()
-    }
+    // pub fn set_blur_radius(&self, radius: f64, module: bool) {
+    //     self.imp()
+    //         .local_css_context
+    //         .borrow_mut()
+    //         .set_config_blur_radius(radius, module);
+    //     self.imp().config_blur_radius_app.replace(radius);
+    // }
+    // pub fn get_blur_radius(&self) -> f64 {
+    //     self.imp()
+    //         .local_css_context
+    //         .borrow()
+    //         .get_config_blur_radius()
+    // }
 }

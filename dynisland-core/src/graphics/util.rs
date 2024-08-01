@@ -1,5 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
+use gdk::prelude::{DisplayExt, ListModelExtManual, MonitorExt};
 use gtk::{graphene::Point, gsk::Transform, prelude::WidgetExt};
 
 use super::activity_widget::boxed_activity_mode::ActivityMode;
@@ -151,4 +152,20 @@ pub(super) fn get_property_slice_for_mode_f64(
         ActivityMode::Expanded => [other_values, other_values, mode_value, other_values],
         ActivityMode::Overlay => [other_values, other_values, other_values, mode_value],
     }
+}
+//TODO listen for added monitors, cache result
+pub fn get_max_monitors_size() -> (i32, i32) {
+    gdk::Display::default()
+        .unwrap()
+        .monitors()
+        .iter::<gdk::Monitor>()
+        .flatten()
+        .map(|mon| {
+            (
+                mon.geometry().x() + mon.geometry().width(),
+                mon.geometry().y() + mon.geometry().height(),
+            )
+        })
+        .reduce(|acc, e| (acc.0.max(e.0), acc.1.max(e.1)))
+        .unwrap_or((1000, 1000))
 }

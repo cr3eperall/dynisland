@@ -207,8 +207,15 @@ impl SimpleLayout {
         focus_in.set_name(Some("focus_controller"));
 
         press_gesture.set_button(gdk::BUTTON_PRIMARY);
-        let aw = widget.clone();
-        press_gesture.connect_released(move |gest, _, _, _| {
+        press_gesture.connect_released(|gest, _, x, y| {
+            let aw = gest.widget().downcast::<ActivityWidget>().unwrap();
+            if x < 0.0
+                || y < 0.0
+                || x > aw.size(gtk::Orientation::Horizontal).into()
+                || y > aw.size(gtk::Orientation::Vertical).into()
+            {
+                return;
+            }
             if let ActivityMode::Minimal = aw.mode() {
                 aw.set_mode(ActivityMode::Compact);
                 gest.set_state(gtk::EventSequenceState::Claimed);

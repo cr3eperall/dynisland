@@ -22,6 +22,7 @@ pub struct ActivityWidgetLocalCssContext {
     config_minimal_height: ConfigVariable<i32>,
     config_minimal_width: ConfigVariable<i32>,
     config_blur_radius: ConfigVariable<f64>,
+    config_enable_drag_stretch: ConfigVariable<bool>,
 }
 
 #[allow(unused_braces)]
@@ -39,12 +40,14 @@ impl ActivityWidgetLocalCssContext {
             config_minimal_height: ConfigVariable::new(40),
             config_minimal_width: ConfigVariable::new(60),
             config_blur_radius: ConfigVariable::new(6.0),
+            config_enable_drag_stretch: ConfigVariable::new(false),
         }
     }
 
     implement_config_get_set!(pub, config_minimal_height, i32);
     implement_config_get_set!(pub, config_minimal_width, i32);
     implement_config_get_set!(pub, config_blur_radius, f64);
+    implement_config_get_set!(pub, config_enable_drag_stretch, bool);
 
     // GET
     pub fn get_css_provider(&self) -> CssProvider {
