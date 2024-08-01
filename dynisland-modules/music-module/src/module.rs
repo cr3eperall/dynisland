@@ -489,6 +489,7 @@ async fn set_album_art(
     visualizer_gradient.lock().await.set(gradient).unwrap();
 }
 
+// TODO optimize
 fn wait_for_new_player_task(module: &MusicModule) {
     let player_bus_name = module.config.preferred_player.clone();
     let find_new_player_channel = module.find_new_player.clone();

@@ -294,6 +294,7 @@ impl WidgetImpl for ActivityWidgetPriv {}
 
 impl ActivityWidgetPriv {
     fn add_drag_controller(&self) {
+        //TODO add configurable scaling factor / log function for stretching
         let drag_controller = gtk::GestureDrag::builder()
             .button(gdk::BUTTON_PRIMARY)
             .name("drag-gesture")

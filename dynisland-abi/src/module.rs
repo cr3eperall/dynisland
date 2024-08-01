@@ -18,6 +18,7 @@ pub trait SabiModule {
 
     fn update_config(&mut self, config: RString) -> RResult<(), RBoxError>;
     //TODO
+    #[sabi(last_prefix_field)]
     /// !Rename to update_configs
     fn restart_producers(&self);
 }
@@ -53,5 +54,6 @@ pub enum UIServerCommand {
 #[derive(StableAbi, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ActivityIdentifier {
     pub(crate) module: RString,
+    #[sabi(last_prefix_field)]
     pub(crate) activity: RString,
 }
