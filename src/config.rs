@@ -23,6 +23,7 @@ pub struct GeneralConfig {
     pub minimal_height: u32,
     pub minimal_width: u32,
     pub blur_radius: f64,
+    pub enable_drag_stretch: bool,
 }
 
 impl Default for GeneralConfig {
@@ -31,6 +32,7 @@ impl Default for GeneralConfig {
             minimal_height: 40,
             minimal_width: 60,
             blur_radius: 6.0,
+            enable_drag_stretch: false,
             //TODO find a way to add scrolling label to settings
         }
     }

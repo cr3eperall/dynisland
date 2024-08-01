@@ -500,6 +500,7 @@ impl App {
         activity.set_property("config-minimal-width-app", config.minimal_width as i32);
         activity.set_property("config-blur-radius-app", config.blur_radius);
         activity.set_property("mode", activity.property::<ActivityMode>("mode"));
+        activity.set_property("config-enable-drag-stretch-app", config.enable_drag_stretch);
     }
 
     fn init_loaded_modules(&self, order: &Vec<String>) {
