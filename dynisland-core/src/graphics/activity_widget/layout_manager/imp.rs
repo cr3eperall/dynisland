@@ -28,10 +28,9 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
         orientation: gtk::Orientation,
         for_size: i32,
     ) -> (i32, i32, i32, i32) {
-        let activity_widget = widget.clone().downcast::<ActivityWidget>();
-        if let Err(err) = activity_widget {
-            log::error!("Error: {:?}", err);
-
+        let activity_widget = widget.downcast_ref::<ActivityWidget>();
+        if activity_widget.is_none() {
+            log::error!("Error downcasting ActivityWidget");
             return (0, 0, -1, -1);
         }
         let activity_widget = activity_widget.unwrap();
@@ -50,9 +49,9 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
     }
 
     fn allocate(&self, widget: &gtk::Widget, width: i32, height: i32, baseline: i32) {
-        let activity_widget = widget.clone().downcast::<ActivityWidget>();
-        if let Err(err) = activity_widget {
-            log::error!("Error: {:?}", err);
+        let activity_widget = widget.downcast_ref::<ActivityWidget>();
+        if activity_widget.is_none() {
+            log::error!("Error downcasting ActivityWidget");
             return;
         }
         let binding = activity_widget.unwrap();

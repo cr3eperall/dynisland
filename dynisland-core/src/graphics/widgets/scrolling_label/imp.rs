@@ -65,13 +65,14 @@ impl ObjectImpl for ScrollingLabelPriv {
             .add_css_class(self.local_css_context.borrow().get_name());
         let bin = self.bin.borrow();
 
-        let label = self.label.borrow().clone();
+        let label = self.label.borrow();
+        let label: &gtk::Label = label.as_ref();
         // label.set_parent(self.obj().as_ref());
         label.set_wrap(false);
         label.set_halign(gtk::Align::Start);
         label.set_valign(gtk::Align::Center);
         label.add_css_class("inner-label");
-        bin.append(&label);
+        bin.append(label);
         bin.set_parent(self.obj().as_ref());
     }
 
@@ -86,6 +87,8 @@ impl ObjectImpl for ScrollingLabelPriv {
     fn dispose(&self) {
         let label = self.label.borrow();
         label.unparent();
+        let bin = self.bin.borrow();
+        bin.unparent();
     }
 }
 
@@ -142,7 +145,8 @@ impl WidgetImpl for ScrollingLabelPriv {
 
     fn snapshot(&self, snapshot: &gtk::Snapshot) {
         let obj = self.obj();
-        let bin = self.bin.borrow().clone();
+        let bin = self.bin.borrow();
+        let bin: &gtk::Box = bin.as_ref();
         let active = self.local_css_context.borrow().get_active();
         if active {
             snapshot.push_mask(gtk::gsk::MaskMode::Alpha);
@@ -173,12 +177,12 @@ impl WidgetImpl for ScrollingLabelPriv {
             );
             snapshot.pop();
         }
-        obj.snapshot_child(&bin, snapshot);
+        obj.snapshot_child(bin, snapshot);
         if active {
             let width = bin.width();
             snapshot.save();
             snapshot.translate(&Point::new(width as f32, 0.0));
-            obj.snapshot_child(&bin, snapshot);
+            obj.snapshot_child(bin, snapshot);
             snapshot.restore();
             snapshot.pop();
         }

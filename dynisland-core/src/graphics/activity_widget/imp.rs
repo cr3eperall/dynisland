@@ -206,7 +206,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                 }
                 self.minimal_mode_widget.replace(widget);
                 if let Some(widget) = self.minimal_mode_widget.borrow().as_ref() {
-                    widget.set_parent(&self.obj().clone().upcast::<gtk::Widget>());
+                    widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-minimal");
                     widget.set_overflow(gtk::Overflow::Hidden);
                 }
@@ -222,7 +222,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                 }
                 self.compact_mode_widget.replace(widget);
                 if let Some(widget) = self.compact_mode_widget.borrow().as_ref() {
-                    widget.set_parent(&self.obj().clone().upcast::<gtk::Widget>());
+                    widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-compact");
                     widget.set_overflow(gtk::Overflow::Hidden);
                 }
@@ -238,7 +238,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                 }
                 self.expanded_mode_widget.replace(widget);
                 if let Some(widget) = self.expanded_mode_widget.borrow().as_ref() {
-                    widget.set_parent(&self.obj().clone().upcast::<gtk::Widget>());
+                    widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-expanded");
                     widget.set_overflow(gtk::Overflow::Hidden);
                 }
@@ -254,7 +254,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                 }
                 self.overlay_mode_widget.replace(widget);
                 if let Some(widget) = self.overlay_mode_widget.borrow().as_ref() {
-                    widget.set_parent(&self.obj().clone().upcast::<gtk::Widget>());
+                    widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-overlay");
                     widget.set_overflow(gtk::Overflow::Hidden);
                 }
@@ -272,6 +272,7 @@ impl ObjectImpl for ActivityWidgetPriv {
     }
 
     fn dispose(&self) {
+        // log::warn!("{} dispose", self.name.borrow());
         if let Some(widget) = self.background_widget.borrow_mut().take() {
             widget.unparent();
         }
@@ -322,7 +323,11 @@ impl ActivityWidgetPriv {
             } else {
                 x
             };
-            let y = y.abs();
+            let y = if gest.start_point().unwrap().1 < starting_size.1 / 2.0 {
+                -y
+            } else {
+                y
+            };
             // log::info!("{:?} {:?}",start, starting_size);
             // log::info!("continue: {x} {y}");
             let current_size =
@@ -330,8 +335,10 @@ impl ActivityWidgetPriv {
             let max_screen_size = util::get_max_monitors_size();
             // log::info!("max: {:?}", max_screen_size);
             let next_size = (
-                current_size.0 * (1.0 + (x / max_screen_size.0 as f64)),
-                current_size.1 * (1.0 + (y / max_screen_size.1 as f64)),
+                (current_size.0 * (1.0 + (x / max_screen_size.0 as f64)))
+                    .max(obj.local_css_context().get_config_minimal_width() as f64),
+                (current_size.1 * (1.0 + (y / max_screen_size.1 as f64)))
+                    .max(obj.local_css_context().get_config_minimal_height() as f64),
             );
             let mut stretches = Self::get_stretches(&obj, next_size, min_height, min_width);
             let current_stretch = (next_size.0 / starting_size.0, next_size.1 / starting_size.1);

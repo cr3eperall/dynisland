@@ -6,3 +6,4 @@ file.scss
 disabled-rust-toolchain.toml
 rust-toolchain.toml
 Dynamic Activities Guidelines-tmp.md
+heaptrack.*

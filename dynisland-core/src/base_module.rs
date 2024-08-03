@@ -15,11 +15,19 @@ use tokio::{
 
 pub type Producer<T> = fn(module: &T);
 
-#[derive(Clone)]
 pub struct ProducerRuntime {
-    pub handle: Arc<Mutex<Handle>>,
+    pub handle: Mutex<Handle>,
     pub shutdown: Arc<Mutex<tokio::sync::mpsc::Sender<()>>>,
     pub cleanup_notifier: Sender<UnboundedSender<()>>,
+}
+impl Clone for ProducerRuntime {
+    fn clone(&self) -> Self {
+        Self {
+            handle: Mutex::new(self.handle.blocking_lock().clone()),
+            shutdown: self.shutdown.clone(),
+            cleanup_notifier: self.cleanup_notifier.clone(),
+        }
+    }
 }
 
 impl Default for ProducerRuntime {
@@ -27,7 +35,7 @@ impl Default for ProducerRuntime {
         let (handle, shutdown) = Self::get_new_tokio_rt();
         let (cl_tx, _) = tokio::sync::broadcast::channel(32);
         Self {
-            handle: Arc::new(Mutex::new(handle)),
+            handle: Mutex::new(handle),
             shutdown: Arc::new(Mutex::new(shutdown)),
             cleanup_notifier: cl_tx,
         }
@@ -172,11 +180,17 @@ impl<T> BaseModule<T> {
             )))
             .unwrap();
 
-        self.registered_activities
+        match self
+            .registered_activities
             .blocking_lock()
             .map
             .remove(activity_name)
-            .expect("activity isn't registered");
+        {
+            Some(_) => {}
+            None => {
+                log::debug!("activity {activity_name} isn't registered");
+            }
+        }
     }
 
     fn spawn_property_update_loop(

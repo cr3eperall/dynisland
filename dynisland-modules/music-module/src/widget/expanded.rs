@@ -169,13 +169,13 @@ fn progress_container(width: f32, height: f32, action_tx: UnboundedSender<UIActi
             progress_bar.set_range(0.0, 1.0);
             progress_bar.set_increments((1.0 / (width * 0.7)).into(), 0.1);
 
-            let prog_1 = progress_bar.clone();
             let release_gesture = GestureClick::new();
             release_gesture.set_button(gdk::BUTTON_PRIMARY);
-            release_gesture.connect_unpaired_release(move |_gest, _, _, _, _| {
+            release_gesture.connect_unpaired_release(move |gest, _, _, _, _| {
+                let prog = gest.widget().downcast::<gtk::Scale>().unwrap();
                 action_tx
                     .send(UIAction::SetPosition(Duration::from_millis(
-                        prog_1.value() as u64
+                        prog.value() as u64
                     )))
                     .expect("failed to send seek message");
             });

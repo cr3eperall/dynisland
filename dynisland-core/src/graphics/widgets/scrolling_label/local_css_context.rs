@@ -30,7 +30,7 @@ impl ScrollingLabelLocalCssContext {
             active: true,
             config_fade_size: ConfigVariable::new(CssSize::Percent(4.0)),
             config_speed: ConfigVariable::new(40.0),
-            config_delay: ConfigVariable::new(2000),
+            config_delay: ConfigVariable::new(5000),
         }
     }
 
@@ -39,8 +39,8 @@ impl ScrollingLabelLocalCssContext {
     implement_config_get_set!(pub, config_delay, u64);
 
     // GET
-    pub fn get_css_provider(&self) -> CssProvider {
-        self.css_provider.clone()
+    pub fn get_css_provider(&self) -> &CssProvider {
+        &self.css_provider
     }
     pub fn get_name(&self) -> &str {
         &self.name

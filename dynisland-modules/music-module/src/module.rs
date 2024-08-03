@@ -43,7 +43,7 @@ use crate::{
     NAME,
 };
 
-const CHECK_DELAY: u64 = 5;
+const CHECK_DELAY: u64 = 5000;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -92,8 +92,8 @@ pub fn new(app_send: RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError>
             match restart_rx.blocking_recv() {
                 Some(_) => {
                     if last_attempt.elapsed() < Duration::from_millis(1000) {
-                        log::info!("no player found: sleeping for {} seconds", CHECK_DELAY);
-                        thread::sleep(Duration::from_secs(CHECK_DELAY));
+                        log::info!("no player found: sleeping for {} millis", CHECK_DELAY);
+                        thread::sleep(Duration::from_millis(CHECK_DELAY));
                     }
                     last_attempt = Instant::now();
                     log::info!("searching for a new player");
@@ -119,21 +119,21 @@ pub fn new(app_send: RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError>
 impl SabiModule for MusicModule {
     fn init(&self) {
         let base_module = self.base_module.clone();
-        let action_tx = self.action_channel.0.clone();
-        let config = self.config.clone();
+        // let action_tx = self.action_channel.0.clone();
+        // let config = self.config.clone();
         glib::MainContext::default().spawn_local(async move {
             //create activity
-            let act = widget::get_activity(
-                base_module.prop_send(),
-                NAME,
-                "music-activity",
-                &config,
-                action_tx,
-            );
+            // let act = widget::get_activity(
+            //     base_module.prop_send(),
+            //     NAME,
+            //     "music-activity",
+            //     &config,
+            //     action_tx,
+            // );
 
-            //register activity and data producer
-            base_module.register_activity(act).unwrap();
-            base_module.register_producer(producer);
+            // //register activity and data producer
+            // base_module.register_activity(act).unwrap();
+            base_module.register_producer(self::producer);
         });
     }
 
@@ -141,14 +141,14 @@ impl SabiModule for MusicModule {
         let conf = ron::from_str::<ron::Value>(&config)
             .with_context(|| "failed to parse config to value")
             .unwrap();
-        let old_config = self.config.clone();
-        self.config = conf
-            .into_rust()
-            .with_context(|| "failed to parse config to struct")
-            .unwrap_or_else(|err| {
-                log::error!("parsing error: {:#?}", err);
-                old_config
-            });
+        match conf.into_rust() {
+            Ok(conf) => {
+                self.config = conf;
+            }
+            Err(err) => {
+                log::error!("Failed to parse config into struct: {:#?}", err);
+            }
+        }
         ROk(())
     }
 
@@ -170,6 +170,38 @@ impl SabiModule for MusicModule {
 #[allow(unused_variables)]
 fn producer(module: &MusicModule) {
     let config = &module.config;
+    let player = match MprisPlayer::new(&config.preferred_player) {
+        Ok(player) => {
+            if module
+                .base_module
+                .registered_activities()
+                .blocking_lock()
+                .get_activity("music-activity")
+                .is_err()
+            {
+                // let base_module = module.base_module.clone();
+                let action_tx = module.action_channel.0.clone();
+                // let config = config.clone();
+                //create activity
+                let act = widget::get_activity(
+                    module.base_module.prop_send(),
+                    NAME,
+                    "music-activity",
+                    config,
+                    action_tx,
+                );
+
+                //register activity
+                module.base_module.register_activity(act).unwrap();
+            }
+            player
+        }
+        Err(_) => {
+            module.base_module.unregister_activity("music-activity");
+            module.find_new_player.send(()).unwrap();
+            return;
+        }
+    };
     let activities = &module.base_module.registered_activities();
     let album_art = activities
         .blocking_lock()
@@ -219,13 +251,6 @@ fn producer(module: &MusicModule) {
             )
             .await;
         });
-    let player = match MprisPlayer::new(&config.preferred_player) {
-        Ok(player) => player,
-        Err(_) => {
-            module.find_new_player.send(()).unwrap();
-            return;
-        }
-    };
     let (mut event_rx, seek_tx) = player
         .start_progress_tracker(Duration::from_millis(200))
         .unwrap();
@@ -300,7 +325,6 @@ fn producer(module: &MusicModule) {
                             loop_status: mpris::LoopStatus::Playlist,
                         })
                         .unwrap();
-
                     find_new_player_channel.send(()).unwrap();
                     return;
                 }
@@ -514,7 +538,7 @@ fn wait_for_new_player_task(module: &MusicModule) {
                     find_new_player_channel.send(()).unwrap();
                     return;
                 }
-                tokio::time::sleep(Duration::from_secs(CHECK_DELAY)).await;
+                tokio::time::sleep(Duration::from_millis(CHECK_DELAY)).await;
             }
         }
         loop {
@@ -528,7 +552,7 @@ fn wait_for_new_player_task(module: &MusicModule) {
                 find_new_player_channel.send(()).unwrap();
                 return;
             }
-            tokio::time::sleep(Duration::from_secs(CHECK_DELAY)).await;
+            tokio::time::sleep(Duration::from_millis(CHECK_DELAY)).await;
         }
     });
 }
@@ -541,7 +565,6 @@ fn visualizer_task(
     let mut cleanup = module.producers_rt.cleanup_notifier.subscribe();
     let command = command.to_string();
     module.producers_rt.handle().spawn(async move{
-        //FIXME replace with new script
         let child=Command::new("sh")
         .arg("-c")
         .arg(command)

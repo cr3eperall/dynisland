@@ -24,7 +24,7 @@ impl ScrollingLabel {
         label.imp().label.borrow().set_text(text.unwrap_or(""));
         gtk::style_context_add_provider_for_display(
             &gdk::Display::default().unwrap(),
-            &label.local_css_context().get_css_provider(),
+            label.local_css_context().get_css_provider(),
             gtk::STYLE_PROVIDER_PRIORITY_USER - 1,
         );
         label

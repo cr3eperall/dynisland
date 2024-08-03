@@ -50,8 +50,8 @@ impl ActivityWidgetLocalCssContext {
     implement_config_get_set!(pub, config_enable_drag_stretch, bool);
 
     // GET
-    pub fn get_css_provider(&self) -> CssProvider {
-        self.css_provider.clone()
+    pub fn get_css_provider(&self) -> &CssProvider {
+        &self.css_provider
     }
     pub fn get_name(&self) -> &str {
         &self.name

@@ -25,7 +25,7 @@ impl ActivityMap {
         if self.map.contains_key(&activity_id.activity()) {
             bail!("activity {} was already registered", activity_id);
         }
-        self.map.insert(activity_id.activity(), activity.clone());
+        self.map.insert(activity_id.activity(), activity);
         Ok(())
     }
     pub fn get_property_any_blocking(

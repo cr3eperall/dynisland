@@ -13,7 +13,7 @@ pub type LayoutManagerType = SabiLayoutManager_TO<'static, RBox<()>>;
 
 #[sabi_trait]
 pub trait SabiLayoutManager {
-    fn init(&self);
+    fn init(&mut self);
     fn update_config(&mut self, config: RString) -> RResult<(), RBoxError>;
 
     fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: SabiWidget);

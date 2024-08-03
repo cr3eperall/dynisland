@@ -34,7 +34,7 @@ impl ActivityWidget {
 
         gtk::style_context_add_provider_for_display(
             &gdk::Display::default().unwrap(),
-            &wid.local_css_context().get_css_provider(),
+            wid.local_css_context().get_css_provider(),
             gtk::STYLE_PROVIDER_PRIORITY_USER + 1, //needs to be higher than user proprity
         );
         wid
