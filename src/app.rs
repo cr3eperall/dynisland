@@ -55,7 +55,7 @@ impl App {
         let (abi_app_send, abi_app_recv) =
             abi_stable::external_types::crossbeam_channel::unbounded::<UIServerCommand>();
 
-        self.app_send = Some(abi_app_send.clone());
+        self.app_send = Some(abi_app_send);
 
         let (app_send_async, mut app_recv_async) = unbounded_channel::<UIServerCommand>();
 
@@ -107,17 +107,24 @@ impl App {
             while let Some(command) = app_recv_async.recv().await {
                 match command {
                     UIServerCommand::AddActivity(activity_identifier, activity) => {
-                        let activity: Widget = activity.try_into().unwrap();
-                        layout
-                            .lock()
-                            .await
-                            .1
-                            .add_activity(&activity_identifier, activity.clone().into());
+                        let activity: Widget = match activity.try_into() {
+                            Ok(act) => {act},
+                            Err(err) => {
+                                log::error!("error while converting SabiWidget to Widget, maybe it was deallocated after UIServerCommand::AddActivity was sent: {err:#?}");
+                                continue;
+                            },
+                        };
 
                         Self::update_general_configs_on_activity(
                             &self.config.general_style_config,
                             &activity,
                         );
+
+                        layout
+                            .lock()
+                            .await
+                            .1
+                            .add_activity(&activity_identifier, activity.into());
                         log::info!("registered activity on {}", activity_identifier.module());
                     }
                     UIServerCommand::RemoveActivity(activity_identifier) => {
@@ -295,8 +302,7 @@ impl App {
                 let module_name = module_def.0;
                 let module_constructor = module_def.1;
 
-                let built_module = match module_constructor(self.app_send.as_ref().unwrap().clone())
-                {
+                let built_module = match module_constructor(self.app_send.clone().unwrap()) {
                     ROk(x) => x,
                     RErr(e) => {
                         log::error!("error during creation of {module_name}: {e:#?}");
@@ -321,8 +327,7 @@ impl App {
                     Some(x) => x,
                 };
 
-                let built_module = match module_constructor(self.app_send.as_ref().unwrap().clone())
-                {
+                let built_module = match module_constructor(self.app_send.clone().unwrap()) {
                     ROk(x) => x,
                     RErr(e) => {
                         log::error!("error during creation of {module_name}: {e:#?}");
@@ -455,10 +460,9 @@ impl App {
             let config_to_parse = self.config.module_config.get(module_name);
             let config_parsed = match config_to_parse {
                 Some(conf) => {
-                    let confs: RString =
-                        ron::ser::to_string_pretty(&conf.clone(), PrettyConfig::default())
-                            .unwrap()
-                            .into();
+                    let confs: RString = ron::ser::to_string_pretty(&conf, PrettyConfig::default())
+                        .unwrap()
+                        .into();
                     // log::debug!("config for : {}", confs);
                     module.update_config(confs)
                 }
@@ -516,10 +520,9 @@ impl App {
         let mut layout = layout.blocking_lock();
         let layout_name = layout.0.clone();
         if let Some(config) = self.config.layout_configs.get(&layout_name) {
-            let confs: RString =
-                ron::ser::to_string_pretty(&config.clone(), PrettyConfig::default())
-                    .unwrap()
-                    .into();
+            let confs: RString = ron::ser::to_string_pretty(&config, PrettyConfig::default())
+                .unwrap()
+                .into();
             match layout.1.update_config(confs) {
                 ROk(()) => {
                     log::info!("loaded layout config for {layout_name}");

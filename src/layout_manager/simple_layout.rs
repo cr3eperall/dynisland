@@ -27,7 +27,7 @@ pub const NAME: &str = "SimpleLayout";
 pub struct SimpleLayout {
     app: gtk::Application,
     widget_map: HashMap<ActivityIdentifier, ActivityWidget>,
-    container: gtk::Box,
+    container: Option<gtk::Box>,
     config: SimpleLayoutConfig,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -51,6 +51,7 @@ impl Alignment {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct SimpleLayoutConfig {
+    // TODO add layer
     orientation_horizontal: bool,
     h_anchor: Alignment,
     v_anchor: Alignment,
@@ -81,52 +82,40 @@ impl Default for SimpleLayoutConfig {
 
 #[sabi_extern_fn]
 pub fn new(app: SabiApplication) -> RResult<LayoutManagerType, RBoxError> {
-    let container = gtk::Box::new(gtk::Orientation::Horizontal, 5);
-    container.add_css_class("activity-container");
     let app = app.try_into().unwrap();
     let this = SimpleLayout {
         app,
         widget_map: HashMap::new(),
-        container,
+        container: None,
         config: SimpleLayoutConfig::default(),
     };
     ROk(SabiLayoutManager_TO::from_value(this, TD_CanDowncast))
 }
 
 impl SabiLayoutManager for SimpleLayout {
-    fn init(&self) {
-        let window = gtk::ApplicationWindow::new(&self.app);
-
-        window.set_child(Some(&self.container));
-        if !self.config.windowed {
-            window.init_layer_shell();
-            init_layer_shell(&window.clone().upcast(), &self.config.clone());
-        }
+    fn init(&mut self) {
+        self.create_new_window();
         gtk::Window::set_interactive_debugging(self.config.open_debugger);
-
-        //show window
-        window.connect_destroy(|_| std::process::exit(0));
-        window.present();
     }
 
     fn update_config(&mut self, config: RString) -> RResult<(), RBoxError> {
         let conf = ron::from_str::<ron::Value>(&config)
             .with_context(|| "failed to parse config to value")
             .unwrap();
-        let old_config = self.config.clone();
-        self.config = conf
-            .into_rust()
-            .with_context(|| "failed to parse config to struct")
-            .unwrap_or_else(|err| {
-                log::error!("parsing error: {:#?}", err);
-                old_config
-            });
+        match conf.into_rust() {
+            Ok(conf) => {
+                self.config = conf;
+            }
+            Err(err) => {
+                log::error!("Failed to parse config into struct: {:#?}", err);
+            }
+        }
         log::debug!("current config: {:#?}", self.config);
 
         self.configure_container();
         if !self.config.windowed {
             if let Some(window) = self.app.windows().first() {
-                init_layer_shell(&window.clone(), &self.config.clone());
+                init_layer_shell(window, &self.config);
             }
         }
 
@@ -150,7 +139,10 @@ impl SabiLayoutManager for SimpleLayout {
             }
         };
         self.configure_widget(&widget);
-        self.container.append(&widget.clone());
+        self.container
+            .as_ref()
+            .expect("there should be a container")
+            .append(&widget);
         self.widget_map.insert(activity_id.clone(), widget);
     }
     fn get_activity(&self, activity: &ActivityIdentifier) -> ROption<SabiWidget> {
@@ -159,10 +151,34 @@ impl SabiLayoutManager for SimpleLayout {
             .map(|wid| SabiWidget::from(wid.clone().upcast::<gtk::Widget>()))
             .into()
     }
+    // FIXME maybe it leaks a bit of memory
+    //probably there are still some references to the activity widget and i don't know where
     fn remove_activity(&mut self, activity: &ActivityIdentifier) {
         if let Some(widget) = self.widget_map.get(activity) {
-            self.container.remove(widget);
-            self.widget_map.remove(activity);
+            self.container
+                .as_ref()
+                .expect("there should be a container")
+                .remove(widget);
+            let w = self.widget_map.remove(activity).unwrap();
+            // w.unrealize();
+            // w.connect_destroy(|_|{
+            //     log::error!("is being destroyed");
+            // });
+            if self
+                .container
+                .as_ref()
+                .expect("there should be a container")
+                .first_child()
+                .is_none()
+            {
+                if let Some(win) = self.app.windows().first() {
+                    win.close();
+                    self.create_new_window();
+                }
+            }
+            // unsafe { w.run_dispose(); } // FIXME i'm not sure this is safe
+            // log::error!("refs: {}",w.ref_count());
+            drop(w);
         }
     }
     fn list_activities(&self) -> RVec<&ActivityIdentifier> {
@@ -225,9 +241,8 @@ impl SimpleLayout {
 
         if self.config.auto_minimize_timeout >= 0 {
             let timeout = self.config.auto_minimize_timeout;
-            let aw = widget.clone();
-            focus_in.connect_leave(move |_| {
-                let aw = aw.clone();
+            focus_in.connect_leave(move |evt| {
+                let aw = evt.widget().downcast::<ActivityWidget>().unwrap();
                 let mode = aw.mode();
                 if matches!(mode, ActivityMode::Minimal | ActivityMode::Compact) {
                     return;
@@ -247,15 +262,48 @@ impl SimpleLayout {
     }
 
     fn configure_container(&self) {
+        if self.container.is_none() {
+            return;
+        }
         if self.config.windowed {
             if self.config.orientation_horizontal {
-                self.container.set_orientation(gtk::Orientation::Horizontal);
+                self.container
+                    .as_ref()
+                    .unwrap()
+                    .set_orientation(gtk::Orientation::Horizontal);
             } else {
-                self.container.set_orientation(gtk::Orientation::Vertical);
+                self.container
+                    .as_ref()
+                    .unwrap()
+                    .set_orientation(gtk::Orientation::Vertical);
             }
-            self.container.set_halign(self.config.h_anchor.map_gtk());
-            self.container.set_valign(self.config.v_anchor.map_gtk());
+            self.container
+                .as_ref()
+                .unwrap()
+                .set_halign(self.config.h_anchor.map_gtk());
+            self.container
+                .as_ref()
+                .unwrap()
+                .set_valign(self.config.v_anchor.map_gtk());
         }
+    }
+
+    fn create_new_window(&mut self) {
+        let window = gtk::ApplicationWindow::new(&self.app);
+
+        let container = gtk::Box::new(gtk::Orientation::Horizontal, 5);
+        container.add_css_class("activity-container");
+        self.container = Some(container);
+        window.set_child(self.container.as_ref());
+        if !self.config.windowed {
+            window.init_layer_shell();
+            init_layer_shell(window.upcast_ref(), &self.config);
+            window.connect_destroy(|_| log::debug!("window destroyed"));
+        } else {
+            window.connect_destroy(|_| std::process::exit(0));
+        }
+        //show window
+        window.present();
     }
 }
 

@@ -38,6 +38,7 @@ impl Default for GeneralConfig {
     }
 }
 
+// TODO add api for getting default config from modules
 impl Default for Config {
     fn default() -> Self {
         let module_map = HashMap::<String, Value>::new();
