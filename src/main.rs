@@ -10,6 +10,10 @@ use log::Level;
 
 // [ ] TODO detect nvidia gpu and display warning (if dynisland uses too much ram, use GSK_RENDERER=vulkan)
 
+// FIXME app sometimes segfaults when waking up from hibernation (Hyprland 0.40.0, ArchLinux, 6.6.40-1-lts)
+// there is a null pointer dereference somewhere in gtk or dynisland
+// the backtrace is in backtrace.txt
+
 fn main() -> Result<()> {
     //init GTK
     gtk::init().with_context(|| "failed to init gtk")?;

@@ -5,7 +5,7 @@ use abi_stable::{
     sabi_trait::TD_CanDowncast,
     std_types::{
         RBoxError, ROption,
-        RResult::{self, ROk},
+        RResult::{self, RErr, ROk},
         RString, RVec,
     },
 };
@@ -20,6 +20,7 @@ use dynisland_core::graphics::activity_widget::{
 };
 use gtk::{prelude::*, EventController, StateFlags, Window};
 use gtk_layer_shell::LayerShell;
+use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
 pub const NAME: &str = "SimpleLayout";
@@ -31,7 +32,7 @@ pub struct SimpleLayout {
     config: SimpleLayoutConfig,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "")]
+#[serde(tag = "Alignment")]
 pub enum Alignment {
     Start,
     Center,
@@ -125,6 +126,13 @@ impl SabiLayoutManager for SimpleLayout {
 
         ROk(())
     }
+    fn default_config(&self) -> RResult<RString, RBoxError> {
+        let conf = SimpleLayoutConfig::default();
+        match ron::ser::to_string_pretty(&conf, PrettyConfig::default()) {
+            Ok(conf) => ROk(RString::from(conf)),
+            Err(err) => RErr(RBoxError::new(err)),
+        }
+    }
 
     fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: SabiWidget) {
         if self.widget_map.contains_key(activity_id) {
@@ -191,12 +199,12 @@ impl SimpleLayout {
         match self.config.orientation_horizontal {
             true => {
                 widget.set_valign(self.config.child_align.map_gtk());
-                log::info!(
-                    "{} {} {}",
-                    widget.name(),
-                    widget.valign(),
-                    self.config.child_align.map_gtk()
-                );
+                // log::info!(
+                //     "{} {} {}",
+                //     widget.name(),
+                //     widget.valign(),
+                //     self.config.child_align.map_gtk()
+                // );
             }
             false => {
                 widget.set_halign(self.config.child_align.map_gtk());
