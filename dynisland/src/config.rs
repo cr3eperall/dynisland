@@ -1,11 +1,13 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use colored::Colorize;
 use log::warn;
-use ron::{extensions::Extensions, Value};
+use ron::{extensions::Extensions, ser::PrettyConfig, Value};
 use serde::{Deserialize, Serialize};
 
 pub const CONFIG_REL_PATH: &str = "dynisland/"; //TODO add cli override
+
+// TODO ron sucks, i need to switch to pkl
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -50,6 +52,16 @@ impl Default for Config {
             general_style_config: GeneralConfig::default(),
             loaded_modules: vec!["all".to_string()],
         }
+    }
+}
+
+impl Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let options = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
+        let res = options
+            .to_string_pretty(self, PrettyConfig::default())
+            .unwrap_or("unable to parse config".to_string());
+        write!(f, "{}", res)
     }
 }
 

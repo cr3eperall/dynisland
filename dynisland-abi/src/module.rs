@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use abi_stable::{
     declare_root_module_statics,
     external_types::crossbeam_channel::RSender,
@@ -73,24 +75,37 @@ pub trait SabiModule {
     ///
     /// # Examples
     /// ```
-    /// impl SabiModule for Module {
-    ///     fn restart_producers(&self) {
-    ///         self.producers_rt.shutdown_blocking();
-    ///         self.producers_rt.reset_blocking();
-    ///         for producer in self
-    ///             .base_module
-    ///             .registered_producers()
-    ///             .blocking_lock()
-    ///             .iter()
-    ///         {
-    ///             producer(self);
-    ///         }
+    /// fn restart_producers(&self) {
+    ///     self.producers_rt.shutdown_blocking();
+    ///     self.producers_rt.reset_blocking();
+    ///     for producer in self
+    ///         .base_module
+    ///         .registered_producers()
+    ///         .blocking_lock()
+    ///         .iter()
+    ///     {
+    ///         producer(self);
     ///     }
     /// }
     /// ```
-    #[sabi(last_prefix_field)]
     fn restart_producers(&self);
+    
+    #[sabi(last_prefix_field)]
+    fn default_config(&self) -> RResult<RString, RBoxError> {
+        RResult::RErr(RBoxError::new(NotImplementedError::default()))
+    }
 }
+
+#[derive(Debug, Default)]
+struct NotImplementedError{
+}
+
+impl Display for NotImplementedError{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"method not implemented, update the module")
+    }
+}
+impl std::error::Error for NotImplementedError{}
 
 #[repr(C)]
 #[derive(StableAbi)]
@@ -142,6 +157,7 @@ pub enum UIServerCommand {
     // AddProducer(RString, Producer),
     RemoveActivity(ActivityIdentifier), //TODO needs to be tested
     RestartProducers(RString),
+    // RequestAttention(ActivityMode)
 }
 
 /// Module and activity name, used to uniquely identify a dynamic activity

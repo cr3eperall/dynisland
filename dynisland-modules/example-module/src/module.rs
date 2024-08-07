@@ -6,7 +6,7 @@ use abi_stable::{
     sabi_trait::TD_CanDowncast,
     std_types::{
         RBoxError,
-        RResult::{self, ROk},
+        RResult::{self, RErr, ROk},
         RString,
     },
 };
@@ -14,6 +14,7 @@ use anyhow::Context;
 use dynisland_abi::module::{ModuleType, SabiModule, SabiModule_TO, UIServerCommand};
 use env_logger::Env;
 use log::Level;
+use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
 use dynisland_core::{
@@ -93,6 +94,13 @@ impl SabiModule for ExampleModule {
             .with_context(|| "failed to parse config to struct")
             .unwrap();
         ROk(())
+    }
+
+    fn default_config(&self) -> RResult<RString, RBoxError> {
+        match ron::ser::to_string_pretty(&ExampleConfig::default(), PrettyConfig::default()) {
+            Ok(conf) => ROk(RString::from(conf)),
+            Err(err) => RErr(RBoxError::new(err)),
+        }
     }
 
     #[allow(clippy::let_and_return)]

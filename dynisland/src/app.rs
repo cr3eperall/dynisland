@@ -2,12 +2,14 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc, thread};
 
 use abi_stable::{
     external_types::crossbeam_channel::RSender,
-    library::lib_header_from_path,
+    library::{lib_header_from_path, LibraryError},
     std_types::{
         RBoxError,
         RResult::{self, RErr, ROk},
         RString,
     },
+    type_layout::TypeLayout,
+    StableAbi,
 };
 use anyhow::Result;
 use colored::Colorize;
@@ -76,6 +78,8 @@ impl App {
 
         self.init_loaded_modules(&module_order);
 
+        log::debug!("Default config: {}",self.get_default_config());
+
         // let app_send1=self.app_send.clone().unwrap();
         // glib::MainContext::default().spawn_local(async move {
         //     glib::timeout_future_seconds(10).await;
@@ -83,10 +87,14 @@ impl App {
         //     app_send1.send(UIServerCommand::ReloadConfig()).unwrap();
         // });
 
+        let (start_signal_tx, start_signal_rx) = tokio::sync::broadcast::channel::<()>(1);
+
         let layout = self.layout.clone().unwrap();
         // let act_container1 = act_container.clone();
         self.application.connect_activate(move |_app| {
+            log::info!("Loading LayoutManager");
             layout.blocking_lock().1.init();
+            start_signal_tx.send(()).unwrap();
             // let window = gtk::ApplicationWindow::new(app);
             // window.set_child(Some(&widget));
 
@@ -102,7 +110,9 @@ impl App {
         let layout = self.layout.clone().unwrap();
         let module_map = self.module_map.clone();
         //UI command consumer
+        let mut start_signal = start_signal_rx.resubscribe();
         glib::MainContext::default().spawn_local(async move {
+            start_signal.recv().await.unwrap();
             // TODO check if there are too many tasks on the UI thread and it begins to lag
             while let Some(command) = app_recv_async.recv().await {
                 match command {
@@ -141,8 +151,10 @@ impl App {
 
         let (server_send, mut server_recv) = unbounded_channel::<BackendServerCommand>();
         let app = self.application.clone();
+        let mut start_signal = start_signal_rx.resubscribe();
         //server command consumer
         glib::MainContext::default().spawn_local(async move {
+            start_signal.recv().await.unwrap();
             let renderer_name = self.application.windows()[0]
                 .native()
                 .unwrap()
@@ -277,7 +289,15 @@ impl App {
 
             let res = (|| {
                 let header = lib_header_from_path(&path)?;
-                header.init_root_module::<ModuleBuilderRef>()
+                // header.init_root_module::<ModuleBuilderRef>()
+                let layout1 = ModuleBuilderRef::LAYOUT;
+                let layout2 = header.layout().unwrap();
+                ensure_compatibility(layout1, layout2).and_then(|_| unsafe {
+                    header
+                        .unchecked_layout::<ModuleBuilderRef>().map_err(|err|{
+                            err.into_library_error::<ModuleBuilderRef>()
+                        })
+                })
             })();
 
             let module_builder = match res {
@@ -407,7 +427,7 @@ impl App {
         }
 
         if self.config.layout.is_none() {
-            log::info!("no layout manager found, using default: SimpleLayout");
+            log::info!("no layout manager in config, using default: SimpleLayout");
             self.load_simple_layout();
             return;
         }
@@ -450,6 +470,54 @@ impl App {
             simple_layout::NAME.to_string(),
             layout,
         ))));
+    }
+
+    #[allow(dead_code)]
+    fn get_default_config(&self) -> Config {
+        let mut base_conf = Config::default();
+        let (layout_name, layout_config) = {
+            let layout = self.layout.as_ref().unwrap().blocking_lock();
+            (layout.0.to_owned(), layout.1.default_config())
+        };
+        let module_configs: Vec<(String, RResult<RString, RBoxError>)> = self
+            .module_map
+            .blocking_lock()
+            .iter()
+            .map(|(k, v)| (k.to_owned(), v.default_config()))
+            .collect();
+        base_conf.layout = Some(layout_name.clone());
+        match layout_config {
+            ROk(conf) => match ron::de::from_str(conf.as_str()) {
+                Ok(value) => {
+                    base_conf.layout_configs.insert(layout_name, value);
+                }
+                Err(err) => {
+                    log::error!("deserializing error: {err}");
+                }
+            },
+            RErr(err) => {
+                log::error!("get default config error: {err}");
+            }
+        }
+        for (module_name, config) in module_configs {
+            match config {
+                ROk(conf) => {
+                    log::debug!("string config for {module_name}: {}",conf.as_str()); //TODO find a way to get the original string in Config
+                    match ron::de::from_str(conf.as_str()) {
+                        Ok(value) => {
+                            base_conf.module_config.insert(module_name, value);
+                        }
+                        Err(err) => {
+                            log::warn!("cannot get default config for {module_name}: {err}");
+                        },
+                    }
+                }
+                RErr(err) => {
+                    log::warn!("cannot get default config for {module_name}: {err}");
+                },
+            }
+        }
+        base_conf
     }
 
     fn load_configs(&mut self) {
@@ -560,4 +628,29 @@ impl Default for App {
             css_provider: gtk::CssProvider::new(),
         }
     }
+}
+
+fn ensure_compatibility(
+    interface: &'static TypeLayout,
+    implementation: &'static TypeLayout,
+) -> Result<(), abi_stable::library::LibraryError> {
+    let compatibility = abi_stable::abi_stability::abi_checking::check_layout_compatibility(
+        interface,
+        implementation,
+    );
+    if let Err(err) = compatibility {
+        let incompatibilities = err.errors.iter().filter(|e| !e.errs.is_empty());
+        let fatal_incompatibilities = incompatibilities.filter(|err| {
+            err.errs.iter().any(|err| {
+                !matches!(
+                    err,
+                    abi_stable::abi_stability::abi_checking::AbiInstability::FieldCountMismatch(assert) if assert.expected > assert.found
+                )
+            })
+        });
+        if fatal_incompatibilities.count() > 0 {
+            return Err(LibraryError::AbiInstability(RBoxError::new(err)));
+        }
+    }
+    Ok(())
 }
