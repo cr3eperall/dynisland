@@ -31,7 +31,7 @@ pub fn get_compact(config: &MusicConfig) -> gtk::Widget {
         album_art.add_css_class("album-art");
         {
             let image = gtk::Image::builder()
-                .file(config.default_album_art_path.clone())
+                .file(config.default_album_art_url.clone())
                 .hexpand(true)
                 .halign(gtk::Align::Center)
                 .valign(gtk::Align::Center)

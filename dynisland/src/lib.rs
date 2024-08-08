@@ -7,6 +7,7 @@
 pub mod app;
 pub mod config;
 pub mod layout_manager;
+pub mod module_loading;
 
 // fn start_fps_counter(window: &gtk::ApplicationWindow, log_level: log::Level, update_interval: Duration) {
 //     let window=window.clone();

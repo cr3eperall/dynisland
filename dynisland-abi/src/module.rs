@@ -89,23 +89,34 @@ pub trait SabiModule {
     /// }
     /// ```
     fn restart_producers(&self);
-    
+
+    /// Get the default config for the module in ron format
+    ///
+    /// # Examples
+    /// ```
+    /// fn default_config(&self) -> RResult<RString, RBoxError> {
+    ///     match ron::ser::to_string_pretty(&ModuleConfig::default(), PrettyConfig::default()) {
+    ///         Ok(conf) => ROk(RString::from(conf)),
+    ///         Err(err) => RErr(RBoxError::new(err)),
+    ///     }
+    /// }
+    /// ```
     #[sabi(last_prefix_field)]
     fn default_config(&self) -> RResult<RString, RBoxError> {
         RResult::RErr(RBoxError::new(NotImplementedError::default()))
     }
 }
 
+/// Error type used for abi compatibility
 #[derive(Debug, Default)]
-struct NotImplementedError{
-}
+struct NotImplementedError {}
 
-impl Display for NotImplementedError{
+impl Display for NotImplementedError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"method not implemented, update the module")
+        write!(f, "method not implemented, update the module")
     }
 }
-impl std::error::Error for NotImplementedError{}
+impl std::error::Error for NotImplementedError {}
 
 #[repr(C)]
 #[derive(StableAbi)]
@@ -153,9 +164,16 @@ impl RootModule for ModuleBuilderRef {
 #[repr(C)]
 #[derive(StableAbi)]
 pub enum UIServerCommand {
+    /// Add an ActivityWidget to the LayoutManager
     AddActivity(ActivityIdentifier, SabiWidget),
     // AddProducer(RString, Producer),
+    /// Remove an ActivityWidget from the LayoutManager.
+    ///
+    /// The module should drop all the other references to the widget before sending this command
     RemoveActivity(ActivityIdentifier), //TODO needs to be tested
+    /// Send a request for the app to call `SabiModule::restart_producers()`.
+    ///
+    /// This is useful when you don't have a reference to the module
     RestartProducers(RString),
     // RequestAttention(ActivityMode)
 }
@@ -164,7 +182,9 @@ pub enum UIServerCommand {
 #[repr(C)]
 #[derive(StableAbi, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ActivityIdentifier {
+    /// Module name, must be the same as the on provided in `ModuleBuilder`
     pub(crate) module: RString,
+    /// Activity name, must be the same as `activityWidget.name()`
     #[sabi(last_prefix_field)]
     pub(crate) activity: RString,
 }

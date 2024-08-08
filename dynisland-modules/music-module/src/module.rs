@@ -51,7 +51,7 @@ const CHECK_DELAY: u64 = 5000;
 pub struct MusicConfig {
     //allowed_players: cider2, (?cider1, ?spotify...)
     pub preferred_player: String,
-    pub default_album_art_path: String,
+    pub default_album_art_url: String,
     pub scrolling_label_speed: f32,
     pub cava_visualizer_script: String,
 }
@@ -60,7 +60,7 @@ impl Default for MusicConfig {
     fn default() -> Self {
         Self {
             preferred_player: String::from(""),
-            default_album_art_path: String::from(""),
+            default_album_art_url: String::from(""),
             scrolling_label_speed: 30.0,
             cava_visualizer_script: String::from("echo 0,0,0,0,0,0"),
         }
@@ -254,7 +254,7 @@ fn producer(module: &MusicModule) {
         .block_on(async move {
             set_album_art(
                 None,
-                &config.default_album_art_path,
+                &config.default_album_art_url,
                 &album_art1,
                 &visualizer_gradient1,
             )
@@ -277,7 +277,7 @@ fn producer(module: &MusicModule) {
         if let Ok(metadata) = metadata {
             set_album_art(
                 metadata.art_url(),
-                &config1.default_album_art_path,
+                &config1.default_album_art_url,
                 &album_art,
                 &visualizer_gradient,
             )
@@ -302,7 +302,7 @@ fn producer(module: &MusicModule) {
 
                     set_album_art(
                         None,
-                        &config1.default_album_art_path,
+                        &config1.default_album_art_url,
                         &album_art,
                         &visualizer_gradient,
                     )
@@ -369,7 +369,7 @@ fn producer(module: &MusicModule) {
                     if new_trackid != track_id {
                         set_album_art(
                             prog.metadata.art_url(),
-                            &config1.default_album_art_path,
+                            &config1.default_album_art_url,
                             &album_art,
                             &visualizer_gradient,
                         )
@@ -515,7 +515,7 @@ async fn set_album_art(
     .unwrap_or(
         utils::get_album_art_from_url(default_art_path)
             .await
-            .unwrap_or(Vec::new()),
+            .unwrap_or(Vec::new() ),
     );
     let gradient = visualizer::gradient_from_image_bytes(&image);
     album_art.lock().await.set(image).unwrap();

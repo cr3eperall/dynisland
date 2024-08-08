@@ -6,12 +6,13 @@ pub mod activity_identifier;
 pub mod layout;
 pub mod module;
 
+/// gtk::Widget wrapper for sending trough the abi
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct SabiWidget {
     //FIXME check if lifetimes are needed
     #[sabi(last_prefix_field)]
-    pub widget_ref: *mut core::ffi::c_void,
+    widget_ref: *mut core::ffi::c_void,
 }
 
 // this can be send, because gtk::Widget can be processed only in the UI thread
@@ -45,12 +46,13 @@ impl TryInto<Widget> for SabiWidget {
     }
 }
 
+/// gtk::Application wrapper for sending trough the abi
 #[repr(C)]
 #[derive(StableAbi)]
 pub struct SabiApplication {
     //FIXME check if lifetimes are needed
     #[sabi(last_prefix_field)]
-    pub application_ref: *mut core::ffi::c_void,
+    application_ref: *mut core::ffi::c_void,
 }
 
 // this can be send, because gtk::Application can be processed only in the UI thread

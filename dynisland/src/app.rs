@@ -1,22 +1,19 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc, thread};
+use std::{collections::HashMap, rc::Rc, thread};
 
 use abi_stable::{
     external_types::crossbeam_channel::RSender,
-    library::{lib_header_from_path, LibraryError},
     std_types::{
         RBoxError,
         RResult::{self, RErr, ROk},
         RString,
     },
-    type_layout::TypeLayout,
-    StableAbi,
 };
 use anyhow::Result;
 use colored::Colorize;
 use dynisland_core::graphics::activity_widget::boxed_activity_mode::ActivityMode;
 use gtk::{prelude::*, CssProvider, Widget};
 use notify::Watcher;
-use ron::ser::PrettyConfig;
+use ron::{extensions::Extensions, ser::PrettyConfig};
 use tokio::sync::{mpsc::unbounded_channel, Mutex};
 
 use crate::{
@@ -25,9 +22,8 @@ use crate::{
 };
 
 use dynisland_abi::{
-    layout::{LayoutManagerBuilderRef, LayoutManagerType},
-    module::{ModuleBuilderRef, ModuleType, UIServerCommand},
-    SabiApplication,
+    layout::LayoutManagerType,
+    module::{ModuleType, UIServerCommand},
 };
 
 pub enum BackendServerCommand {
@@ -77,8 +73,6 @@ impl App {
         self.load_configs();
 
         self.init_loaded_modules(&module_order);
-
-        log::debug!("Default config: {}",self.get_default_config());
 
         // let app_send1=self.app_send.clone().unwrap();
         // glib::MainContext::default().spawn_local(async move {
@@ -249,72 +243,7 @@ impl App {
 
     pub fn load_modules(&mut self) -> Vec<String> {
         let mut module_order = vec![];
-        let mut module_def_map = HashMap::<
-            String,
-            extern "C" fn(RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError>,
-        >::new();
-        let module_path = {
-            #[cfg(debug_assertions)]
-            {
-                PathBuf::from("/home/david/dev/rust/dynisland/dynisland-core/target/debug/")
-            }
-
-            #[cfg(not(debug_assertions))]
-            {
-                config::get_config_path().join("modules")
-            }
-        };
-        let files = std::fs::read_dir(module_path).unwrap();
-        for file in files {
-            let file = file.unwrap();
-            let path = file.path();
-            if !path.is_file() {
-                continue;
-            }
-            match file
-                .file_name()
-                .to_str()
-                .unwrap()
-                .to_lowercase()
-                .strip_suffix(".so")
-            {
-                Some(name) => {
-                    if !name.ends_with("module") {
-                        continue;
-                    }
-                }
-                None => continue,
-            }
-            log::debug!("loading module file: {:#?}", path);
-
-            let res = (|| {
-                let header = lib_header_from_path(&path)?;
-                // header.init_root_module::<ModuleBuilderRef>()
-                let layout1 = ModuleBuilderRef::LAYOUT;
-                let layout2 = header.layout().unwrap();
-                ensure_compatibility(layout1, layout2).and_then(|_| unsafe {
-                    header
-                        .unchecked_layout::<ModuleBuilderRef>().map_err(|err|{
-                            err.into_library_error::<ModuleBuilderRef>()
-                        })
-                })
-            })();
-
-            let module_builder = match res {
-                Ok(x) => x,
-                Err(e) => {
-                    log::error!(
-                        "error while loading {}: {e:#?}",
-                        path.file_name().unwrap().to_str().unwrap()
-                    );
-                    continue;
-                }
-            };
-            let name = module_builder.name();
-            let constructor = module_builder.new();
-
-            module_def_map.insert(name.into(), constructor);
-        }
+        let module_def_map = crate::module_loading::get_module_definitions();
 
         if self.config.loaded_modules.contains(&"all".to_string()) {
             //load all modules available in order of hash (random order)
@@ -368,63 +297,7 @@ impl App {
 
     //TODO layout loading from .so not tested yet but it should work identically to module loading
     fn load_layout_manager(&mut self) {
-        let mut lm_def_map = HashMap::<
-            String,
-            extern "C" fn(SabiApplication) -> RResult<LayoutManagerType, RBoxError>,
-        >::new();
-        let lm_path = {
-            #[cfg(debug_assertions)]
-            {
-                PathBuf::from("/home/david/dev/rust/dynisland/dynisland-core/target/debug/")
-            }
-            #[cfg(not(debug_assertions))]
-            {
-                config::get_config_path().join("layouts")
-            }
-        };
-        let files = std::fs::read_dir(lm_path).unwrap();
-        for file in files {
-            let file = file.unwrap();
-            let path = file.path();
-            if !path.is_file() {
-                continue;
-            }
-            match file
-                .file_name()
-                .to_str()
-                .unwrap()
-                .to_lowercase()
-                .strip_suffix(".so")
-            {
-                Some(name) => {
-                    if !name.ends_with("layoutmanager") {
-                        continue;
-                    }
-                }
-                None => continue,
-            }
-            log::debug!("loading layout manager file: {:#?}", path);
-
-            let res = (|| {
-                let header = lib_header_from_path(&path)?;
-                header.init_root_module::<LayoutManagerBuilderRef>()
-            })();
-
-            let lm_builder = match res {
-                Ok(x) => x,
-                Err(e) => {
-                    log::error!(
-                        "error while loading {}: {e:#?}",
-                        path.file_name().unwrap().to_str().unwrap()
-                    );
-                    continue;
-                }
-            };
-            let name = lm_builder.name();
-            let constructor = lm_builder.new();
-
-            lm_def_map.insert(name.into(), constructor);
-        }
+        let layout_manager_definitions = crate::module_loading::get_lm_definitions();
 
         if self.config.layout.is_none() {
             log::info!("no layout manager in config, using default: SimpleLayout");
@@ -437,7 +310,7 @@ impl App {
             self.load_simple_layout();
             return;
         }
-        let lm_constructor = lm_def_map.get(lm_name);
+        let lm_constructor = layout_manager_definitions.get(lm_name);
         let lm_constructor = match lm_constructor {
             None => {
                 log::info!(
@@ -470,54 +343,6 @@ impl App {
             simple_layout::NAME.to_string(),
             layout,
         ))));
-    }
-
-    #[allow(dead_code)]
-    fn get_default_config(&self) -> Config {
-        let mut base_conf = Config::default();
-        let (layout_name, layout_config) = {
-            let layout = self.layout.as_ref().unwrap().blocking_lock();
-            (layout.0.to_owned(), layout.1.default_config())
-        };
-        let module_configs: Vec<(String, RResult<RString, RBoxError>)> = self
-            .module_map
-            .blocking_lock()
-            .iter()
-            .map(|(k, v)| (k.to_owned(), v.default_config()))
-            .collect();
-        base_conf.layout = Some(layout_name.clone());
-        match layout_config {
-            ROk(conf) => match ron::de::from_str(conf.as_str()) {
-                Ok(value) => {
-                    base_conf.layout_configs.insert(layout_name, value);
-                }
-                Err(err) => {
-                    log::error!("deserializing error: {err}");
-                }
-            },
-            RErr(err) => {
-                log::error!("get default config error: {err}");
-            }
-        }
-        for (module_name, config) in module_configs {
-            match config {
-                ROk(conf) => {
-                    log::debug!("string config for {module_name}: {}",conf.as_str()); //TODO find a way to get the original string in Config
-                    match ron::de::from_str(conf.as_str()) {
-                        Ok(value) => {
-                            base_conf.module_config.insert(module_name, value);
-                        }
-                        Err(err) => {
-                            log::warn!("cannot get default config for {module_name}: {err}");
-                        },
-                    }
-                }
-                RErr(err) => {
-                    log::warn!("cannot get default config for {module_name}: {err}");
-                },
-            }
-        }
-        base_conf
     }
 
     fn load_configs(&mut self) {
@@ -609,6 +434,108 @@ impl App {
             module.restart_producers();
         }
     }
+
+    #[allow(dead_code)]
+    pub fn get_default_config(&self) -> (Config, String) {
+        let mut base_conf = Config::default();
+
+        // get all the loadable LayoutManager configs
+        let lm_defs = crate::module_loading::get_lm_definitions();
+        let mut layout_configs: Vec<(String, RResult<RString, RBoxError>)> = Vec::new();
+        for (lm_name, lm_constructor) in lm_defs {
+            let built_lm = match lm_constructor(self.application.clone().into()) {
+                ROk(x) => x,
+                RErr(e) => {
+                    log::error!("error during creation of {lm_name}: {e:#?}");
+                    continue;
+                }
+            };
+            layout_configs.push((lm_name, built_lm.default_config()));
+        }
+        layout_configs.push((
+            simple_layout::NAME.to_owned(),
+            simple_layout::new(self.application.clone().into())
+                .unwrap()
+                .default_config(),
+        ));
+
+        // get all the loadable Module configs
+        let mod_defs = crate::module_loading::get_module_definitions();
+        let mut module_configs: Vec<(String, RResult<RString, RBoxError>)> = Vec::new();
+        for (mod_name, mod_constructor) in mod_defs {
+            match mod_constructor(self.app_send.clone().unwrap()) {
+                ROk(built_mod) => {
+                    module_configs.push((mod_name, built_mod.default_config()));
+                }
+                RErr(e) => log::error!("error during creation of {mod_name}: {e:#?}"),
+            };
+        }
+        base_conf.loaded_modules = module_configs.iter().map(|v| v.0.to_owned()).collect();
+        let conf_str = "Config".to_owned() + &base_conf.to_string();
+
+        // put the LayoutManager configs into base_conf and a string
+        let mut lm_config_str = String::from("{\n");
+        for (lm_name, lm_config) in layout_configs {
+            match lm_config {
+                RErr(err) => log::debug!("cannot get default config: {err}"),
+                ROk(lm_config) => {
+                    lm_config_str += &format!("\"{lm_name}\": {lm_config},\n")
+                        .lines()
+                        .map(|l| "        ".to_owned() + l + "\n")
+                        .collect::<String>();
+                    match ron::de::from_str(lm_config.as_str()) {
+                        Err(err) => log::warn!("cannot get default config for {lm_name}: {err}"),
+                        Ok(value) => {
+                            base_conf.layout_configs.insert(lm_name, value);
+                        }
+                    }
+                }
+            }
+        }
+        lm_config_str += "    },";
+
+        // put all the Module configs into base_conf and a string
+        let mut mod_config_str = String::from("{\n");
+        for (mod_name, mod_config) in module_configs {
+            match mod_config {
+                ROk(mod_config) => {
+                    log::debug!("string config for {mod_name}: {}", mod_config.as_str()); //TODO find a way to get the original string in Config
+                    mod_config_str += &format!("\"{mod_name}\": {mod_config},\n")
+                        .lines()
+                        .map(|l| "        ".to_owned() + l + "\n")
+                        .collect::<String>();
+                    match ron::de::from_str(mod_config.as_str()) {
+                        Err(err) => log::warn!("cannot get default config for {mod_name}: {err}"),
+                        Ok(value) => {
+                            base_conf.module_config.insert(mod_name, value);
+                        }
+                    }
+                }
+                RErr(err) => {
+                    log::warn!("cannot get default config for {mod_name}: {err}");
+                }
+            }
+        }
+        mod_config_str += "    },";
+        let conf_str = conf_str
+            .replace(
+                "layout_configs: {},",
+                &("layout_configs: ".to_owned() + &lm_config_str),
+            )
+            .replace(
+                "module_config: {},",
+                &("module_config: ".to_owned() + &mod_config_str),
+            );
+        let options = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
+        if options.from_str::<Config>(&conf_str).is_ok() {
+            (base_conf, conf_str)
+        } else {
+            (
+                base_conf.clone(),
+                "Config".to_owned() + &base_conf.to_string(),
+            )
+        }
+    }
 }
 
 impl Default for App {
@@ -628,29 +555,4 @@ impl Default for App {
             css_provider: gtk::CssProvider::new(),
         }
     }
-}
-
-fn ensure_compatibility(
-    interface: &'static TypeLayout,
-    implementation: &'static TypeLayout,
-) -> Result<(), abi_stable::library::LibraryError> {
-    let compatibility = abi_stable::abi_stability::abi_checking::check_layout_compatibility(
-        interface,
-        implementation,
-    );
-    if let Err(err) = compatibility {
-        let incompatibilities = err.errors.iter().filter(|e| !e.errs.is_empty());
-        let fatal_incompatibilities = incompatibilities.filter(|err| {
-            err.errs.iter().any(|err| {
-                !matches!(
-                    err,
-                    abi_stable::abi_stability::abi_checking::AbiInstability::FieldCountMismatch(assert) if assert.expected > assert.found
-                )
-            })
-        });
-        if fatal_incompatibilities.count() > 0 {
-            return Err(LibraryError::AbiInstability(RBoxError::new(err)));
-        }
-    }
-    Ok(())
 }
