@@ -9,7 +9,7 @@ pub const CONFIG_REL_PATH: &str = "dynisland/"; //TODO add cli override
 
 // TODO ron sucks, i need to switch to pkl
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Config {
     pub loaded_modules: Vec<String>,
@@ -48,7 +48,7 @@ impl Default for Config {
         Self {
             module_config: module_map,
             layout_configs: layout_map,
-            layout: None,
+            layout: Some("SimpleLayout".to_string()),
             general_style_config: GeneralConfig::default(),
             loaded_modules: vec!["all".to_string()],
         }
