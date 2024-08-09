@@ -11,8 +11,11 @@ use super::RollingChar;
 #[properties(wrapper_type = RollingChar)]
 pub struct RollingCharPriv {
     pub(super) primary_label: RefCell<gtk::Label>,
+
     pub(super) secondary_label: RefCell<gtk::Label>,
+
     primary_label_active: RefCell<bool>,
+
     #[property(get, set, nick = "Current Char", builder('-'))]
     pub(super) current_char: RefCell<char>,
 }

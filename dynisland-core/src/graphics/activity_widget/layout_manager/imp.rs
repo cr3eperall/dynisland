@@ -35,9 +35,7 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
         }
         let activity_widget = activity_widget.unwrap();
 
-        let min_height = activity_widget
-            .local_css_context()
-            .get_config_minimal_height();
+        let min_height = activity_widget.config_minimal_height();
         let first_child = activity_widget.first_child(); //should be the background widget
         match first_child {
             Some(first_child) => {
@@ -55,7 +53,7 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
             return;
         }
         let binding = activity_widget.unwrap();
-        let min_height = binding.local_css_context().get_config_minimal_height();
+        let min_height = binding.config_minimal_height();
         let activity = binding.imp();
 
         if let Some(content) = &*activity.background_widget.borrow() {

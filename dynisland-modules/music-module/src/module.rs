@@ -515,7 +515,7 @@ async fn set_album_art(
     .unwrap_or(
         utils::get_album_art_from_url(default_art_path)
             .await
-            .unwrap_or(Vec::new() ),
+            .unwrap_or(Vec::new()),
     );
     let gradient = visualizer::gradient_from_image_bytes(&image);
     album_art.lock().await.set(image).unwrap();

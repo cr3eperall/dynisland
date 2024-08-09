@@ -15,27 +15,27 @@ pub struct ActivityWidgetPriv {
     #[property(get, set, nick = "Change mode", blurb = "The Activity Mode")]
     pub(super) mode: RefCell<ActivityMode>,
 
-    #[property(get, nick = "Local CSS Context")]
+    // #[property(get, nick = "Local CSS Context")]
     pub(super) local_css_context: RefCell<ActivityWidgetLocalCssContext>,
 
     #[property(get, set, nick = "Widget name")]
     pub(super) name: RefCell<String>,
 
     /// To be used by dynisland::app only
-    #[property(set, nick = "Minimal height")]
-    pub(super) config_minimal_height_app: RefCell<i32>,
+    #[property(get, set, nick = "Minimal height")]
+    pub(super) config_minimal_height: RefCell<i32>,
 
     /// To be used by dynisland::app only
-    #[property(set, nick = "Minimal height")]
-    pub(super) config_minimal_width_app: RefCell<i32>,
+    #[property(get, set, nick = "Minimal height")]
+    pub(super) config_minimal_width: RefCell<i32>,
 
     /// To be used by dynisland::app only
-    #[property(set, nick = "Transition blur radius")]
-    pub(super) config_blur_radius_app: RefCell<f64>,
+    #[property(get, set, nick = "Transition blur radius")]
+    pub(super) config_blur_radius: RefCell<f64>,
 
     /// To be used by dynisland::app only
-    #[property(set, nick = "Enable stretching on drag")]
-    pub(super) config_enable_drag_stretch_app: RefCell<bool>,
+    #[property(get, set, nick = "Enable stretching on drag")]
+    pub(super) config_enable_drag_stretch: RefCell<bool>,
 
     pub(super) last_mode: RefCell<ActivityMode>,
 
@@ -65,17 +65,17 @@ impl Default for ActivityWidgetPriv {
             .collect::<String>();
 
         let css_ctx = ActivityWidgetLocalCssContext::new(&name);
-        let min_h = css_ctx.get_config_minimal_height();
-        let min_w = css_ctx.get_config_minimal_width();
-        let blur = css_ctx.get_config_blur_radius();
-        let enable_stretch = css_ctx.get_config_enable_drag_stretch();
+        let min_h = 40;
+        let min_w = 60;
+        let blur = 6.0;
+        let enable_stretch = false;
         Self {
             mode: RefCell::new(ActivityMode::Minimal),
             local_css_context: RefCell::new(css_ctx),
-            config_minimal_height_app: RefCell::new(min_h),
-            config_minimal_width_app: RefCell::new(min_w),
-            config_blur_radius_app: RefCell::new(blur),
-            config_enable_drag_stretch_app: RefCell::new(enable_stretch),
+            config_minimal_height: RefCell::new(min_h),
+            config_minimal_width: RefCell::new(min_w),
+            config_blur_radius: RefCell::new(blur),
+            config_enable_drag_stretch: RefCell::new(enable_stretch),
             last_mode: RefCell::new(ActivityMode::Minimal),
             name: RefCell::new(name),
             minimal_mode_widget: RefCell::new(None),
@@ -106,6 +106,12 @@ impl ObjectImpl for ActivityWidgetPriv {
         background.append(&label);
         background.add_css_class("activity-background");
 
+        gtk::style_context_add_provider_for_display(
+            &gdk::Display::default().unwrap(),
+            self.local_css_context.borrow().get_css_provider(),
+            gtk::STYLE_PROVIDER_PRIORITY_USER + 1, //needs to be higher than user proprity
+        );
+
         self.add_drag_controller();
 
         background.set_parent(&*self.obj());
@@ -133,8 +139,8 @@ impl ObjectImpl for ActivityWidgetPriv {
                 // let last_mode = *self.last_mode.borrow();
 
                 let mut css_context = self.local_css_context.borrow_mut();
-                let min_height = css_context.get_config_minimal_height();
-                let min_width = css_context.get_config_minimal_width();
+                let min_height = *self.config_minimal_height.borrow();
+                let min_width = *self.config_minimal_width.borrow();
 
                 let next_size =
                     Self::get_final_widget_size_for_mode(&obj, mode, min_height, min_width);
@@ -148,7 +154,7 @@ impl ObjectImpl for ActivityWidgetPriv {
 
                 css_context.set_opacity_all(util::get_property_slice_for_mode_f64(mode, 1.0, 0.0));
 
-                let blur_radius = css_context.get_config_blur_radius();
+                let blur_radius = *self.config_blur_radius.borrow();
                 css_context.set_blur_all(util::get_property_slice_for_mode_f64(
                     mode,
                     0.0,
@@ -175,28 +181,30 @@ impl ObjectImpl for ActivityWidgetPriv {
                     .set_name(value.get().unwrap());
                 self.obj().add_css_class(value.get().unwrap());
             }
-            "config-minimal-height-app" => {
-                // self.config_minimal_height_app.replace(value.get().unwrap());
+            "config-minimal-height" => {
+                self.config_minimal_height.replace(value.get().unwrap());
                 self.local_css_context
                     .borrow_mut()
                     .set_config_minimal_height(value.get().unwrap(), false);
             }
-            "config-minimal-width-app" => {
-                // self.config_minimal_height_app.replace(value.get().unwrap());
-                self.local_css_context
-                    .borrow_mut()
-                    .set_config_minimal_width(value.get().unwrap(), false);
+            "config-minimal-width" => {
+                self.config_minimal_width.replace(value.get().unwrap());
+                // self.local_css_context
+                //     .borrow_mut()
+                //     .set_config_minimal_width(value.get().unwrap(), false);
             }
-            "config-blur-radius-app" => {
-                // self.config_blur_radius_app.replace(value.get().unwrap());
-                self.local_css_context
-                    .borrow_mut()
-                    .set_config_blur_radius(value.get().unwrap(), false);
+            "config-blur-radius" => {
+                self.config_blur_radius.replace(value.get().unwrap());
+                // self.local_css_context
+                //     .borrow_mut()
+                //     .set_config_blur_radius(value.get().unwrap(), false);
             }
-            "config-enable-drag-stretch-app" => {
-                self.local_css_context
-                    .borrow_mut()
-                    .set_config_enable_drag_stretch(value.get().unwrap(), false);
+            "config-enable-drag-stretch" => {
+                self.config_enable_drag_stretch
+                    .replace(value.get().unwrap());
+                // self.local_css_context
+                //     .borrow_mut()
+                //     .set_config_enable_drag_stretch(value.get().unwrap(), false);
             }
             "minimal-mode-widget" => {
                 let widget: Option<gtk::Widget> = value.get().unwrap();
@@ -302,7 +310,7 @@ impl ActivityWidgetPriv {
             .build();
         drag_controller.connect_drag_begin(|gest, _, _| {
             let obj = gest.widget().downcast::<ActivityWidget>().unwrap();
-            if !obj.local_css_context().get_config_enable_drag_stretch() {
+            if !obj.config_enable_drag_stretch() {
                 return;
             }
             obj.add_css_class("dragging");
@@ -310,12 +318,11 @@ impl ActivityWidgetPriv {
         drag_controller.connect_drag_update(|gest, x, y| {
             let obj = gest.widget().downcast::<ActivityWidget>().unwrap();
             // log::info!("enable stretch: {}", obj.local_css_context().get_config_enable_drag_stretch());
-            if !obj.local_css_context().get_config_enable_drag_stretch() {
+            if !obj.config_enable_drag_stretch() {
                 return;
             }
-            let mut css_context = obj.local_css_context();
-            let min_height = css_context.get_config_minimal_height();
-            let min_width = css_context.get_config_minimal_width();
+            let min_height = obj.config_minimal_height();
+            let min_width = obj.config_minimal_width();
             let starting_size =
                 Self::get_final_widget_size_for_mode(&obj, obj.mode(), min_height, min_width);
             let x = if gest.start_point().unwrap().0 < starting_size.0 / 2.0 {
@@ -336,14 +343,15 @@ impl ActivityWidgetPriv {
             // log::info!("max: {:?}", max_screen_size);
             let next_size = (
                 (current_size.0 * (1.0 + (x / max_screen_size.0 as f64)))
-                    .max(obj.local_css_context().get_config_minimal_width() as f64),
+                    .max(obj.config_minimal_width() as f64),
                 (current_size.1 * (1.0 + (y / max_screen_size.1 as f64)))
-                    .max(obj.local_css_context().get_config_minimal_height() as f64),
+                    .max(obj.config_minimal_height() as f64),
             );
             let mut stretches = Self::get_stretches(&obj, next_size, min_height, min_width);
             let current_stretch = (next_size.0 / starting_size.0, next_size.1 / starting_size.1);
             stretches[obj.mode() as usize] = current_stretch;
             // log::trace!("stretches: {:?}", stretches);
+            let mut css_context = obj.imp().local_css_context.borrow_mut();
             css_context.set_stretch_all(stretches);
 
             css_context.set_size((next_size.0 as i32, next_size.1 as i32));
@@ -351,18 +359,18 @@ impl ActivityWidgetPriv {
         });
         drag_controller.connect_drag_end(|gest, _, _| {
             let obj = gest.widget().downcast::<ActivityWidget>().unwrap();
-            if !obj.local_css_context().get_config_enable_drag_stretch() {
+            if !obj.config_enable_drag_stretch() {
                 return;
             }
             if obj.has_css_class("dragging") {
                 obj.remove_css_class("dragging");
-                let mut css_context = obj.local_css_context();
-                let min_height = css_context.get_config_minimal_height();
-                let min_width = css_context.get_config_minimal_width();
+                let min_height = obj.config_minimal_height();
+                let min_width = obj.config_minimal_width();
                 let next_size =
                     Self::get_final_widget_size_for_mode(&obj, obj.mode(), min_height, min_width);
                 let stretches = Self::get_stretches(&obj, next_size, min_height, min_width);
                 // log::trace!("stretches: {:?}", stretches);
+                let mut css_context = obj.imp().local_css_context.borrow_mut();
                 css_context.set_stretch_all(stretches);
 
                 css_context.set_size((next_size.0 as i32, next_size.1 as i32));
@@ -370,18 +378,18 @@ impl ActivityWidgetPriv {
             }
         });
         self.obj().connect_state_flags_changed(|obj, _| {
-            if !obj.local_css_context().get_config_enable_drag_stretch() {
+            if !obj.config_enable_drag_stretch() {
                 return;
             }
             if obj.has_css_class("dragging") && !obj.state_flags().contains(StateFlags::ACTIVE) {
                 obj.remove_css_class("dragging");
-                let mut css_context = obj.local_css_context();
-                let min_height = css_context.get_config_minimal_height();
-                let min_width = css_context.get_config_minimal_width();
+                let min_height = obj.config_minimal_height();
+                let min_width = obj.config_minimal_width();
                 let next_size =
                     Self::get_final_widget_size_for_mode(obj, obj.mode(), min_height, min_width);
                 let stretches = Self::get_stretches(obj, next_size, min_height, min_width);
                 // log::trace!("stretches: {:?}", stretches);
+                let mut css_context = obj.imp().local_css_context.borrow_mut();
                 css_context.set_stretch_all(stretches);
 
                 css_context.set_size((next_size.0 as i32, next_size.1 as i32));

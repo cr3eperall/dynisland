@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, str::FromStr};
 
 use gdk::RGBA;
 use glib_macros::Properties;
@@ -9,7 +9,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::randomize_name;
+use crate::{graphics::util::CssSize, randomize_name};
 
 use super::{local_css_context::ScrollingLabelLocalCssContext, ScrollingLabel};
 
@@ -18,13 +18,29 @@ use super::{local_css_context::ScrollingLabelLocalCssContext, ScrollingLabel};
 #[derive(Properties)]
 #[properties(wrapper_type = ScrollingLabel)]
 pub struct ScrollingLabelPriv {
-    #[property(get, nick = "Local CSS Provider")]
+    // #[property(get, nick = "Local CSS Provider")]
     pub(super) local_css_context: RefCell<ScrollingLabelLocalCssContext>,
+
     bin: RefCell<gtk::Box>,
-    #[property(get, nick = "Internal Label")]
+
+    #[property(get, set, nick = "Internal Label")]
     pub(super) label: RefCell<gtk::Label>,
+
     #[property(get, nick = "Active scrolling")]
-    active: RefCell<bool>,
+    pub(super) active: RefCell<bool>,
+
+    #[property(get, set, nick = "Side fade size in px or %")]
+    pub(super) config_fade_size: RefCell<String>,
+
+    #[property(get, set, nick = "Scrolling speed")]
+    pub(super) config_scroll_speed: RefCell<f32>,
+
+    #[property(
+        get,
+        set,
+        nick = "Time from when the animation stops to when it begins again"
+    )]
+    pub(super) config_delay: RefCell<u64>,
 }
 
 impl Default for ScrollingLabelPriv {
@@ -34,6 +50,9 @@ impl Default for ScrollingLabelPriv {
             label: RefCell::new(gtk::Label::new(Some(""))),
             local_css_context: RefCell::new(ScrollingLabelLocalCssContext::default()),
             active: RefCell::new(false),
+            config_fade_size: RefCell::new("4%".to_string()),
+            config_scroll_speed: RefCell::new(40.0),
+            config_delay: RefCell::new(5000),
         }
     }
 }
@@ -51,11 +70,7 @@ impl ObjectSubclass for ScrollingLabelPriv {
     }
 }
 
-impl ScrollingLabelPriv {
-    // fn set_active(&self, active: bool) {
-    //     self.active.replace(active);
-    // }
-}
+impl ScrollingLabelPriv {}
 
 #[glib::derived_properties]
 impl ObjectImpl for ScrollingLabelPriv {
@@ -74,6 +89,56 @@ impl ObjectImpl for ScrollingLabelPriv {
         label.add_css_class("inner-label");
         bin.append(label);
         bin.set_parent(self.obj().as_ref());
+
+        gtk::style_context_add_provider_for_display(
+            &gdk::Display::default().unwrap(),
+            self.local_css_context.borrow().get_css_provider(),
+            gtk::STYLE_PROVIDER_PRIORITY_USER - 1,
+        );
+    }
+
+    fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+        match pspec.name() {
+            "label" => {
+                let old_label = &*self.label.borrow();
+                self.bin.borrow_mut().remove(old_label);
+                old_label.remove_css_class("inner-label");
+
+                let new_label: gtk::Label = value.get().unwrap();
+                new_label.add_css_class("inner-label");
+                new_label.set_wrap(false);
+                new_label.set_halign(gtk::Align::Start);
+                new_label.set_valign(gtk::Align::Center);
+
+                self.bin.borrow_mut().append(&new_label);
+                self.label.replace(new_label);
+
+                self.obj().queue_draw();
+            }
+            "config-fade-size" => {
+                let value: String = value.get().unwrap();
+                self.local_css_context.borrow_mut().set_config_fade_size(
+                    CssSize::from_str(&value).unwrap_or(CssSize::Percent(4.0)),
+                    false,
+                );
+                self.config_fade_size.replace(value);
+            }
+            "config-scroll-speed" => {
+                let value = value.get().unwrap();
+                self.config_scroll_speed.replace(value);
+                self.local_css_context
+                    .borrow_mut()
+                    .set_config_speed(value, false);
+            }
+            "config-delay" => {
+                let value = value.get().unwrap();
+                self.config_delay.replace(value);
+                self.local_css_context
+                    .borrow_mut()
+                    .set_config_delay(value, false);
+            }
+            x => panic!("Tried to set inexistant property of ScrollingLabel: {}", x),
+        }
     }
 
     fn properties() -> &'static [glib::ParamSpec] {
@@ -138,8 +203,10 @@ impl WidgetImpl for ScrollingLabelPriv {
             self.local_css_context
                 .borrow_mut()
                 .set_active(true, bin.width());
+            self.active.replace(true);
         } else {
             self.local_css_context.borrow_mut().set_active(false, 0);
+            self.active.replace(false);
         }
     }
 

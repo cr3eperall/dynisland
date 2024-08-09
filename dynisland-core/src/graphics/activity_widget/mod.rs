@@ -31,12 +31,6 @@ impl ActivityWidget {
         let wid = Self::default();
         // wid.set_has_window(false);
         wid.set_name(name);
-
-        gtk::style_context_add_provider_for_display(
-            &gdk::Display::default().unwrap(),
-            wid.local_css_context().get_css_provider(),
-            gtk::STYLE_PROVIDER_PRIORITY_USER + 1, //needs to be higher than user proprity
-        );
         wid
     }
 
@@ -52,18 +46,4 @@ impl ActivityWidget {
     pub fn current_widget(&self) -> Option<gtk::Widget> {
         self.get_widget_for_mode(self.mode())
     }
-
-    // pub fn set_blur_radius(&self, radius: f64, module: bool) {
-    //     self.imp()
-    //         .local_css_context
-    //         .borrow_mut()
-    //         .set_config_blur_radius(radius, module);
-    //     self.imp().config_blur_radius_app.replace(radius);
-    // }
-    // pub fn get_blur_radius(&self) -> f64 {
-    //     self.imp()
-    //         .local_css_context
-    //         .borrow()
-    //         .get_config_blur_radius()
-    // }
 }
