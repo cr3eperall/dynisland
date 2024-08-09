@@ -600,6 +600,7 @@ dependencies = [
  "gdk4",
  "glib",
  "glib-macros",
+ "grass",
  "gtk4",
  "log",
  "ron",
@@ -991,6 +992,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7746cd9bf09f9bb7d98638774a70642000356f543898d9a352cd043f82744528"
 dependencies = [
  "grass_compiler",
+ "include_sass",
 ]
 
 [[package]]
@@ -1004,6 +1006,7 @@ dependencies = [
  "lasso",
  "once_cell",
  "phf",
+ "rand",
 ]
 
 [[package]]
@@ -1274,6 +1277,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "include_sass"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a09c0170cacc99c494307c6482e81653a8fb767c605ee7cf8febd53d9e72ed6"
+dependencies = [
+ "grass_compiler",
+ "quote 1.0.35",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1509,6 +1523,7 @@ dependencies = [
  "gdk4",
  "glib",
  "glib-macros",
+ "grass",
  "gtk4",
  "log",
  "mpris",

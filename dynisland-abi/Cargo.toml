@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gtk = {workspace = true}
-gdk = {workspace = true}
-glib = {workspace = true}
-glib-macros = {workspace = true}
-abi_stable = {workspace = true}
+gtk = { workspace = true }
+gdk = { workspace = true }
+glib = { workspace = true }
+glib-macros = { workspace = true }
+abi_stable = { workspace = true }

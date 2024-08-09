@@ -136,6 +136,16 @@ impl SabiModule for MusicModule {
             // base_module.register_activity(act).unwrap();
             base_module.register_producer(self::producer);
         });
+
+        let fallback_provider = gtk::CssProvider::new();
+        let css = grass::from_string(include_str!("../default.scss"), &grass::Options::default())
+            .unwrap();
+        fallback_provider.load_from_string(&css);
+        gtk::style_context_add_provider_for_display(
+            &gdk::Display::default().unwrap(),
+            &fallback_provider,
+            gtk::STYLE_PROVIDER_PRIORITY_SETTINGS,
+        );
     }
 
     fn update_config(&mut self, config: RString) -> RResult<(), RBoxError> {

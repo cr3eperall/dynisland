@@ -29,3 +29,5 @@ ron = "0.8.1"
 linkme = "0.3.17"
 abi_stable = "0.11.3"
 env_logger = "0.11.2"
+gtk-layer-shell= { version = "0.2.0", package = "gtk4-layer-shell"}
+grass = {version = "0.13.1", default-features = false, features = ["macro"]} #scss parsing

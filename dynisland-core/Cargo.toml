@@ -10,16 +10,16 @@ license = "mit"
 
 dynisland-abi = { path = "../dynisland-abi" }
 
-anyhow = {workspace = true}
-gtk = {workspace = true}
-gdk = {workspace = true}
-glib = {workspace = true}
-glib-macros = {workspace = true}
+anyhow = { workspace = true }
+gtk = { workspace = true }
+gdk = { workspace = true }
+glib = { workspace = true }
+glib-macros = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time", "sync", "macros"] }
 serde = { workspace = true, features = ["serde_derive"] }
-log = {workspace = true}
-ron = {workspace = true}
-abi_stable = {workspace = true}
+log = { workspace = true }
+ron = { workspace = true }
+abi_stable = { workspace = true }
 
 
 # gtk-layer-shell = { version = "0.2.0", package = "gtk4-layer-shell" }
