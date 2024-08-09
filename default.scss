@@ -1,0 +1,126 @@
+$transition-duration: 600ms;
+$border-radius: 50px;
+
+window {
+    background-color: transparent;
+}
+
+activity-widget {
+
+    .activity-background,
+    .activity-background * {
+        transition-property: min-width, min-height;
+        transition-duration: $transition-duration, $transition-duration;
+        transition-timing-function: cubic-bezier(0.2, 0.55, 0.25, 1),
+            cubic-bezier(0.2, 0.55, 0.25, 1);
+    }
+
+    .mode-minimal,
+    .mode-compact,
+    .mode-expanded,
+    .mode-overlay {
+        border-radius: $border-radius;
+        transition-property: transform, opacity, filter;
+        transition-duration: $transition-duration, $transition-duration,
+            $transition-duration;
+        transition-timing-function: cubic-bezier(0.2, 0.55, 0.25, 1),
+            cubic-bezier(0.6, 0.6, 0.2, 0.8), cubic-bezier(0.5, 0.5, 0, 0.7);
+    }
+
+    background-color: rgb(0, 0, 0);
+    // border-top: 10px inset rgba(0, 160, 204, 0.5);
+    // border-right: 6px inset rgba(184, 204, 0, 0.5);
+    // border-bottom: 10px inset rgba(204, 0, 0, 0.5);
+    // border-left: 6px inset rgba(204, 0, 177, 0.5);
+    border: 2px solid rgb(0, 0, 0);
+
+    border-radius: $border-radius;
+}
+
+activity-widget.dragging {
+
+    .mode-minimal,
+    .mode-compact,
+    .mode-expanded,
+    .mode-overlay {
+        transition-property: transform, opacity, filter;
+        transition-duration: 0ms, 0ms, 0ms;
+    }
+
+    .activity-background,
+    .activity-background * {
+        transition-property: min-width, min-height;
+        transition-duration: 0ms, 0ms;
+        transition-timing-function: linear, linear, linear;
+    }
+
+
+}
+
+
+//rolling char
+@keyframes in {
+    from {
+        transform: translateY(15px) scale(0.2);
+        /* should be translateY(100%) but gtk doesn't support that */
+        opacity: 0.5;
+    }
+
+    65% {
+        transform: translateY(-2px) scale(1);
+        opacity: 1;
+    }
+
+    80% {
+        transform: translateY(-0.7px) scale(1);
+        opacity: 1;
+    }
+
+    93% {
+        transform: translateY(0.2px) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(0px) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes out {
+    0% {
+        transform: translateY(0px) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-15px) scale(0.2);
+        /* should be translateY(-100%) but gtk doesn't support that */
+        opacity: 0.2;
+    }
+}
+
+rolling-char .in {
+    animation-name: in;
+    animation-duration: 450ms;
+}
+
+rolling-char .out {
+    opacity: 0;
+    animation-name: out;
+    animation-duration: 300ms;
+}
+
+scrolling-label {
+    margin-right: 10px;
+
+    .inner-label {
+        margin-left: 10px;
+        margin-right: 30px;
+        margin-top: 1px;
+    }
+
+    // box {
+    //     animation-timing-function: ease-in-out;
+    // }
+}

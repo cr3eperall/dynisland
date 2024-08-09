@@ -159,7 +159,10 @@ impl App {
             log::info!("using renderer: {}", renderer_name);
 
             let fallback_provider = gtk::CssProvider::new();
-            fallback_provider.load_from_string(include_str!("../default.css"));
+            let css =
+                grass::from_string(include_str!("../default.scss"), &grass::Options::default())
+                    .unwrap();
+            fallback_provider.load_from_string(&css);
             gtk::style_context_add_provider_for_display(
                 &gdk::Display::default().unwrap(),
                 &fallback_provider,
