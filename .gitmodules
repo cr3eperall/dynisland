@@ -1,0 +1,3 @@
+[submodule "dynisland-modules"]
+	path = dynisland-modules
+	url = https://github.com/cr3eperall/dynisland-modules.git
