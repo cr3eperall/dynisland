@@ -2,8 +2,8 @@
 
 members = [
     "dynisland",
-    "dynisland-abi",
-    "dynisland-core",
+    "abi",
+    "core",
     "dynisland-modules/example-module",
     "dynisland-modules/music-module",
 ]
