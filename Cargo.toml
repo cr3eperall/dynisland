@@ -8,8 +8,8 @@ license = "mit"
 
 [dependencies]
 
-dynisland-core = { path = "../dynisland-core" }
-dynisland-abi = { path = "../dynisland-abi" }
+dynisland-core = { path = "../core" }
+dynisland-abi = { path = "../abi" }
 # dynisland-modules = { path = "../dynisland-modules"}
 
 anyhow = { workspace = true }
@@ -17,17 +17,20 @@ gtk = { workspace = true }
 gtk-layer-shell = { workspace = true }
 gdk = { workspace = true }
 glib = { workspace = true }
-tokio = { workspace = true, features = ["rt", "time", "sync", "macros"] }
+tokio = { workspace = true, features = ["rt", "time", "sync", "macros", "io-util", "net"] }
 serde = { workspace = true, features = ["serde_derive"] }
 log = { workspace = true }
 ron = { workspace = true }
 linkme = { workspace = true }
 abi_stable = { workspace = true }
 env_logger = { workspace = true }
+grass = { workspace = true }                               #scss parsing
 
 
 notify = { version = "6.1.1", features = ["fsevent-sys"] }
-grass = { workspace = true }                               #scss parsing
 colored = "2.1.0"
+clap = { version = "4.5.15", features = ["derive"]}
+nix = { version = "0.29.0", features = ["process", "fs"]}
+bincode = { version = "1.3.3"}
 
 # css-anim = {path = "../../css-anim", version = "*"}
