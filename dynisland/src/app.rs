@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, thread};
+use std::{collections::HashMap, io::ErrorKind, path::Path, rc::Rc, thread};
 
 use abi_stable::{
     external_types::crossbeam_channel::RSender,
@@ -17,8 +17,7 @@ use ron::{extensions::Extensions, ser::PrettyConfig};
 use tokio::sync::{mpsc::unbounded_channel, Mutex};
 
 use crate::{
-    config::{self, Config, GeneralConfig},
-    layout_manager::simple_layout,
+    config::{self, Config, GeneralConfig}, ipc::open_socket, layout_manager::simple_layout
 };
 
 use dynisland_abi::{
@@ -27,7 +26,9 @@ use dynisland_abi::{
 };
 
 pub enum BackendServerCommand {
-    ReloadConfig(),
+    ReloadConfig,
+    Stop,
+    OpenInspector,
 }
 
 pub struct App {
@@ -42,17 +43,39 @@ pub struct App {
     pub css_provider: CssProvider,
 }
 
-pub const MODS_DEBUG_PATH: &str =
-    "/home/david/dev/rust/dynisland/dynisland-core/target/debug/libexample_module.so";
+// pub const MODS_DEBUG_PATH: &str =
+//     "/home/david/dev/rust/dynisland/dynisland-core/target/debug/libexample_module.so";
 
 impl App {
-    pub fn initialize_server(mut self) -> Result<()> {
-        log::info!("pid: {}", std::process::id());
-        //default css
-
+    pub fn initialize_server(mut self, config_dir: &Path) -> Result<()> {
         let (abi_app_send, abi_app_recv) =
             abi_stable::external_types::crossbeam_channel::unbounded::<UIServerCommand>();
+        self.config = config::get_config(config_dir);
 
+        let (server_send, mut server_recv) = unbounded_channel::<BackendServerCommand>();
+        let runtime_path= self.config.get_runtime_dir();
+        let runtime_path_1=runtime_path.clone();
+        let server_send_1=server_send.clone();
+        thread::spawn(move ||{
+            let rt=tokio::runtime::Builder::new_current_thread().enable_io().build().unwrap();
+            rt.block_on(async move {
+                loop{
+                    log::info!("starting ipc socket at {}", runtime_path_1.canonicalize().unwrap().to_str().unwrap());
+                    if let Err(err)=open_socket(&runtime_path_1, server_send_1.clone()).await{
+                        std::fs::remove_file(&runtime_path_1.join("dynisland.sock")).unwrap();
+                        log::error!("socket closed: {err}");
+                        if matches!(err.downcast::<std::io::Error>().unwrap().kind(), ErrorKind::AddrInUse){
+                            log::error!("app was already started");
+                            break;
+                        }
+                    }else{
+                        log::info!("kill message recieved");
+                        break;
+                    }
+                }
+            });
+        });
+        
         self.app_send = Some(abi_app_send);
 
         let (app_send_async, mut app_recv_async) = unbounded_channel::<UIServerCommand>();
@@ -64,13 +87,12 @@ impl App {
             }
         });
 
-        self.config = config::get_config();
 
         let module_order = self.load_modules();
         self.load_layout_manager();
 
         self.load_layout_config();
-        self.load_configs();
+        self.load_configs(config_dir);
 
         self.init_loaded_modules(&module_order);
 
@@ -143,9 +165,9 @@ impl App {
             }
         });
 
-        let (server_send, mut server_recv) = unbounded_channel::<BackendServerCommand>();
         let app = self.application.clone();
         let mut start_signal = start_signal_rx.resubscribe();
+        let config_dir = config_dir.to_path_buf();
         //server command consumer
         glib::MainContext::default().spawn_local(async move {
             start_signal.recv().await.unwrap();
@@ -180,18 +202,28 @@ impl App {
             self.restart_producer_runtimes();
             while let Some(command) = server_recv.recv().await {
                 match command {
-                    BackendServerCommand::ReloadConfig() => {
+                    BackendServerCommand::ReloadConfig => {
+                        log::info!("Reloading Config");
                         //FIXME split config and css reload (producers don't need to be restarted if only css changed)
 
                         // without this sleep, reading the config file sometimes gives an empty file.
                         glib::timeout_future(std::time::Duration::from_millis(50)).await;
-                        self.load_configs();
+                        self.load_configs(&config_dir);
                         self.update_general_configs();
                         self.load_layout_config();
                         self.load_css();
 
                         self.restart_producer_runtimes();
+                    },
+                    BackendServerCommand::Stop => {
+                        log::info!("Quitting");
+                        self.application.quit();
+                    },
+                    BackendServerCommand::OpenInspector => {
+                        log::info!("Opening inspector");
+                        gtk::Window::set_interactive_debugging(true);
                     }
+                    
                 }
             }
         });
@@ -202,7 +234,7 @@ impl App {
                     match evt.kind {
                         notify::EventKind::Modify(notify::event::ModifyKind::Data(_)) => {
                             server_send
-                                .send(BackendServerCommand::ReloadConfig())
+                                .send(BackendServerCommand::ReloadConfig)
                                 .expect("failed to send notification")
                         }
                         notify::EventKind::Create(_) => {
@@ -218,19 +250,27 @@ impl App {
             })
             .expect("failed to get file watcher");
         if let Err(err) = watcher.watch(
-            &config::get_config_path(),
+            &config::get_default_config_path(),
             notify::RecursiveMode::NonRecursive,
         ) {
             log::warn!("failed to start config file watcher, restart dynisland to get automatic config updates: {err}")
         }
         //start application
-        app.run();
+        app.register(None as Option<&gtk::gio::Cancellable>)?;
+        let running = app.is_remote();
+        if running {
+            log::error!("dynisland is already running");
+        }
+        app.run_with_args::<String>(&[]);
+        if !running{
+            std::fs::remove_file(runtime_path.join("dynisland.sock"))?;
+        }
         Ok(())
     }
 
     pub fn load_css(&mut self) {
         let css_content = grass::from_path(
-            config::get_config_path().join("dynisland.scss"),
+            config::get_default_config_path().join("dynisland.scss"),
             &grass::Options::default(),
         );
         match css_content {
@@ -244,112 +284,8 @@ impl App {
         }
     }
 
-    pub fn load_modules(&mut self) -> Vec<String> {
-        let mut module_order = vec![];
-        let module_def_map = crate::module_loading::get_module_definitions();
-
-        if self.config.loaded_modules.contains(&"all".to_string()) {
-            //load all modules available in order of hash (random order)
-            for module_def in module_def_map {
-                let module_name = module_def.0;
-                let module_constructor = module_def.1;
-
-                let built_module = match module_constructor(self.app_send.clone().unwrap()) {
-                    ROk(x) => x,
-                    RErr(e) => {
-                        log::error!("error during creation of {module_name}: {e:#?}");
-                        continue;
-                    }
-                };
-
-                module_order.push(module_name.to_string());
-                self.module_map
-                    .blocking_lock()
-                    .insert(module_name.to_string(), built_module);
-            }
-        } else {
-            //load only modules in the config in order of definition
-            for module_name in self.config.loaded_modules.iter() {
-                let module_constructor = module_def_map.get(module_name);
-                let module_constructor = match module_constructor {
-                    None => {
-                        log::info!("module {} not found, skipping", module_name);
-                        continue;
-                    }
-                    Some(x) => x,
-                };
-
-                let built_module = match module_constructor(self.app_send.clone().unwrap()) {
-                    ROk(x) => x,
-                    RErr(e) => {
-                        log::error!("error during creation of {module_name}: {e:#?}");
-                        continue;
-                    }
-                };
-                module_order.push(module_name.to_string());
-                // info!("loading module {}", module.get_name());
-                self.module_map
-                    .blocking_lock()
-                    .insert(module_name.to_string(), built_module);
-            }
-        }
-
-        log::info!("loaded modules: {:?}", module_order);
-        module_order
-    }
-
-    //TODO layout loading from .so not tested yet but it should work identically to module loading
-    fn load_layout_manager(&mut self) {
-        let layout_manager_definitions = crate::module_loading::get_lm_definitions();
-
-        if self.config.layout.is_none() {
-            log::info!("no layout manager in config, using default: SimpleLayout");
-            self.load_simple_layout();
-            return;
-        }
-        let lm_name = self.config.layout.as_ref().unwrap();
-        if lm_name == simple_layout::NAME {
-            log::info!("using layout manager: SimpleLayout");
-            self.load_simple_layout();
-            return;
-        }
-        let lm_constructor = layout_manager_definitions.get(lm_name);
-        let lm_constructor = match lm_constructor {
-            None => {
-                log::info!(
-                    "layout manager {} not found, using default: SimpleLayout",
-                    lm_name
-                );
-                self.load_simple_layout();
-                return;
-            }
-            Some(x) => x,
-        };
-
-        let built_lm = match lm_constructor(self.application.clone().into()) {
-            ROk(x) => x,
-            RErr(e) => {
-                log::error!("error during creation of {lm_name}: {e:#?}");
-                log::info!("using default layout manager SimpleLayout");
-                self.load_simple_layout();
-                return;
-            }
-        };
-        log::info!("using layout manager: {lm_name}");
-        self.layout = Some(Rc::new(Mutex::new((lm_name.clone(), built_lm))));
-    }
-
-    fn load_simple_layout(&mut self) {
-        let layout_builder = simple_layout::new(self.application.clone().into());
-        let layout = layout_builder.unwrap();
-        self.layout = Some(Rc::new(Mutex::new((
-            simple_layout::NAME.to_string(),
-            layout,
-        ))));
-    }
-
-    fn load_configs(&mut self) {
-        self.config = config::get_config();
+    fn load_configs(&mut self, config_dir: &Path) {
+        self.config = config::get_config(config_dir);
         log::debug!("general_config: {:#?}", self.config.general_style_config);
         for (module_name, module) in self.module_map.blocking_lock().iter_mut() {
             log::info!("loading config for module: {:#?}", module_name);
@@ -529,6 +465,7 @@ impl App {
                 "module_config: {},",
                 &("module_config: ".to_owned() + &mod_config_str),
             );
+        // check that the generated config is valid
         let options = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
         if options.from_str::<Config>(&conf_str).is_ok() {
             (base_conf, conf_str)
@@ -544,9 +481,9 @@ impl App {
 impl Default for App {
     fn default() -> Self {
         // let (hdl, shutdown) = get_new_tokio_rt();
+        let flags= gtk::gio::ApplicationFlags::default();
         let app =
-            gtk::Application::new(Some("com.github.cr3eperall.dynisland"), Default::default());
-
+            gtk::Application::new(Some("com.github.cr3eperall.dynisland"), flags);
         App {
             application: app,
             module_map: Rc::new(Mutex::new(HashMap::new())),

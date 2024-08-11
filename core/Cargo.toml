@@ -8,7 +8,7 @@ license = "mit"
 
 [dependencies]
 
-dynisland-abi = { path = "../dynisland-abi" }
+dynisland-abi = { path = "../abi" }
 
 anyhow = { workspace = true }
 gtk = { workspace = true }

@@ -1,13 +1,11 @@
 use std::{collections::HashMap, time::Duration};
 
 use abi_stable::{
-    sabi_extern_fn,
-    sabi_trait::TD_CanDowncast,
-    std_types::{
+    sabi_extern_fn, sabi_trait::TD_CanDowncast, std_types::{
         RBoxError, ROption,
         RResult::{self, RErr, ROk},
         RString, RVec,
-    },
+    }
 };
 use anyhow::Context;
 use dynisland_abi::{
@@ -159,17 +157,17 @@ impl SabiLayoutManager for SimpleLayout {
             .map(|wid| SabiWidget::from(wid.clone().upcast::<gtk::Widget>()))
             .into()
     }
-    // FIXME maybe it leaks a bit of memory
-    //probably there are still some references to the activity widget and i don't know where
+    
+    
     fn remove_activity(&mut self, activity: &ActivityIdentifier) {
-        if let Some(widget) = self.widget_map.get(activity) {
+        if let Some(widget) = self.widget_map.remove(activity) {
             self.container
                 .as_ref()
                 .expect("there should be a container")
-                .remove(widget);
-            let w = self.widget_map.remove(activity).unwrap();
+                .remove(&widget);
             // w.unrealize();
-            // w.connect_destroy(|_|{
+            
+            // widget.connect_destroy(|_|{
             //     log::error!("is being destroyed");
             // });
             if self
@@ -185,8 +183,8 @@ impl SabiLayoutManager for SimpleLayout {
                 }
             }
             // unsafe { w.run_dispose(); } // FIXME i'm not sure this is safe
-            // log::error!("refs: {}",w.ref_count());
-            drop(w);
+            // log::error!("refs: {}",widget.ref_count());
+            // drop(widget);
         }
     }
     fn list_activities(&self) -> RVec<&ActivityIdentifier> {

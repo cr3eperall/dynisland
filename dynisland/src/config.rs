@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, path::PathBuf};
+use std::{collections::HashMap, fmt::Display, path::{Path, PathBuf}};
 
 use colored::Colorize;
 use log::warn;
@@ -17,6 +17,11 @@ pub struct Config {
     pub general_style_config: GeneralConfig,
     pub layout_configs: HashMap<String, Value>,
     pub module_config: HashMap<String, Value>,
+    pub debug: Option<DebugConfig>,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DebugConfig{
+    pub runtime_path: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -51,6 +56,7 @@ impl Default for Config {
             layout: Some("SimpleLayout".to_string()),
             general_style_config: GeneralConfig::default(),
             loaded_modules: vec!["all".to_string()],
+            debug: None,
         }
     }
 }
@@ -65,13 +71,25 @@ impl Display for Config {
     }
 }
 
-pub fn get_config_path() -> PathBuf {
-    glib::user_config_dir().join(CONFIG_REL_PATH)
+impl Config{
+    pub fn get_runtime_dir(&self) -> PathBuf{
+        self
+            .debug
+            .clone()
+            .map(|debug| PathBuf::from(debug.runtime_path))
+            .unwrap_or(get_default_runtime_path())
+    }
 }
 
-pub fn get_config() -> Config {
-    let config_path = glib::user_config_dir()
-        .join(CONFIG_REL_PATH)
+pub fn get_default_config_path() -> PathBuf {
+    glib::user_config_dir().join(CONFIG_REL_PATH)
+}
+fn get_default_runtime_path() -> PathBuf {
+    glib::user_runtime_dir().join(CONFIG_REL_PATH)
+}
+
+pub fn get_config(config_dir: &Path) -> Config {
+    let config_path = config_dir
         .join("dynisland.ron");
     let content = std::fs::read_to_string(config_path);
     let options = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
