@@ -1,5 +1,7 @@
 use dyn_clone::DynClone;
 
+// #[deprecated]
+//TODO remove
 #[derive(Clone, Debug)]
 pub struct ConfigVariable<T>
 where

@@ -28,6 +28,9 @@ impl ActivityMap {
         self.map.insert(activity_id.activity(), activity);
         Ok(())
     }
+    /// Get a property from an activity
+    ///
+    /// blocking
     pub fn get_property_any_blocking(
         &self,
         activity_id: &str,
@@ -37,6 +40,7 @@ impl ActivityMap {
             .blocking_lock()
             .get_property_any(property_name)
     }
+    /// Get a property from an activity
     pub async fn get_property_any(
         &self,
         activity_id: &str,

@@ -5,8 +5,8 @@
 //!
 
 pub mod app;
+pub mod cli;
 pub mod config;
+pub mod ipc;
 pub mod layout_manager;
 pub mod module_loading;
-pub mod cli;
-pub mod ipc;

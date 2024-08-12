@@ -13,7 +13,7 @@ use crate::{graphics::util::CssSize, randomize_name};
 
 use super::{local_css_context::ScrollingLabelLocalCssContext, ScrollingLabel};
 
-//TODO implement vertical orientation
+//TODO implement vertical orientation and builder
 
 #[derive(Properties)]
 #[properties(wrapper_type = ScrollingLabel)]
@@ -158,7 +158,7 @@ impl ObjectImpl for ScrollingLabelPriv {
 }
 
 impl WidgetImpl for ScrollingLabelPriv {
-    /// if width_request is specified, that becomes the max width of the widget
+    /// If width_request is specified, that becomes the max width of the widget
     fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
         let bin = self.bin.borrow();
         let mut measure = bin.measure(orientation, for_size);

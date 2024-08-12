@@ -26,7 +26,7 @@ pub struct ActivityWidgetPriv {
     pub(super) config_minimal_height: RefCell<i32>,
 
     /// To be used by dynisland::app only
-    #[property(get, set, nick = "Minimal height")]
+    #[property(get, set, nick = "Minimal width")]
     pub(super) config_minimal_width: RefCell<i32>,
 
     /// To be used by dynisland::app only
@@ -41,6 +41,7 @@ pub struct ActivityWidgetPriv {
 
     // pub(super) transition_manager: RefCell<TransitionManager>,
     pub(super) background_widget: RefCell<Option<gtk::Widget>>,
+
     #[property(get, set, nick = "Minimal Mode Widget")]
     pub(super) minimal_mode_widget: RefCell<Option<gtk::Widget>>,
     #[property(get, set, nick = "Compact Mode Widget")]
@@ -418,7 +419,7 @@ impl ActivityWidgetPriv {
             (tmp.0 as f64, tmp.1 as f64)
         } else {
             (
-                // default
+                // default is the current size
                 obj.width() as f64,
                 obj.height() as f64,
             )

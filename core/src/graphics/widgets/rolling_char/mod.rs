@@ -4,6 +4,7 @@ pub mod imp;
 use gtk::{prelude::*, subclass::prelude::*};
 
 glib::wrapper! {
+    /// A Label containing a single char that scrolls up when it is changed
     pub struct RollingChar(ObjectSubclass<imp::RollingCharPriv>)
         @extends gtk::Widget;
 }

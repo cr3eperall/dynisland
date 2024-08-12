@@ -4,7 +4,7 @@ use crate::{
     activity_map::ActivityMap, dynamic_activity::DynamicActivity, dynamic_property::PropertyUpdate,
 };
 use abi_stable::external_types::crossbeam_channel::RSender;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use dynisland_abi::module::{ActivityIdentifier, UIServerCommand};
 use glib::object::Cast;
 use log::error;
@@ -15,10 +15,11 @@ use tokio::{
 
 pub type Producer<T> = fn(module: &T);
 
+/// A tokio runtime that performs cleanup and stops when shutdown is called.
 pub struct ProducerRuntime {
-    pub handle: Mutex<Handle>,
-    pub shutdown: Arc<Mutex<tokio::sync::mpsc::Sender<()>>>,
-    pub cleanup_notifier: Sender<UnboundedSender<()>>,
+    handle: Mutex<Handle>,
+    shutdown: Arc<Mutex<tokio::sync::mpsc::Sender<()>>>,
+    cleanup_notifier: Sender<UnboundedSender<()>>,
 }
 impl Clone for ProducerRuntime {
     fn clone(&self) -> Self {
@@ -46,37 +47,63 @@ impl ProducerRuntime {
     pub fn new() -> Self {
         Self::default()
     }
+    /// Get an handle to the tokio runtime
     pub fn handle(&self) -> Handle {
         self.handle.blocking_lock().clone()
     }
+    /// Start a new runtime, if the runtime is still running, it will stop without calling the cleanup_notifier
     pub async fn reset(&self) {
         let (handle, shutdown) = Self::get_new_tokio_rt();
         *self.handle.lock().await = handle;
         *self.shutdown.lock().await = shutdown;
     }
+    /// Start a new runtime, if the runtime is still running, it will stop without calling the cleanup_notifier
+    ///
+    /// blocking
     pub fn reset_blocking(&self) {
         let (handle, shutdown) = Self::get_new_tokio_rt();
         *self.handle.blocking_lock() = handle;
         *self.shutdown.blocking_lock() = shutdown;
     }
-    pub async fn shutdown(&self) {
-        self.shutdown
-            .lock()
-            .await
-            .send(())
-            .await
-            .expect("failed to shutdown old producer runtime");
+    pub fn get_cleanup_notifier(&self) -> Sender<UnboundedSender<()>> {
+        self.cleanup_notifier.clone()
     }
+    /// Shutdown the runtime after sending the cleanup notification and waiting for a confirmation.
+    pub async fn shutdown(&self) {
+        let num = self.cleanup_notifier.receiver_count();
+        log::debug!("stopping producer runtime: {} cleanup recievers", num);
+        let (res_tx, mut res_rx) = tokio::sync::mpsc::unbounded_channel();
+        match self.cleanup_notifier.send(res_tx) {
+            Ok(_) => {
+                for i in 0..num {
+                    log::debug!("waiting on cleanup {}", i + 1);
+                    if res_rx.recv().await.is_none() {
+                        //all of the remaining recievers already quit/crashed
+                        break;
+                    }
+                }
+            }
+            Err(_) => {
+                log::debug!("no cleanup needed");
+            }
+        }
+        if self.shutdown.lock().await.send(()).await.is_err() {
+            log::debug!("producer runtime has already quit")
+        }
+    }
+    /// Shutdown the runtime after sending the cleanup notification and waiting for a confirmation.
+    ///
+    /// blocking
     pub fn shutdown_blocking(&self) {
         let num = self.cleanup_notifier.receiver_count();
-        log::debug!("restarting producer runtime: {} cleanup recievers", num);
+        log::debug!("stopping producer runtime: {} cleanup recievers", num);
         let (res_tx, mut res_rx) = tokio::sync::mpsc::unbounded_channel();
         match self.cleanup_notifier.send(res_tx) {
             Ok(_) => {
                 for i in 0..num {
                     log::debug!("waiting on cleanup {}", i + 1);
                     if res_rx.blocking_recv().is_none() {
-                        //all the recievers already quit/crashed
+                        //all of the remaining recievers already quit/crashed
                         break;
                     }
                 }
@@ -113,6 +140,11 @@ impl ProducerRuntime {
     }
 }
 
+/// Base module logic
+///
+/// Handles the dynamic property update, keeps track and helps to register `DynamicActivity`s with the app.
+///
+/// Also keeps track of the producers to start when the config changes
 pub struct BaseModule<T> {
     name: &'static str,
     app_send: RSender<UIServerCommand>,
@@ -154,6 +186,9 @@ impl<T> BaseModule<T> {
         self.registered_producers.clone()
     }
 
+    /// Register an activity with the app
+    ///
+    /// returns `Err` if the activity was already registered
     pub fn register_activity(&self, activity: DynamicActivity) -> Result<()> {
         let widget = activity.get_activity_widget();
         let id = activity.get_identifier();
@@ -164,21 +199,25 @@ impl<T> BaseModule<T> {
                 id,
                 widget.upcast::<gtk::Widget>().into(),
             ))
-            .unwrap();
+            .map_err(|err| anyhow!(err.to_string()))?;
         let mut reg = self.registered_activities.blocking_lock();
         reg.insert_activity(activity)
             .with_context(|| "failed to register activity")
     }
+    /// Get a `tokio::sync::Mutex` to the activity map
     pub fn registered_activities(&self) -> Rc<Mutex<ActivityMap>> {
         self.registered_activities.clone()
     }
+    /// Unregister the activity with that name in the identifier
+    ///
+    /// does nothing if the activity wasn't registered
     pub fn unregister_activity(&self, activity_name: &str) {
         self.app_send
             .send(UIServerCommand::RemoveActivity(ActivityIdentifier::new(
                 self.name,
                 activity_name,
             )))
-            .unwrap();
+            .unwrap_or_else(|err| log::debug!("err: {err}"));
 
         match self
             .registered_activities
@@ -239,12 +278,15 @@ impl<T> BaseModule<T> {
         prop_send
     }
 
+    /// Get the channel to manually send property updates
     pub fn prop_send(&self) -> UnboundedSender<PropertyUpdate> {
         self.prop_send.clone()
     }
+    /// Get the channel to manually register/unregister Activities or restart producers
     pub fn app_send(&self) -> RSender<UIServerCommand> {
         self.app_send.clone()
     }
+    /// Get the name of the module
     pub fn name(&self) -> &'static str {
         self.name
     }

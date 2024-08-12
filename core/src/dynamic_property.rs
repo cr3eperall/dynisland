@@ -54,11 +54,14 @@ impl DynamicPropertyAny {
         self.property_name.as_str()
     }
 
+    /// Get the current value of the property
     pub fn get(&self) -> &dyn ValidDynType {
         &*self.value
     }
 
-    /// returns Err if the value is of the wrong type
+    /// Updates the value and notifies the subscribers of the change
+    ///
+    /// returns `Err` if the value is of the wrong type or if the property update channel closed
     pub fn set<T>(&mut self, value: T) -> Result<()>
     where
         T: ValidDynType,
@@ -79,7 +82,7 @@ impl DynamicPropertyAny {
         }
     }
 }
-
+/// Not currently used
 impl<T: ValidDynType> DynamicProperty<T> {
     pub fn name(&self) -> &str {
         self.property.property_name.as_str()
@@ -113,6 +116,7 @@ impl<T: Any> AsAny for T {
     }
 }
 
+/// Downcast an Any obtained from `DynamicPropertyAny.get()` to a type
 #[macro_export]
 macro_rules! cast_dyn_any {
     ($val:expr, $type:ty) => {

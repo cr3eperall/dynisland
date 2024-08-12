@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Display, path::{Path, PathBuf}};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 use colored::Colorize;
 use log::warn;
@@ -20,7 +24,7 @@ pub struct Config {
     pub debug: Option<DebugConfig>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DebugConfig{
+pub struct DebugConfig {
     pub runtime_path: String,
 }
 
@@ -71,10 +75,9 @@ impl Display for Config {
     }
 }
 
-impl Config{
-    pub fn get_runtime_dir(&self) -> PathBuf{
-        self
-            .debug
+impl Config {
+    pub fn get_runtime_dir(&self) -> PathBuf {
+        self.debug
             .clone()
             .map(|debug| PathBuf::from(debug.runtime_path))
             .unwrap_or(get_default_runtime_path())
@@ -89,8 +92,7 @@ fn get_default_runtime_path() -> PathBuf {
 }
 
 pub fn get_config(config_dir: &Path) -> Config {
-    let config_path = config_dir
-        .join("dynisland.ron");
+    let config_path = config_dir.join("dynisland.ron");
     let content = std::fs::read_to_string(config_path);
     let options = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
 

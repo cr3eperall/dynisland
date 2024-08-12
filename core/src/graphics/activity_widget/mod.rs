@@ -12,6 +12,10 @@ use self::boxed_activity_mode::ActivityMode;
 use super::util;
 
 glib::wrapper! {
+    /// A Widget containing from 1 to 4 Widgets, one for each mode.
+    /// It should contain at least the Minimal widget.
+    ///
+    /// It also stretches on drag if enabled
     pub struct ActivityWidget(ObjectSubclass<imp::ActivityWidgetPriv>)
         @extends gtk::Widget;
         // @implements gtk::Accessible;

@@ -21,13 +21,14 @@ impl ToString for ActivityMode {
     }
 }
 
-//TODO add explanation for why this is necessary
 // Recursive expansion of Boxed macro
 // ===================================
 
 impl glib::subclass::boxed::BoxedType for ActivityMode {
     const NAME: &'static ::core::primitive::str = "BoxedActivityMode";
 }
+// This is needed because otherwise every module will attempt to register the ActivityMode type
+// and every module except the first will crash because it was already registered
 impl glib::prelude::StaticType for ActivityMode {
     #[inline]
     fn static_type() -> glib::Type {

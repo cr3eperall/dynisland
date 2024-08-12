@@ -21,6 +21,7 @@ impl ObjectImpl for ActivityLayoutManagerPriv {}
 
 // }
 
+// Force the size of the ActivityWidget to be the one of the background widget, so that it can be controlled by css and it can be animated
 impl LayoutManagerImpl for ActivityLayoutManagerPriv {
     fn measure(
         &self,

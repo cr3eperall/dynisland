@@ -78,13 +78,13 @@ fn main() -> Result<()> {
             match UnixStream::connect(socket_path.clone()) {
                 Ok(stream) => {
                     ipc::send_message(stream, &cli.command)?;
+                    if cli.command == HealthCheck {
+                        println!("OK");
+                    }
                 }
                 Err(err) => {
                     if cli.command != Kill {
                         log::error!("Error opening dynisland socket: {err}");
-                    }
-                    if cli.command == HealthCheck {
-                        println!("OK");
                     }
                     if matches!(err.kind(), ErrorKind::ConnectionRefused) {
                         log::info!("Connection refused, deleting old socket file");
@@ -99,14 +99,14 @@ fn main() -> Result<()> {
                 Ok(stream) => {
                     ipc::send_message(stream, &SubCommands::Kill)?;
                     log::info!("Waiting for daemon to die");
-                    let mut tries=0;
-                    while socket_path.exists() && tries < 10{
+                    let mut tries = 0;
+                    while socket_path.exists() && tries < 10 {
                         thread::sleep(Duration::from_millis(500));
                         print!(".");
                         tries += 1;
                     }
                     println!();
-                    if tries==10{
+                    if tries == 10 {
                         log::error!("failed to stop the old instance, manual kill needed");
                     }
                 }

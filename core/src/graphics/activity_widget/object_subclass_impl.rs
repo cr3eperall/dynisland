@@ -24,6 +24,9 @@ impl ObjectSubclass for ActivityWidgetPriv {
         klass.set_css_name("activity-widget");
     }
 }
+
+// This is needed because otherwise every module will attempt to register the ActivityWidget type
+// and every module except the first will crash because it was already registered
 unsafe impl glib::subclass::types::ObjectSubclassType for ActivityWidgetPriv {
     #[inline]
     fn type_data() -> ::std::ptr::NonNull<glib::subclass::TypeData> {

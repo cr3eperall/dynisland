@@ -51,6 +51,16 @@ impl CssSize {
     }
 }
 
+/// Get the size of a widget for a mode
+///
+/// For `Minimal` mode there is a forced height and width (`minimal_height` and `minimal_width`)
+///
+/// For `Compact` mode there is only a forced height (`minimal_height`)
+///
+/// If a size isn't forced the final size is the requested size.
+///
+/// If the requested size isn't set (or is -1), the natural size is used,
+/// this is calculated from `widget.measure(gtk::Orientation, -1)`
 pub(super) fn get_final_widget_size(
     widget: &gtk::Widget,
     mode: ActivityMode,
@@ -81,6 +91,7 @@ pub(super) fn get_final_widget_size(
     (width.max(minimal_width), height.max(minimal_height))
 }
 
+/// Get the allocation for a mode widget, aligned
 pub(super) fn get_child_aligned_allocation(
     parent_allocation: (i32, i32, i32),
     child: &gtk::Widget,
@@ -133,7 +144,7 @@ pub(super) fn get_child_aligned_allocation(
             ((parent_height - child_height) as f32 / 2.0, child_height)
         }
     };
-    let opt_transform = if x != 0.0 || y != 0.0 {
+    let opt_transform = if !(x == 0.0 && y == 0.0) {
         Some(Transform::new().translate(&Point::new(x, y)))
     } else {
         None
@@ -141,6 +152,7 @@ pub(super) fn get_child_aligned_allocation(
     (width, height, opt_transform)
 }
 
+/// Get a slice where every value is `other_values` except the one at the index of `mode` that is `mode_value`
 pub(super) fn get_property_slice_for_mode_f64(
     mode: ActivityMode,
     mode_value: f64,

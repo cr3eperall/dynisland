@@ -7,6 +7,8 @@ use crate::randomize_name;
 
 use super::RollingChar;
 
+//TODO implement vertical orientation and builder
+
 #[derive(Properties)]
 #[properties(wrapper_type = RollingChar)]
 pub struct RollingCharPriv {
