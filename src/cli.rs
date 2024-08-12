@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug, Serialize, Deserialize)]
-#[command(arg_required_else_help(true), author, version, about, long_about = None)]
+#[command(arg_required_else_help(true), version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: SubCommands,
@@ -27,9 +27,9 @@ pub enum SubCommands {
         #[arg(short, long, required = false, default_value_t = false)]
         no_daemonize: bool,
     },
-    #[command(name = "default_config")]
     DefaultConfig {
-        #[arg(short, long, required = false, default_value_t = false)]
+        // #[arg(short, long, required = false, default_value_t = false)]
+        #[arg(skip = false)]
         replace_current_config: bool,
     },
 }
