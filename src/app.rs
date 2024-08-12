@@ -17,7 +17,9 @@ use ron::{extensions::Extensions, ser::PrettyConfig};
 use tokio::sync::{mpsc::unbounded_channel, Mutex};
 
 use crate::{
-    config::{self, Config, GeneralConfig}, ipc::open_socket, layout_manager::simple_layout
+    config::{self, Config, GeneralConfig},
+    ipc::open_socket,
+    layout_manager::simple_layout,
 };
 
 use dynisland_abi::{
@@ -53,29 +55,38 @@ impl App {
         self.config = config::get_config(config_dir);
 
         let (server_send, mut server_recv) = unbounded_channel::<BackendServerCommand>();
-        let runtime_path= self.config.get_runtime_dir();
-        let runtime_path_1=runtime_path.clone();
-        let server_send_1=server_send.clone();
-        thread::spawn(move ||{
-            let rt=tokio::runtime::Builder::new_current_thread().enable_io().build().unwrap();
+        let runtime_path = self.config.get_runtime_dir();
+        let runtime_path_1 = runtime_path.clone();
+        let server_send_1 = server_send.clone();
+        thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_io()
+                .build()
+                .unwrap();
             rt.block_on(async move {
-                loop{
-                    log::info!("starting ipc socket at {}", runtime_path_1.canonicalize().unwrap().to_str().unwrap());
-                    if let Err(err)=open_socket(&runtime_path_1, server_send_1.clone()).await{
+                loop {
+                    log::info!(
+                        "starting ipc socket at {}",
+                        runtime_path_1.canonicalize().unwrap().to_str().unwrap()
+                    );
+                    if let Err(err) = open_socket(&runtime_path_1, server_send_1.clone()).await {
                         std::fs::remove_file(&runtime_path_1.join("dynisland.sock")).unwrap();
                         log::error!("socket closed: {err}");
-                        if matches!(err.downcast::<std::io::Error>().unwrap().kind(), ErrorKind::AddrInUse){
+                        if matches!(
+                            err.downcast::<std::io::Error>().unwrap().kind(),
+                            ErrorKind::AddrInUse
+                        ) {
                             log::error!("app was already started");
                             break;
                         }
-                    }else{
+                    } else {
                         log::info!("kill message recieved");
                         break;
                     }
                 }
             });
         });
-        
+
         self.app_send = Some(abi_app_send);
 
         let (app_send_async, mut app_recv_async) = unbounded_channel::<UIServerCommand>();
@@ -86,7 +97,6 @@ impl App {
                 app_send_async.send(msg).expect("failed to send message");
             }
         });
-
 
         let module_order = self.load_modules();
         self.load_layout_manager();
@@ -214,16 +224,15 @@ impl App {
                         self.load_css();
 
                         self.restart_producer_runtimes();
-                    },
+                    }
                     BackendServerCommand::Stop => {
                         log::info!("Quitting");
                         self.application.quit();
-                    },
+                    }
                     BackendServerCommand::OpenInspector => {
                         log::info!("Opening inspector");
                         gtk::Window::set_interactive_debugging(true);
                     }
-                    
                 }
             }
         });
@@ -262,7 +271,7 @@ impl App {
             log::error!("dynisland is already running");
         }
         app.run_with_args::<String>(&[]);
-        if !running{
+        if !running {
             std::fs::remove_file(runtime_path.join("dynisland.sock"))?;
         }
         Ok(())
@@ -481,9 +490,8 @@ impl App {
 impl Default for App {
     fn default() -> Self {
         // let (hdl, shutdown) = get_new_tokio_rt();
-        let flags= gtk::gio::ApplicationFlags::default();
-        let app =
-            gtk::Application::new(Some("com.github.cr3eperall.dynisland"), flags);
+        let flags = gtk::gio::ApplicationFlags::default();
+        let app = gtk::Application::new(Some("com.github.cr3eperall.dynisland"), flags);
         App {
             application: app,
             module_map: Rc::new(Mutex::new(HashMap::new())),

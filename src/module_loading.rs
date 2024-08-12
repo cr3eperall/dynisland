@@ -1,6 +1,9 @@
-use abi_stable::{external_types::crossbeam_channel::RSender, std_types::RResult::{RErr, ROk}};
-use tokio::sync::Mutex;
+use abi_stable::{
+    external_types::crossbeam_channel::RSender,
+    std_types::RResult::{RErr, ROk},
+};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
+use tokio::sync::Mutex;
 
 use abi_stable::{
     library::{lib_header_from_path, LibraryError},

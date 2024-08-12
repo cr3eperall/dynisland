@@ -1,11 +1,13 @@
 use std::{collections::HashMap, time::Duration};
 
 use abi_stable::{
-    sabi_extern_fn, sabi_trait::TD_CanDowncast, std_types::{
+    sabi_extern_fn,
+    sabi_trait::TD_CanDowncast,
+    std_types::{
         RBoxError, ROption,
         RResult::{self, RErr, ROk},
         RString, RVec,
-    }
+    },
 };
 use anyhow::Context;
 use dynisland_abi::{
@@ -157,8 +159,7 @@ impl SabiLayoutManager for SimpleLayout {
             .map(|wid| SabiWidget::from(wid.clone().upcast::<gtk::Widget>()))
             .into()
     }
-    
-    
+
     fn remove_activity(&mut self, activity: &ActivityIdentifier) {
         if let Some(widget) = self.widget_map.remove(activity) {
             self.container
@@ -166,7 +167,7 @@ impl SabiLayoutManager for SimpleLayout {
                 .expect("there should be a container")
                 .remove(&widget);
             // w.unrealize();
-            
+
             // widget.connect_destroy(|_|{
             //     log::error!("is being destroyed");
             // });
