@@ -71,9 +71,9 @@ fn main() -> Result<()> {
             gtk::init().with_context(|| "failed to init gtk")?;
             let app = App::default();
             log::info!("pid: {pid}");
-            app.initialize_server(&config_dir)?;
+            app.run(&config_dir)?;
         }
-        Reload | Kill | Inspector | HealthCheck => {
+        Reload | Inspector | HealthCheck => {
             let socket_path = config.get_runtime_dir().join("dynisland.sock");
             match UnixStream::connect(socket_path.clone()) {
                 Ok(stream) => {
@@ -83,12 +83,39 @@ fn main() -> Result<()> {
                     }
                 }
                 Err(err) => {
-                    if cli.command != Kill {
-                        log::error!("Error opening dynisland socket: {err}");
-                    }
+                    log::error!("Error opening dynisland socket: {err}");
                     if matches!(err.kind(), ErrorKind::ConnectionRefused) {
                         log::info!("Connection refused, deleting old socket file");
                         std::fs::remove_file(socket_path.clone())?;
+                    }
+                }
+            };
+        }
+        Kill => {
+            let socket_path = config.get_runtime_dir().join("dynisland.sock");
+            match UnixStream::connect(socket_path.clone()) {
+                Ok(stream) => {
+                    ipc::send_message(stream, &cli.command)?;
+                    println!("Kill message sent");
+                    let mut tries = 0;
+                    while socket_path.exists() && tries < 10 {
+                        thread::sleep(Duration::from_millis(500));
+                        print!(".");
+                        tries += 1;
+                    }
+                    println!();
+                    if tries == 10 {
+                        log::error!("Failed to stop the old instance, manual kill needed");
+                    }else{
+                        println!("OK");
+                    }
+                }
+                Err(err) => {
+                    if matches!(err.kind(), ErrorKind::ConnectionRefused) {
+                        log::info!("Connection refused, deleting old socket file");
+                        std::fs::remove_file(socket_path.clone())?;
+                    } else {
+                        log::warn!("Error connecting to socket, app is probably not running: {err}");
                     }
                 }
             };
@@ -129,7 +156,7 @@ fn main() -> Result<()> {
             gtk::init().with_context(|| "failed to init gtk")?;
             let app = App::default();
             log::info!("pid: {pid}");
-            app.initialize_server(&config_dir)?;
+            app.run(&config_dir)?;
         }
         DefaultConfig {
             replace_current_config,

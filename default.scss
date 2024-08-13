@@ -112,7 +112,9 @@ rolling-char .out {
 }
 
 scrolling-label {
-    margin-right: 10px;
+    box{
+        margin-right: 10px;
+    }
 
     .inner-label {
         margin-left: 10px;

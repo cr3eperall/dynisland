@@ -12,7 +12,7 @@ use anyhow::Result;
 use colored::Colorize;
 use dynisland_core::graphics::activity_widget::boxed_activity_mode::ActivityMode;
 use gtk::{prelude::*, CssProvider, Widget};
-use notify::Watcher;
+use notify::{RecommendedWatcher, Watcher};
 use ron::{extensions::Extensions, ser::PrettyConfig};
 use tokio::sync::{mpsc::unbounded_channel, Mutex};
 
@@ -49,96 +49,42 @@ pub struct App {
 //     "/home/david/dev/rust/dynisland/dynisland-core/target/debug/libexample_module.so";
 
 impl App {
-    pub fn initialize_server(mut self, config_dir: &Path) -> Result<()> {
-        let (abi_app_send, abi_app_recv) =
-            abi_stable::external_types::crossbeam_channel::unbounded::<UIServerCommand>();
+    pub fn run(mut self, config_dir: &Path) -> Result<()> {
         self.config = config::get_config(config_dir);
-
-        let (server_send, mut server_recv) = unbounded_channel::<BackendServerCommand>();
+        
+        let (server_send, server_recv) = unbounded_channel::<BackendServerCommand>();
         let runtime_path = self.config.get_runtime_dir();
-        let runtime_path_1 = runtime_path.clone();
-        let server_send_1 = server_send.clone();
-        thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_io()
-                .build()
-                .unwrap();
-            rt.block_on(async move {
-                loop {
-                    log::info!(
-                        "starting ipc socket at {}",
-                        runtime_path_1.canonicalize().unwrap().to_str().unwrap()
-                    );
-                    if let Err(err) = open_socket(&runtime_path_1, server_send_1.clone()).await {
-                        std::fs::remove_file(&runtime_path_1.join("dynisland.sock")).unwrap();
-                        log::error!("socket closed: {err}");
-                        if matches!(
-                            err.downcast::<std::io::Error>().unwrap().kind(),
-                            ErrorKind::AddrInUse
-                        ) {
-                            log::error!("app was already started");
-                            break;
-                        }
-                    } else {
-                        log::info!("kill message recieved");
-                        break;
-                    }
-                }
-            });
-        });
+        
+        start_ipc_server(runtime_path.clone(), server_send.clone());
+        
+        let mut app_recv_async = self.init_abi_app_channel();
 
-        self.app_send = Some(abi_app_send);
-
-        let (app_send_async, mut app_recv_async) = unbounded_channel::<UIServerCommand>();
-
-        //forward message to app reciever
-        thread::spawn(move || {
-            while let Ok(msg) = abi_app_recv.recv() {
-                app_send_async.send(msg).expect("failed to send message");
-            }
-        });
-
-        let module_order = self.load_modules();
+        
+        // load layout manager and init modules
         self.load_layout_manager();
-
         self.load_layout_config();
+        
+        let module_order = self.load_modules();
         self.load_configs(config_dir);
-
         self.init_loaded_modules(&module_order);
 
-        // let app_send1=self.app_send.clone().unwrap();
-        // glib::MainContext::default().spawn_local(async move {
-        //     glib::timeout_future_seconds(10).await;
-        //     debug!("reloading config");
-        //     app_send1.send(UIServerCommand::ReloadConfig()).unwrap();
-        // });
-
+        // init layout manager and send start signal
         let (start_signal_tx, start_signal_rx) = tokio::sync::broadcast::channel::<()>(1);
 
         let layout = self.layout.clone().unwrap();
-        // let act_container1 = act_container.clone();
         self.application.connect_activate(move |_app| {
             log::info!("Loading LayoutManager");
             layout.blocking_lock().1.init();
             start_signal_tx.send(()).unwrap();
-            // let window = gtk::ApplicationWindow::new(app);
-            // window.set_child(Some(&widget));
-
-            // init_window(&window.clone().upcast());
-            // // gtk::Window::set_interactive_debugging(true);
-
-            // //show window
-            // window.connect_destroy(|_| std::process::exit(0));
-            // window.present();
-
-            // crate::start_fps_counter(&window, log::Level::Trace, Duration::from_millis(200));
         });
-        let layout = self.layout.clone().unwrap();
-        let module_map = self.module_map.clone();
+        
         //UI command consumer
         let mut start_signal = start_signal_rx.resubscribe();
+        let layout = self.layout.clone().unwrap();
+        let module_map = self.module_map.clone();
         glib::MainContext::default().spawn_local(async move {
             start_signal.recv().await.unwrap();
+            
             // TODO check if there are too many tasks on the UI thread and it begins to lag
             while let Some(command) = app_recv_async.recv().await {
                 match command {
@@ -181,19 +127,22 @@ impl App {
         //server command consumer
         glib::MainContext::default().spawn_local(async move {
             start_signal.recv().await.unwrap();
+
             let renderer_name = self.application.windows()[0]
                 .native()
-                .unwrap()
+                .expect("Layout manager has no windows")
                 .renderer()
                 .type_()
                 .name();
 
-            log::info!("using renderer: {}", renderer_name);
+            log::info!("Using renderer: {}", renderer_name);
 
+            
+            //init css providers
             let fallback_provider = gtk::CssProvider::new();
             let css =
                 grass::from_string(include_str!("../default.scss"), &grass::Options::default())
-                    .unwrap();
+                .unwrap();
             fallback_provider.load_from_string(&css);
             gtk::style_context_add_provider_for_display(
                 &gdk::Display::default().unwrap(),
@@ -201,7 +150,6 @@ impl App {
                 gtk::STYLE_PROVIDER_PRIORITY_SETTINGS,
             );
 
-            //init css provider
             gtk::style_context_add_provider_for_display(
                 &gdk::Display::default().unwrap(),
                 &self.css_provider,
@@ -209,61 +157,13 @@ impl App {
             );
             self.load_css(); //load user's scss
 
-            self.restart_producer_runtimes();
-            while let Some(command) = server_recv.recv().await {
-                match command {
-                    BackendServerCommand::ReloadConfig => {
-                        log::info!("Reloading Config");
-                        //FIXME split config and css reload (producers don't need to be restarted if only css changed)
+            self.restart_producer_runtimes(); // start producers
 
-                        // without this sleep, reading the config file sometimes gives an empty file.
-                        glib::timeout_future(std::time::Duration::from_millis(50)).await;
-                        self.load_configs(&config_dir);
-                        self.update_general_configs();
-                        self.load_layout_config();
-                        self.load_css();
-
-                        self.restart_producer_runtimes();
-                    }
-                    BackendServerCommand::Stop => {
-                        log::info!("Quitting");
-                        self.application.quit();
-                    }
-                    BackendServerCommand::OpenInspector => {
-                        log::info!("Opening inspector");
-                        gtk::Window::set_interactive_debugging(true);
-                    }
-                }
-            }
+            self.start_backend_server(server_recv, config_dir).await;
         });
-        let mut watcher =
-            notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
-                Ok(evt) => {
-                    // log::info!("config event: {:?}",evt.kind);
-                    match evt.kind {
-                        notify::EventKind::Modify(notify::event::ModifyKind::Data(_)) => {
-                            server_send
-                                .send(BackendServerCommand::ReloadConfig)
-                                .expect("failed to send notification")
-                        }
-                        notify::EventKind::Create(_) => {
-                            // log::info!("file create event");
-                        }
-                        _ => {}
-                    }
-                    // debug!("{evt:?}");
-                }
-                Err(err) => {
-                    log::error!("notify watcher error: {err}")
-                }
-            })
-            .expect("failed to get file watcher");
-        if let Err(err) = watcher.watch(
-            &config::get_default_config_path(),
-            notify::RecursiveMode::NonRecursive,
-        ) {
-            log::warn!("failed to start config file watcher, restart dynisland to get automatic config updates: {err}")
-        }
+
+        let _wathcer = start_config_dir_watcher(server_send);
+
         //start application
         app.register(None as Option<&gtk::gio::Cancellable>)?;
         let running = app.is_remote();
@@ -277,6 +177,49 @@ impl App {
         Ok(())
     }
 
+    fn init_abi_app_channel(&mut self) -> tokio::sync::mpsc::UnboundedReceiver<UIServerCommand> {
+        let (abi_app_send, abi_app_recv) =
+            abi_stable::external_types::crossbeam_channel::unbounded::<UIServerCommand>();
+        self.app_send = Some(abi_app_send);
+        let (app_send_async, app_recv_async) = unbounded_channel::<UIServerCommand>();
+    
+        //forward message to app reciever
+        thread::spawn(move || {
+            while let Ok(msg) = abi_app_recv.recv() {
+                app_send_async.send(msg).expect("failed to send message");
+            }
+        });
+        app_recv_async
+    }
+    
+    async fn start_backend_server(mut self, mut server_recv: tokio::sync::mpsc::UnboundedReceiver<BackendServerCommand>, config_dir: std::path::PathBuf) {
+        while let Some(command) = server_recv.recv().await {
+            match command {
+                BackendServerCommand::ReloadConfig => {
+                    log::info!("Reloading Config");
+                    //FIXME split config and css reload (producers don't need to be restarted if only css changed)
+    
+                    // without this sleep, reading the config file sometimes gives an empty file.
+                    glib::timeout_future(std::time::Duration::from_millis(50)).await;
+                    self.load_configs(&config_dir);
+                    self.update_general_configs();
+                    self.load_layout_config();
+                    self.load_css();
+    
+                    self.restart_producer_runtimes();
+                }
+                BackendServerCommand::Stop => {
+                    log::info!("Quitting");
+                    self.application.quit();
+                }
+                BackendServerCommand::OpenInspector => {
+                    log::info!("Opening inspector");
+                    gtk::Window::set_interactive_debugging(true);
+                }
+            }
+        }
+    }
+    
     pub fn load_css(&mut self) {
         let css_content = grass::from_path(
             config::get_default_config_path().join("dynisland.scss"),
@@ -344,8 +287,9 @@ impl App {
         activity.set_property("config-minimal-height", config.minimal_height as i32);
         activity.set_property("config-minimal-width", config.minimal_width as i32);
         activity.set_property("config-blur-radius", config.blur_radius);
-        activity.set_property("mode", activity.property::<ActivityMode>("mode"));
         activity.set_property("config-enable-drag-stretch", config.enable_drag_stretch);
+        // update widget size
+        activity.set_property("mode", activity.property::<ActivityMode>("mode"));
     }
 
     fn init_loaded_modules(&self, order: &Vec<String>) {
@@ -504,3 +448,69 @@ impl Default for App {
         }
     }
 }
+
+fn start_config_dir_watcher(server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>) -> RecommendedWatcher {
+    log::info!("starting config watcher");
+    let mut watcher =
+        notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
+            Ok(evt) => {
+                // log::info!("config event: {:?}",evt.kind);
+                match evt.kind {
+                    notify::EventKind::Modify(notify::event::ModifyKind::Data(_)) => {
+                        log::debug!("Config change detected");
+                        server_send
+                            .send(BackendServerCommand::ReloadConfig)
+                            .expect("Failed to send notification")
+                    }
+                    notify::EventKind::Create(_) => {
+                        // log::info!("file create event");
+                    }
+                    _ => {}
+                }
+                // debug!("{evt:?}");
+            }
+            Err(err) => {
+                log::error!("Notify watcher error: {err}")
+            }
+        })
+        .expect("Failed to get file watcher");
+    if let Err(err) = watcher.watch(
+        &config::get_default_config_path(),
+        notify::RecursiveMode::NonRecursive,
+    ) {
+        log::warn!("Failed to start config file watcher, restart dynisland to get automatic config updates: {err}")
+    }
+    watcher
+}
+
+fn start_ipc_server(runtime_path: std::path::PathBuf, server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>) {
+    thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .build()
+            .unwrap();
+        rt.block_on(async move {
+            loop {
+                log::info!(
+                    "starting ipc socket at {}",
+                    runtime_path.canonicalize().unwrap().to_str().unwrap()
+                );
+                if let Err(err) = open_socket(&runtime_path, server_send.clone()).await {
+                    std::fs::remove_file(&runtime_path.join("dynisland.sock")).unwrap();
+                    log::error!("socket closed: {err}");
+                    if matches!(
+                        err.downcast::<std::io::Error>().unwrap().kind(),
+                        ErrorKind::AddrInUse
+                    ) {
+                        log::error!("app was already started");
+                        break;
+                    }
+                } else {
+                    log::info!("kill message recieved");
+                    break;
+                }
+            }
+        });
+    });
+}
+
