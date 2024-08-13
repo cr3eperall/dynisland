@@ -21,8 +21,8 @@ impl Clone for Box<dyn ValidDynamicClosure> {
 
 /// Bundles a `DynamicProperty` with all of its subscribers
 pub struct SubscribableProperty {
-    pub property: Arc<Mutex<DynamicPropertyAny>>,
-    pub subscribers: Vec<Box<dyn ValidDynamicClosure>>,
+    pub(crate) property: Arc<Mutex<DynamicPropertyAny>>,
+    pub(crate) subscribers: Vec<Box<dyn ValidDynamicClosure>>,
 }
 
 /// Struct containing the `ActivityWidget`, the `ActivityIdentifier` and the dynamic properties of an activity

@@ -14,15 +14,15 @@ impl<T: Any + Sync + Send + Clone> ValidDynType for T {
 }
 
 pub struct PropertyUpdate {
-    pub activity_id: ActivityIdentifier,
-    pub property_name: String,
-    pub value: Box<dyn ValidDynType>,
+    pub(crate) activity_id: ActivityIdentifier,
+    pub(crate) property_name: String,
+    pub(crate) value: Box<dyn ValidDynType>,
 }
 pub struct DynamicPropertyAny {
-    pub backend_channel: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
-    pub activity_id: ActivityIdentifier,
-    pub property_name: String,
-    pub value: Box<dyn ValidDynType>,
+    pub(crate) backend_channel: tokio::sync::mpsc::UnboundedSender<PropertyUpdate>,
+    pub(crate) activity_id: ActivityIdentifier,
+    pub(crate) property_name: String,
+    pub(crate) value: Box<dyn ValidDynType>,
 }
 pub struct DynamicProperty<T: ValidDynType> {
     property: DynamicPropertyAny,

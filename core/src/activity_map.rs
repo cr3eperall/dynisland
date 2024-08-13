@@ -7,7 +7,7 @@ use anyhow::{anyhow, bail, Result};
 
 #[derive(Default)]
 pub struct ActivityMap {
-    pub map: HashMap<String, Rc<Mutex<DynamicActivity>>>,
+    pub(super) map: HashMap<String, Rc<Mutex<DynamicActivity>>>,
 }
 
 impl ActivityMap {

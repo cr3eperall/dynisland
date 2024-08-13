@@ -7,8 +7,8 @@ pub struct ConfigVariable<T>
 where
     T: DynClone,
 {
-    pub value: T,
-    pub set_by_user: bool,
+    pub(super) value: T,
+    pub(super) set_by_user: bool,
 }
 
 impl<T: DynClone> ConfigVariable<T> {
