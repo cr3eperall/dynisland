@@ -19,7 +19,7 @@ use tokio::sync::{mpsc::unbounded_channel, Mutex};
 use crate::{
     config::{self, Config, GeneralConfig},
     ipc::open_socket,
-    layout_manager::simple_layout,
+    layout_manager::{self, simple_layout},
 };
 
 use dynisland_abi::{
@@ -51,19 +51,16 @@ pub struct App {
 impl App {
     pub fn run(mut self, config_dir: &Path) -> Result<()> {
         self.config = config::get_config(config_dir);
-        
+
         let (server_send, server_recv) = unbounded_channel::<BackendServerCommand>();
         let runtime_path = self.config.get_runtime_dir();
-        
-        start_ipc_server(runtime_path.clone(), server_send.clone());
-        
+
         let mut app_recv_async = self.init_abi_app_channel();
 
-        
         // load layout manager and init modules
         self.load_layout_manager();
         self.load_layout_config();
-        
+
         let module_order = self.load_modules();
         self.load_configs(config_dir);
         self.init_loaded_modules(&module_order);
@@ -77,19 +74,19 @@ impl App {
             layout.blocking_lock().1.init();
             start_signal_tx.send(()).unwrap();
         });
-        
+
         //UI command consumer
         let mut start_signal = start_signal_rx.resubscribe();
         let layout = self.layout.clone().unwrap();
         let module_map = self.module_map.clone();
         glib::MainContext::default().spawn_local(async move {
             start_signal.recv().await.unwrap();
-            
+
             // TODO check if there are too many tasks on the UI thread and it begins to lag
             while let Some(command) = app_recv_async.recv().await {
                 match command {
-                    UIServerCommand::AddActivity(activity_identifier, activity) => {
-                        let activity: Widget = match activity.try_into() {
+                    UIServerCommand::AddActivity{activity_id, widget} => {
+                        let activity: Widget = match widget.try_into() {
                             Ok(act) => {act},
                             Err(err) => {
                                 log::error!("error while converting SabiWidget to Widget, maybe it was deallocated after UIServerCommand::AddActivity was sent: {err:#?}");
@@ -106,16 +103,22 @@ impl App {
                             .lock()
                             .await
                             .1
-                            .add_activity(&activity_identifier, activity.into());
-                        log::info!("registered activity on {}", activity_identifier.module());
+                            .add_activity(&activity_id, activity.into());
+                        log::info!("registered activity on {}", activity_id.module());
                     }
-                    UIServerCommand::RemoveActivity(activity_identifier) => {
-                        layout.lock().await.1.remove_activity(&activity_identifier);
+                    UIServerCommand::RemoveActivity { activity_id } => {
+                        layout.lock().await.1.remove_activity(&activity_id);
                     }
-                    UIServerCommand::RestartProducers(module) => {
-                        if let Some(module) = module_map.lock().await.get(module.as_str()) {
+                    UIServerCommand::RestartProducers { module_name } => {
+                        if let Some(module) = module_map.lock().await.get(module_name.as_str()) {
                             module.restart_producers();
                         }
+                    }
+                    UIServerCommand::RequestFocus { activity_id, mode } => {
+                        if mode>3{
+                            continue;
+                        }
+                        layout.lock().await.1.focus_activity(&activity_id, mode);
                     }
                 }
             }
@@ -137,12 +140,11 @@ impl App {
 
             log::info!("Using renderer: {}", renderer_name);
 
-            
             //init css providers
             let fallback_provider = gtk::CssProvider::new();
             let css =
                 grass::from_string(include_str!("../default.scss"), &grass::Options::default())
-                .unwrap();
+                    .unwrap();
             fallback_provider.load_from_string(&css);
             gtk::style_context_add_provider_for_display(
                 &gdk::Display::default().unwrap(),
@@ -162,13 +164,15 @@ impl App {
             self.start_backend_server(server_recv, config_dir).await;
         });
 
-        let _wathcer = start_config_dir_watcher(server_send);
+        let _wathcer = start_config_dir_watcher(server_send.clone());
 
         //start application
         app.register(None as Option<&gtk::gio::Cancellable>)?;
         let running = app.is_remote();
         if running {
             log::error!("dynisland is already running");
+        }else{
+            start_ipc_server(runtime_path.clone(), server_send);
         }
         app.run_with_args::<String>(&[]);
         if !running {
@@ -182,7 +186,7 @@ impl App {
             abi_stable::external_types::crossbeam_channel::unbounded::<UIServerCommand>();
         self.app_send = Some(abi_app_send);
         let (app_send_async, app_recv_async) = unbounded_channel::<UIServerCommand>();
-    
+
         //forward message to app reciever
         thread::spawn(move || {
             while let Ok(msg) = abi_app_recv.recv() {
@@ -191,21 +195,25 @@ impl App {
         });
         app_recv_async
     }
-    
-    async fn start_backend_server(mut self, mut server_recv: tokio::sync::mpsc::UnboundedReceiver<BackendServerCommand>, config_dir: std::path::PathBuf) {
+
+    async fn start_backend_server(
+        mut self,
+        mut server_recv: tokio::sync::mpsc::UnboundedReceiver<BackendServerCommand>,
+        config_dir: std::path::PathBuf,
+    ) {
         while let Some(command) = server_recv.recv().await {
             match command {
                 BackendServerCommand::ReloadConfig => {
                     log::info!("Reloading Config");
                     //FIXME split config and css reload (producers don't need to be restarted if only css changed)
-    
+
                     // without this sleep, reading the config file sometimes gives an empty file.
                     glib::timeout_future(std::time::Duration::from_millis(50)).await;
                     self.load_configs(&config_dir);
                     self.update_general_configs();
                     self.load_layout_config();
                     self.load_css();
-    
+
                     self.restart_producer_runtimes();
                 }
                 BackendServerCommand::Stop => {
@@ -219,7 +227,7 @@ impl App {
             }
         }
     }
-    
+
     pub fn load_css(&mut self) {
         let css_content = grass::from_path(
             config::get_default_config_path().join("dynisland.scss"),
@@ -345,7 +353,7 @@ impl App {
             layout_configs.push((lm_name, built_lm.default_config()));
         }
         layout_configs.push((
-            simple_layout::NAME.to_owned(),
+            layout_manager::NAME.to_owned(),
             simple_layout::new(self.application.clone().into())
                 .unwrap()
                 .default_config(),
@@ -391,7 +399,7 @@ impl App {
         for (mod_name, mod_config) in module_configs {
             match mod_config {
                 ROk(mod_config) => {
-                    log::debug!("string config for {mod_name}: {}", mod_config.as_str()); //TODO find a way to get the original string in Config
+                    log::debug!("string config for {mod_name}: {}", mod_config.as_str());
                     mod_config_str += &format!("\"{mod_name}\": {mod_config},\n")
                         .lines()
                         .map(|l| "        ".to_owned() + l + "\n")
@@ -449,7 +457,9 @@ impl Default for App {
     }
 }
 
-fn start_config_dir_watcher(server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>) -> RecommendedWatcher {
+fn start_config_dir_watcher(
+    server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>,
+) -> RecommendedWatcher {
     log::info!("starting config watcher");
     let mut watcher =
         notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
@@ -483,7 +493,10 @@ fn start_config_dir_watcher(server_send: tokio::sync::mpsc::UnboundedSender<Back
     watcher
 }
 
-fn start_ipc_server(runtime_path: std::path::PathBuf, server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>) {
+fn start_ipc_server(
+    runtime_path: std::path::PathBuf,
+    server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>,
+) {
     thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_io()
@@ -496,7 +509,6 @@ fn start_ipc_server(runtime_path: std::path::PathBuf, server_send: tokio::sync::
                     runtime_path.canonicalize().unwrap().to_str().unwrap()
                 );
                 if let Err(err) = open_socket(&runtime_path, server_send.clone()).await {
-                    std::fs::remove_file(&runtime_path.join("dynisland.sock")).unwrap();
                     log::error!("socket closed: {err}");
                     if matches!(
                         err.downcast::<std::io::Error>().unwrap().kind(),
@@ -513,4 +525,3 @@ fn start_ipc_server(runtime_path: std::path::PathBuf, server_send: tokio::sync::
         });
     });
 }
-

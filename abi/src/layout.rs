@@ -20,8 +20,9 @@ pub trait SabiLayoutManager {
     fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: SabiWidget);
     fn remove_activity(&mut self, activity: &ActivityIdentifier);
     fn list_activities(&self) -> RVec<&ActivityIdentifier>;
-    #[sabi(last_prefix_field)]
     fn get_activity(&self, activity: &ActivityIdentifier) -> ROption<SabiWidget>;
+    #[sabi(last_prefix_field)]
+    fn focus_activity(&self, activity: &ActivityIdentifier, mode_id: u8);
 }
 
 #[repr(C)]

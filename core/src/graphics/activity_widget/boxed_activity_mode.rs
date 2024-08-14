@@ -10,6 +10,22 @@ pub enum ActivityMode {
     Overlay = 3,
 }
 
+impl TryFrom<u8> for ActivityMode {
+    type Error = String;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => ActivityMode::Minimal,
+            1 => ActivityMode::Compact,
+            2 => ActivityMode::Expanded,
+            3 => ActivityMode::Overlay,
+            _ => {
+                return Err(format!("invalid value for ActivityMode: {value}"));
+            }
+        })
+    }
+}
+
 impl ToString for ActivityMode {
     fn to_string(&self) -> String {
         match self {

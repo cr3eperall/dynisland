@@ -165,17 +165,24 @@ impl RootModule for ModuleBuilderRef {
 #[derive(StableAbi)]
 pub enum UIServerCommand {
     /// Add an ActivityWidget to the LayoutManager
-    AddActivity(ActivityIdentifier, SabiWidget),
+    AddActivity {
+        activity_id: ActivityIdentifier,
+        widget: SabiWidget,
+    },
     // AddProducer(RString, Producer),
     /// Remove an ActivityWidget from the LayoutManager.
     ///
     /// The module should drop all the other references to the widget before sending this command
-    RemoveActivity(ActivityIdentifier), //TODO needs to be tested
+    RemoveActivity { activity_id: ActivityIdentifier },
     /// Send a request for the app to call `SabiModule::restart_producers()`.
     ///
     /// This is useful when you don't have a reference to the module
-    RestartProducers(RString),
-    // RequestAttention(ActivityMode)
+    RestartProducers { module_name: RString },
+
+    RequestFocus {
+        activity_id: ActivityIdentifier,
+        mode: u8,
+    },
 }
 
 /// Module and activity name, used to uniquely identify a dynamic activity

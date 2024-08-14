@@ -8,7 +8,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct ScrollingLabelLocalCssContext {
-    //IMPORTANT add some way to globally configure and swap the animations (maybe get a string to format from a config)
+    //TODO add some way to globally configure and swap the animations (maybe get a string to format from a config)
     css_provider: CssProvider,
     name: String,
     size: i32,

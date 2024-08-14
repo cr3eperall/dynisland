@@ -16,7 +16,6 @@ pub struct SabiWidget {
 }
 
 // this can be send, because gtk::Widget can be processed only in the UI thread
-//TODO add a better explanation for why this is necessary
 unsafe impl Send for SabiWidget {}
 
 impl From<Widget> for SabiWidget {

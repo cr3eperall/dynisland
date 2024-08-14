@@ -20,14 +20,16 @@ use nix::unistd::Pid;
 
 // [ ] TODO remove some unnecessary arc and mutexes
 // [ ] TODO remove some unwraps and handle errors better
-// [ ] TODO add docs
-// [ ] TODO remove some unnecessary clones
+// [x] TODO add docs
+// [x] TODO remove some unnecessary clones
 
 // [ ] TODO detect nvidia gpu and display warning (if dynisland uses too much ram, use GSK_RENDERER=vulkan)
 
 // FIXME app sometimes segfaults when waking up from hibernation (Hyprland 0.40.0, ArchLinux, 6.6.40-1-lts)
 // there is a null pointer dereference somewhere in gtk or dynisland
 // the backtrace is in backtrace.txt
+
+// FIXME Gsk-WARNING **: 13:09:06.082: Clipping is broken, everything is clipped, but we didn't early-exit.
 
 fn main() -> Result<()> {
     env_logger::Builder::new()
@@ -106,7 +108,7 @@ fn main() -> Result<()> {
                     println!();
                     if tries == 10 {
                         log::error!("Failed to stop the old instance, manual kill needed");
-                    }else{
+                    } else {
                         println!("OK");
                     }
                 }
@@ -115,7 +117,9 @@ fn main() -> Result<()> {
                         log::info!("Connection refused, deleting old socket file");
                         std::fs::remove_file(socket_path.clone())?;
                     } else {
-                        log::warn!("Error connecting to socket, app is probably not running: {err}");
+                        log::warn!(
+                            "Error connecting to socket, app is probably not running: {err}"
+                        );
                     }
                 }
             };

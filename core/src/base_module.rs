@@ -195,10 +195,10 @@ impl<T> BaseModule<T> {
         let activity = Rc::new(Mutex::new(activity));
 
         self.app_send
-            .send(UIServerCommand::AddActivity(
-                id,
-                widget.upcast::<gtk::Widget>().into(),
-            ))
+            .send(UIServerCommand::AddActivity {
+                activity_id: id,
+                widget: widget.upcast::<gtk::Widget>().into(),
+            })
             .map_err(|err| anyhow!(err.to_string()))?;
         let mut reg = self.registered_activities.blocking_lock();
         reg.insert_activity(activity)
@@ -213,10 +213,9 @@ impl<T> BaseModule<T> {
     /// does nothing if the activity wasn't registered
     pub fn unregister_activity(&self, activity_name: &str) {
         self.app_send
-            .send(UIServerCommand::RemoveActivity(ActivityIdentifier::new(
-                self.name,
-                activity_name,
-            )))
+            .send(UIServerCommand::RemoveActivity {
+                activity_id: ActivityIdentifier::new(self.name, activity_name),
+            })
             .unwrap_or_else(|err| log::debug!("err: {err}"));
 
         match self
