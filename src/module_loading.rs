@@ -17,7 +17,10 @@ use dynisland_abi::{
     SabiApplication,
 };
 
-use crate::{app::App, layout_manager::simple_layout};
+use crate::{
+    app::App,
+    layout_manager::{self, simple_layout},
+};
 
 impl App {
     pub(crate) fn load_modules(&mut self) -> Vec<String> {
@@ -84,7 +87,7 @@ impl App {
             return;
         }
         let lm_name = self.config.layout.as_ref().unwrap();
-        if lm_name == simple_layout::NAME {
+        if lm_name == layout_manager::NAME {
             log::info!("using layout manager: SimpleLayout");
             self.load_simple_layout();
             return;
@@ -119,7 +122,7 @@ impl App {
         let layout_builder = simple_layout::new(self.application.clone().into());
         let layout = layout_builder.unwrap();
         self.layout = Some(Rc::new(Mutex::new((
-            simple_layout::NAME.to_string(),
+            layout_manager::NAME.to_string(),
             layout,
         ))));
     }

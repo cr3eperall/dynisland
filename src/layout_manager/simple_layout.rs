@@ -18,12 +18,13 @@ use dynisland_abi::{
 use dynisland_core::graphics::activity_widget::{
     boxed_activity_mode::ActivityMode, ActivityWidget,
 };
-use gtk::{prelude::*, EventController, StateFlags, Window};
-use gtk_layer_shell::LayerShell;
+use gdk::prelude::*;
+use glib::Cast;
+use gtk::{prelude::*, EventController, StateFlags};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
-pub const NAME: &str = "SimpleLayout";
+use crate::layout_manager::window_position::{Alignment, WindowPosition};
 
 pub struct SimpleLayout {
     app: gtk::Application,
@@ -31,51 +32,23 @@ pub struct SimpleLayout {
     container: Option<gtk::Box>,
     config: SimpleLayoutConfig,
 }
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "Alignment")]
-pub enum Alignment {
-    Start,
-    Center,
-    End,
-}
-
-impl Alignment {
-    pub fn map_gtk(&self) -> gtk::Align {
-        match self {
-            Alignment::Start => gtk::Align::Start,
-            Alignment::Center => gtk::Align::Center,
-            Alignment::End => gtk::Align::End,
-        }
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct SimpleLayoutConfig {
-    // TODO add layer
     orientation_horizontal: bool,
-    h_anchor: Alignment,
-    v_anchor: Alignment,
-    margin_x: i32,
-    margin_y: i32,
-    monitor: String,
+    window_position: WindowPosition,
     child_align: Alignment,
     open_debugger: bool,
-    windowed: bool,
     auto_minimize_timeout: i32,
 }
 impl Default for SimpleLayoutConfig {
     fn default() -> Self {
         Self {
             orientation_horizontal: true,
-            h_anchor: Alignment::Center,
-            v_anchor: Alignment::Start,
-            margin_x: 0,
-            margin_y: 0,
-            monitor: String::from(""),
+            window_position: WindowPosition::default(),
             child_align: Alignment::Center,
             open_debugger: false,
-            windowed: false,
             auto_minimize_timeout: 5000,
         }
     }
@@ -114,10 +87,8 @@ impl SabiLayoutManager for SimpleLayout {
         log::debug!("current config: {:#?}", self.config);
 
         self.configure_container();
-        if !self.config.windowed {
-            if let Some(window) = self.app.windows().first() {
-                init_layer_shell(window, &self.config);
-            }
+        if let Some(window) = self.app.windows().first() {
+            self.config.window_position.reconfigure_window(window);
         }
 
         for widget in self.widget_map.values() {
@@ -162,34 +133,42 @@ impl SabiLayoutManager for SimpleLayout {
 
     fn remove_activity(&mut self, activity: &ActivityIdentifier) {
         if let Some(widget) = self.widget_map.remove(activity) {
-            self.container
-                .as_ref()
-                .expect("there should be a container")
-                .remove(&widget);
-            // w.unrealize();
-
-            // widget.connect_destroy(|_|{
-            //     log::error!("is being destroyed");
-            // });
-            if self
-                .container
-                .as_ref()
-                .expect("there should be a container")
-                .first_child()
-                .is_none()
-            {
-                if let Some(win) = self.app.windows().first() {
-                    win.close();
-                    self.create_new_window();
+            if let Some(container) = self.container.as_ref() {
+                container.remove(&widget);
+                if container.first_child().is_none() {
+                    // update window, for some reason if there are no children
+                    // in the container, the last child stays displayed
+                    if let Some(win) = self.app.windows().first() {
+                        win.close();
+                        self.create_new_window();
+                    }
                 }
             }
-            // unsafe { w.run_dispose(); } // FIXME i'm not sure this is safe
-            // log::error!("refs: {}",widget.ref_count());
-            // drop(widget);
         }
     }
     fn list_activities(&self) -> RVec<&ActivityIdentifier> {
         self.widget_map.keys().collect()
+    }
+    fn focus_activity(&self, activity: &ActivityIdentifier, mode_id: u8) {
+        if let Some(widget) = self.widget_map.get(activity) {
+            let mode = ActivityMode::try_from(mode_id).unwrap();
+            widget.set_mode(mode);
+            if matches!(mode, ActivityMode::Minimal | ActivityMode::Compact) {
+                return;
+            }
+            let timeout = self.config.auto_minimize_timeout;
+            let widget = widget.clone();
+            glib::timeout_add_local_once(
+                Duration::from_millis(timeout.try_into().unwrap()),
+                move || {
+                    if !widget.state_flags().contains(StateFlags::PRELIGHT) && widget.mode() == mode
+                    {
+                        //mouse is not on widget and mode hasn't changed
+                        widget.set_mode(ActivityMode::Compact);
+                    }
+                },
+            );
+        }
     }
 }
 
@@ -198,18 +177,12 @@ impl SimpleLayout {
         match self.config.orientation_horizontal {
             true => {
                 widget.set_valign(self.config.child_align.map_gtk());
-                // log::info!(
-                //     "{} {} {}",
-                //     widget.name(),
-                //     widget.valign(),
-                //     self.config.child_align.map_gtk()
-                // );
             }
             false => {
                 widget.set_halign(self.config.child_align.map_gtk());
             }
         }
-
+        // remove old controllers
         for controller in widget
             .observe_controllers()
             .iter::<glib::Object>()
@@ -229,6 +202,7 @@ impl SimpleLayout {
         let focus_in = gtk::EventControllerMotion::new();
         focus_in.set_name(Some("focus_controller"));
 
+        // Minimal mode to Compact mode controller
         press_gesture.set_button(gdk::BUTTON_PRIMARY);
         press_gesture.connect_released(|gest, _, x, y| {
             let aw = gest.widget().downcast::<ActivityWidget>().unwrap();
@@ -246,6 +220,7 @@ impl SimpleLayout {
         });
         widget.add_controller(press_gesture);
 
+        // auto minimize (to Compact mode) controller
         if self.config.auto_minimize_timeout >= 0 {
             let timeout = self.config.auto_minimize_timeout;
             focus_in.connect_leave(move |evt| {
@@ -269,29 +244,19 @@ impl SimpleLayout {
     }
 
     fn configure_container(&self) {
-        if self.container.is_none() {
+        let container = if self.container.is_none() {
             return;
+        } else {
+            self.container.as_ref().unwrap()
+        };
+        if self.config.orientation_horizontal {
+            container.set_orientation(gtk::Orientation::Horizontal);
+        } else {
+            container.set_orientation(gtk::Orientation::Vertical);
         }
-        if self.config.windowed {
-            if self.config.orientation_horizontal {
-                self.container
-                    .as_ref()
-                    .unwrap()
-                    .set_orientation(gtk::Orientation::Horizontal);
-            } else {
-                self.container
-                    .as_ref()
-                    .unwrap()
-                    .set_orientation(gtk::Orientation::Vertical);
-            }
-            self.container
-                .as_ref()
-                .unwrap()
-                .set_halign(self.config.h_anchor.map_gtk());
-            self.container
-                .as_ref()
-                .unwrap()
-                .set_valign(self.config.v_anchor.map_gtk());
+        if !self.config.window_position.layer_shell {
+            container.set_halign(self.config.window_position.h_anchor.map_gtk());
+            container.set_valign(self.config.window_position.v_anchor.map_gtk());
         }
     }
 
@@ -302,80 +267,10 @@ impl SimpleLayout {
         container.add_css_class("activity-container");
         self.container = Some(container);
         window.set_child(self.container.as_ref());
-        if !self.config.windowed {
-            window.init_layer_shell();
-            init_layer_shell(window.upcast_ref(), &self.config);
-            window.connect_destroy(|_| log::debug!("window destroyed"));
-        } else {
-            window.connect_destroy(|_| std::process::exit(0));
-        }
+        self.config
+            .window_position
+            .init_window(&window.clone().upcast());
         //show window
         window.present();
     }
-}
-
-pub fn init_layer_shell(window: &Window, config: &SimpleLayoutConfig) {
-    window.set_layer(gtk_layer_shell::Layer::Top);
-    // window.set_anchor(gtk_layer_shell::Edge::Top, true);
-    // window.set_anchor(gtk_layer_shell::Edge::Top, true);
-    match config.v_anchor {
-        Alignment::Start => {
-            window.set_anchor(gtk_layer_shell::Edge::Top, true);
-            window.set_anchor(gtk_layer_shell::Edge::Bottom, false);
-            window.set_margin(gtk_layer_shell::Edge::Top, config.margin_y);
-        }
-        Alignment::Center => {
-            window.set_anchor(gtk_layer_shell::Edge::Top, false);
-            window.set_anchor(gtk_layer_shell::Edge::Bottom, false);
-        }
-        Alignment::End => {
-            window.set_anchor(gtk_layer_shell::Edge::Top, false);
-            window.set_anchor(gtk_layer_shell::Edge::Bottom, true);
-            window.set_margin(gtk_layer_shell::Edge::Bottom, config.margin_y);
-        }
-    }
-    match config.h_anchor {
-        Alignment::Start => {
-            window.set_anchor(gtk_layer_shell::Edge::Left, true);
-            window.set_anchor(gtk_layer_shell::Edge::Right, false);
-            window.set_margin(gtk_layer_shell::Edge::Left, config.margin_x);
-        }
-        Alignment::Center => {
-            window.set_anchor(gtk_layer_shell::Edge::Left, false);
-            window.set_anchor(gtk_layer_shell::Edge::Right, false);
-        }
-        Alignment::End => {
-            window.set_anchor(gtk_layer_shell::Edge::Left, false);
-            window.set_anchor(gtk_layer_shell::Edge::Right, true);
-            window.set_margin(gtk_layer_shell::Edge::Right, config.margin_x);
-        }
-    }
-    let mut monitor = None;
-    for mon in gdk::Display::default()
-        .unwrap()
-        .monitors()
-        .iter::<gdk::Monitor>()
-    {
-        let mon = match mon {
-            Ok(monitor) => monitor,
-            Err(_) => {
-                continue;
-            }
-        };
-        if mon
-            .connector()
-            .unwrap()
-            .eq_ignore_ascii_case(&config.monitor)
-        {
-            monitor = Some(mon);
-            break;
-        }
-    }
-    if let Some(monitor) = monitor {
-        window.set_monitor(&monitor);
-    }
-    window.set_namespace("dynisland");
-    window.set_exclusive_zone(-1); // TODO add to config
-    window.set_resizable(false);
-    window.queue_resize();
 }

@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 
 pub const CONFIG_REL_PATH: &str = "dynisland/"; //TODO add cli override
 
-// TODO ron sucks, i need to switch to pkl
+// ron sucks, ~~i need to switch to pkl~~
+// nvm, there are no good pkl crates
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]

@@ -9,25 +9,18 @@ fn main() -> Result<(), Error> {
     let bin_name = "dynisland";
 
     let mut cmd: Command = Cli::command_for_update();
-    let shells: [Shell; 4]=[Shell::Bash, Shell::Zsh, Shell::Fish, Shell::Elvish];
-    for shell in shells{
+    let shells: [Shell; 4] = [Shell::Bash, Shell::Zsh, Shell::Fish, Shell::Elvish];
+    for shell in shells {
         let path = generate_to(
-            shell,
-            &mut cmd, // We need to specify what generator to use
+            shell, &mut cmd, // We need to specify what generator to use
             bin_name, // We need to specify the bin name manually
-            outdir,  // We need to specify where to write to
+            outdir,   // We need to specify where to write to
         )?;
-    
-        println!("cargo:warning=completion file for {shell} is generated in {}", path.to_str().unwrap());
+
+        println!(
+            "cargo:warning=completion file for {shell} is generated in {}",
+            path.to_str().unwrap()
+        );
     }
-    // let path = generate_to(
-    //     shells::Zsh,
-    //     &mut cmd, // We need to specify what generator to use
-    //     bin_name, // We need to specify the bin name manually
-    //     outdir,  // We need to specify where to write to
-    // )?;
-
-    // println!("cargo:warning=completion file is generated: {path:?}");
-
     Ok(())
 }
