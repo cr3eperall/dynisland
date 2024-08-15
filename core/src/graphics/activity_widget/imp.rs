@@ -134,6 +134,13 @@ impl ObjectImpl for ActivityWidgetPriv {
                 if self.get_mode_widget(mode).borrow().is_none() {
                     return;
                 }
+                if let Some(prev) = self
+                    .get_mode_widget(*self.last_mode.borrow())
+                    .borrow()
+                    .as_ref()
+                {
+                    prev.remove_css_class("prev");
+                }
                 self.last_mode.replace(*self.mode.borrow());
                 self.mode.replace(mode);
 
@@ -167,10 +174,19 @@ impl ObjectImpl for ActivityWidgetPriv {
                 css_context.set_stretch_all(stretches);
 
                 if let Some(next) = self.get_mode_widget(mode).borrow().as_ref() {
+                    next.add_css_class("next");
                     //put at the end so it recieves the inputs
                     next.insert_before(self.obj().as_ref(), Option::None::<&gtk::Widget>);
                     css_context.set_size((next_size.0 as i32, next_size.1 as i32));
                 };
+                if let Some(prev) = self
+                    .get_mode_widget(*self.last_mode.borrow())
+                    .borrow()
+                    .as_ref()
+                {
+                    prev.remove_css_class("next");
+                    prev.add_css_class("prev");
+                }
                 self.obj().queue_draw(); // Queue a draw call with the updated value
             }
             "name" => {

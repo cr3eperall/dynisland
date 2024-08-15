@@ -39,7 +39,6 @@ pub struct SimpleLayoutConfig {
     orientation_horizontal: bool,
     window_position: WindowPosition,
     child_align: Alignment,
-    open_debugger: bool,
     auto_minimize_timeout: i32,
 }
 impl Default for SimpleLayoutConfig {
@@ -48,7 +47,6 @@ impl Default for SimpleLayoutConfig {
             orientation_horizontal: true,
             window_position: WindowPosition::default(),
             child_align: Alignment::Center,
-            open_debugger: false,
             auto_minimize_timeout: 5000,
         }
     }
@@ -69,7 +67,6 @@ pub fn new(app: SabiApplication) -> RResult<LayoutManagerType, RBoxError> {
 impl SabiLayoutManager for SimpleLayout {
     fn init(&mut self) {
         self.create_new_window();
-        gtk::Window::set_interactive_debugging(self.config.open_debugger);
     }
 
     fn update_config(&mut self, config: RString) -> RResult<(), RBoxError> {
@@ -146,8 +143,8 @@ impl SabiLayoutManager for SimpleLayout {
             }
         }
     }
-    fn list_activities(&self) -> RVec<&ActivityIdentifier> {
-        self.widget_map.keys().collect()
+    fn list_activities(&self) -> RVec<ActivityIdentifier> {
+        self.widget_map.keys().cloned().collect()
     }
     fn focus_activity(&self, activity: &ActivityIdentifier, mode_id: u8) {
         if let Some(widget) = self.widget_map.get(activity) {

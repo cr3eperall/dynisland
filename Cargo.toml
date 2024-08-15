@@ -4,8 +4,7 @@ members = [
     "dynisland",
     "abi",
     "core",
-    "dynisland-modules/example-module",
-    "dynisland-modules/music-module",
+    "dynisland-modules/*",
 ]
 resolver = "2"
 

@@ -27,6 +27,7 @@ pub struct Config {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DebugConfig {
     pub runtime_path: String,
+    pub open_debugger_at_start: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]

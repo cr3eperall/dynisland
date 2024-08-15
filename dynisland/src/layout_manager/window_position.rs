@@ -117,7 +117,7 @@ impl WindowPosition {
             window.set_monitor(&monitor);
         }
         window.set_namespace("dynisland");
-        window.set_exclusive_zone(-1);
+        window.set_exclusive_zone(self.exclusive_zone);
         window.set_resizable(false);
         window.queue_resize();
     }
