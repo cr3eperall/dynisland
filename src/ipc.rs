@@ -13,7 +13,7 @@ pub async fn open_socket(
     runtime_path: &Path,
     server_send: UnboundedSender<BackendServerCommand>,
 ) -> Result<()> {
-    std::fs::remove_file(runtime_path.join("dynisland.sock")).unwrap();
+    let _ = std::fs::remove_file(runtime_path.join("dynisland.sock"));
     let listener = UnixListener::bind(runtime_path.join("dynisland.sock"))?;
     loop {
         let (stream, _socket) = listener.accept().await?;

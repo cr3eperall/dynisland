@@ -67,12 +67,18 @@ impl App {
 
         // init layout manager and send start signal
         let (start_signal_tx, start_signal_rx) = tokio::sync::broadcast::channel::<()>(1);
-
+        let open_debugger = self
+            .config
+            .debug
+            .clone()
+            .map(|d| d.open_debugger_at_start)
+            .unwrap_or(false);
         let layout = self.layout.clone().unwrap();
         self.application.connect_activate(move |_app| {
             log::info!("Loading LayoutManager");
             layout.blocking_lock().1.init();
             start_signal_tx.send(()).unwrap();
+            gtk::Window::set_interactive_debugging(open_debugger);
         });
 
         //UI command consumer
@@ -171,7 +177,7 @@ impl App {
         let running = app.is_remote();
         if running {
             log::error!("dynisland is already running");
-        }else{
+        } else {
             start_ipc_server(runtime_path.clone(), server_send);
         }
         app.run_with_args::<String>(&[]);
@@ -280,7 +286,12 @@ impl App {
         let layout = layout.blocking_lock();
         let activities = layout.1.list_activities();
         for activity in activities {
-            let activity: Widget = layout.1.get_activity(activity).unwrap().try_into().unwrap();
+            let activity: Widget = layout
+                .1
+                .get_activity(&activity)
+                .unwrap()
+                .try_into()
+                .unwrap();
             Self::update_general_configs_on_activity(&self.config.general_style_config, &activity);
         }
     }
