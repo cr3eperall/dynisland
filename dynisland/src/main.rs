@@ -30,6 +30,7 @@ use nix::unistd::Pid;
 // the backtrace is in backtrace.txt
 
 // FIXME Gsk-WARNING **: 13:09:06.082: Clipping is broken, everything is clipped, but we didn't early-exit.
+// maybe it's in ScrollableLabel
 
 fn main() -> Result<()> {
     env_logger::Builder::new()
