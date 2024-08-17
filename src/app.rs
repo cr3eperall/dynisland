@@ -24,13 +24,14 @@ use crate::{
 
 use dynisland_abi::{
     layout::LayoutManagerType,
-    module::{ModuleType, UIServerCommand},
+    module::{ActivityIdentifier, ModuleType, UIServerCommand},
 };
 
 pub enum BackendServerCommand {
     ReloadConfig,
     Stop,
     OpenInspector,
+    ActivityNotification(ActivityIdentifier, ActivityMode),
 }
 
 pub struct App {
@@ -120,11 +121,11 @@ impl App {
                             module.restart_producers();
                         }
                     }
-                    UIServerCommand::RequestFocus { activity_id, mode } => {
+                    UIServerCommand::RequestNotification { activity_id, mode } => {
                         if mode>3{
                             continue;
                         }
-                        layout.lock().await.1.focus_activity(&activity_id, mode);
+                        layout.lock().await.1.activity_notification(&activity_id, mode);
                     }
                 }
             }
@@ -229,6 +230,19 @@ impl App {
                 BackendServerCommand::OpenInspector => {
                     log::info!("Opening inspector");
                     gtk::Window::set_interactive_debugging(true);
+                }
+                BackendServerCommand::ActivityNotification(id, mode) => {
+                    if let Err(err) =
+                        self.app_send
+                            .clone()
+                            .unwrap()
+                            .send(UIServerCommand::RequestNotification {
+                                activity_id: id,
+                                mode: mode as u8,
+                            })
+                    {
+                        log::error!("{err}");
+                    }
                 }
             }
         }

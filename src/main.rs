@@ -76,7 +76,13 @@ fn main() -> Result<()> {
             log::info!("pid: {pid}");
             app.run(&config_dir)?;
         }
-        Reload | Inspector | HealthCheck => {
+        Reload
+        | Inspector
+        | HealthCheck
+        | ActivityNotification {
+            activity_identifier: _,
+            mode: _,
+        } => {
             let socket_path = config.get_runtime_dir().join("dynisland.sock");
             match UnixStream::connect(socket_path.clone()) {
                 Ok(stream) => {

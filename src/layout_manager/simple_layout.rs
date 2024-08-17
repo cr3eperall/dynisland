@@ -146,7 +146,7 @@ impl SabiLayoutManager for SimpleLayout {
     fn list_activities(&self) -> RVec<ActivityIdentifier> {
         self.widget_map.keys().cloned().collect()
     }
-    fn focus_activity(&self, activity: &ActivityIdentifier, mode_id: u8) {
+    fn activity_notification(&self, activity: &ActivityIdentifier, mode_id: u8) {
         if let Some(widget) = self.widget_map.get(activity) {
             let mode = ActivityMode::try_from(mode_id).unwrap();
             widget.set_mode(mode);

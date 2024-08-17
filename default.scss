@@ -53,10 +53,11 @@ activity-widget.dragging {
         transition-duration: 0ms, 0ms;
         transition-timing-function: linear, linear, linear;
     }
-
-
 }
 
+activity-widget.hidden{
+    opacity: 0%;
+}
 
 //rolling char
 @keyframes in {
