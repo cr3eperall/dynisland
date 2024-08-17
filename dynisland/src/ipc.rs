@@ -1,6 +1,8 @@
 use std::{io::Write, path::Path};
 
-use anyhow::{Ok, Result};
+use anyhow::{anyhow, Ok, Result};
+use dynisland_abi::module::ActivityIdentifier;
+use dynisland_core::graphics::activity_widget::boxed_activity_mode::ActivityMode;
 use tokio::{
     io::AsyncReadExt,
     net::{UnixListener, UnixStream},
@@ -31,7 +33,19 @@ pub async fn open_socket(
             SubCommands::HealthCheck => {
                 log::info!("Recieved HealthCheck, Everything OK");
             }
-
+            SubCommands::ActivityNotification {
+                activity_identifier,
+                mode,
+            } => {
+                let components: Vec<&str> = activity_identifier.split('@').collect();
+                if components.len() != 2 {
+                    log::error!("invalid activity identifier: {activity_identifier}");
+                    continue;
+                }
+                let id = ActivityIdentifier::new(components[0], components[1]);
+                let mode = ActivityMode::try_from(mode).map_err(|e| anyhow!(e))?;
+                server_send.send(BackendServerCommand::ActivityNotification(id, mode))?;
+            }
             SubCommands::DefaultConfig {
                 replace_current_config: _,
             }

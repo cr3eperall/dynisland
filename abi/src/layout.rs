@@ -22,7 +22,7 @@ pub trait SabiLayoutManager {
     fn list_activities(&self) -> RVec<ActivityIdentifier>;
     fn get_activity(&self, activity: &ActivityIdentifier) -> ROption<SabiWidget>;
     #[sabi(last_prefix_field)]
-    fn focus_activity(&self, activity: &ActivityIdentifier, mode_id: u8);
+    fn activity_notification(&self, activity: &ActivityIdentifier, mode_id: u8);
 }
 
 #[repr(C)]

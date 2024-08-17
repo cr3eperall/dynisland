@@ -179,7 +179,7 @@ pub enum UIServerCommand {
     /// This is useful when you don't have a reference to the module
     RestartProducers { module_name: RString },
 
-    RequestFocus {
+    RequestNotification {
         activity_id: ActivityIdentifier,
         mode: u8,
     },
