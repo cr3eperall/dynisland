@@ -19,7 +19,9 @@ pub async fn open_socket(
     let listener = UnixListener::bind(runtime_path.join("dynisland.sock"))?;
     loop {
         let (stream, _socket) = listener.accept().await?;
-        match read_message(stream).await? {
+        let message = read_message(stream).await?;
+        log::debug!("IPC message recieved: {message:?}");
+        match message {
             SubCommands::Reload => {
                 server_send.send(BackendServerCommand::ReloadConfig)?;
             }
@@ -42,7 +44,7 @@ pub async fn open_socket(
                     log::error!("invalid activity identifier: {activity_identifier}");
                     continue;
                 }
-                let id = ActivityIdentifier::new(components[0], components[1]);
+                let id = ActivityIdentifier::new(components[1], components[0]);
                 let mode = ActivityMode::try_from(mode).map_err(|e| anyhow!(e))?;
                 server_send.send(BackendServerCommand::ActivityNotification(id, mode))?;
             }

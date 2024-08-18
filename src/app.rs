@@ -529,6 +529,7 @@ fn start_ipc_server(
             .unwrap();
         rt.block_on(async move {
             loop {
+                std::fs::create_dir_all(&runtime_path).expect("invalid runtime path");
                 log::info!(
                     "starting ipc socket at {}",
                     runtime_path.canonicalize().unwrap().to_str().unwrap()

@@ -11,12 +11,12 @@ fn main() -> Result<(), Error> {
     let mut cmd: Command = Cli::command_for_update();
     let shells: [Shell; 4] = [Shell::Bash, Shell::Zsh, Shell::Fish, Shell::Elvish];
     for shell in shells {
-        let path = generate_to(shell, &mut cmd, bin_name, outdir)?;
+        let _path = generate_to(shell, &mut cmd, bin_name, outdir)?;
 
-        println!(
-            "cargo:warning=completion file for {shell} is generated in {}",
-            path.to_str().unwrap()
-        );
+        // println!(
+        //     "cargo:warning=completion file for {shell} is generated in {}",
+        //     _path.to_str().unwrap()
+        // );
     }
     Ok(())
 }
