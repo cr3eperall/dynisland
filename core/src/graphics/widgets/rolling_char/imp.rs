@@ -3,8 +3,6 @@ use std::cell::RefCell;
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*};
 
-use crate::randomize_name;
-
 use super::RollingChar;
 
 //TODO implement vertical orientation and builder
@@ -30,18 +28,6 @@ impl Default for RollingCharPriv {
             primary_label_active: RefCell::new(true),
             current_char: RefCell::new('-'),
         }
-    }
-}
-
-#[glib::object_subclass]
-impl ObjectSubclass for RollingCharPriv {
-    const NAME: &'static str = randomize_name!("RollingChar");
-    type Type = RollingChar;
-    type ParentType = gtk::Widget;
-
-    fn class_init(klass: &mut Self::Class) {
-        klass.set_layout_manager_type::<gtk::BinLayout>();
-        klass.set_css_name("rolling-char");
     }
 }
 

@@ -19,6 +19,6 @@ impl ActivityIdentifier {
 
 impl Display for ActivityIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}@{}", self.module, self.activity)
+        write!(f, "{}@{}", self.activity, self.module)
     }
 }

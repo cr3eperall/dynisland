@@ -1,7 +1,6 @@
 pub mod imp;
 pub mod local_css_context;
-
-use gtk::{prelude::*, subclass::prelude::*};
+mod object_subclass_impl;
 
 glib::wrapper! {
     /// A Label with a max width (`width_request`) that scrolls when the inner label exceeds the max width
@@ -11,17 +10,15 @@ glib::wrapper! {
 
 impl Default for ScrollingLabel {
     fn default() -> Self {
-        let sel = glib::Object::new::<Self>();
-        sel.set_overflow(gtk::Overflow::Hidden);
-        sel
+        // sel.set_overflow(gtk::Overflow::Hidden);
+        glib::Object::new::<Self>()
     }
 }
 
 impl ScrollingLabel {
-    pub fn new(text: Option<&str>) -> Self {
-        let label = Self::default();
-        label.imp().label.borrow().set_text(text.unwrap_or(""));
-        label
+    pub fn new() -> Self {
+        Self::default()
+        // label.imp().label.borrow().set_text(text.unwrap_or(""));
     }
     // pub fn set_fade_size(&self, size: CssSize, user: bool) {
     //     self.imp()

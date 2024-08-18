@@ -9,7 +9,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{graphics::util::CssSize, randomize_name};
+use crate::graphics::util::CssSize;
 
 use super::{local_css_context::ScrollingLabelLocalCssContext, ScrollingLabel};
 
@@ -57,19 +57,6 @@ impl Default for ScrollingLabelPriv {
     }
 }
 
-#[glib::object_subclass]
-impl ObjectSubclass for ScrollingLabelPriv {
-    const NAME: &'static str = randomize_name!("ScrollingLabel");
-    type Type = super::ScrollingLabel;
-    type ParentType = gtk::Widget;
-
-    fn class_init(klass: &mut Self::Class) {
-        // klass.set_layout_manager_type::<BinLayout>();
-
-        klass.set_css_name("scrolling-label");
-    }
-}
-
 impl ScrollingLabelPriv {}
 
 #[glib::derived_properties]
@@ -87,6 +74,7 @@ impl ObjectImpl for ScrollingLabelPriv {
         label.set_halign(gtk::Align::Start);
         label.set_valign(gtk::Align::Center);
         label.add_css_class("inner-label");
+        label.set_text("");
         bin.append(label);
         bin.set_parent(self.obj().as_ref());
 
@@ -215,7 +203,7 @@ impl WidgetImpl for ScrollingLabelPriv {
         let bin = self.bin.borrow();
         let bin: &gtk::Box = bin.as_ref();
         let active = self.local_css_context.borrow().get_active();
-        if active {
+        if active && obj.width() > 0 {
             snapshot.push_mask(gtk::gsk::MaskMode::Alpha);
             let fade_size = self.local_css_context.borrow().get_config_fade_size();
             let stop_1 = fade_size.get_for_size(obj.width() as f32);

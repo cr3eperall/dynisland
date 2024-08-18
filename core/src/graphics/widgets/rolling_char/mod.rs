@@ -1,4 +1,5 @@
 pub mod imp;
+mod object_subclass_impl;
 // pub mod local_css_context;
 
 use gtk::{prelude::*, subclass::prelude::*};
