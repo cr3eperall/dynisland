@@ -71,14 +71,14 @@ impl ProducerRuntime {
     /// Shutdown the runtime after sending the cleanup notification and waiting for a confirmation.
     pub async fn shutdown(&self) {
         let num = self.cleanup_notifier.receiver_count();
-        log::debug!("stopping producer runtime: {} cleanup recievers", num);
+        log::debug!("stopping producer runtime: {} cleanup receivers", num);
         let (res_tx, mut res_rx) = tokio::sync::mpsc::unbounded_channel();
         match self.cleanup_notifier.send(res_tx) {
             Ok(_) => {
                 for i in 0..num {
                     log::debug!("waiting on cleanup {}", i + 1);
                     if res_rx.recv().await.is_none() {
-                        //all of the remaining recievers already quit/crashed
+                        //all of the remaining receivers already quit/crashed
                         break;
                     }
                 }
@@ -96,14 +96,14 @@ impl ProducerRuntime {
     /// blocking
     pub fn shutdown_blocking(&self) {
         let num = self.cleanup_notifier.receiver_count();
-        log::debug!("stopping producer runtime: {} cleanup recievers", num);
+        log::debug!("stopping producer runtime: {} cleanup receivers", num);
         let (res_tx, mut res_rx) = tokio::sync::mpsc::unbounded_channel();
         match self.cleanup_notifier.send(res_tx) {
             Ok(_) => {
                 for i in 0..num {
                     log::debug!("waiting on cleanup {}", i + 1);
                     if res_rx.blocking_recv().is_none() {
-                        //all of the remaining recievers already quit/crashed
+                        //all of the remaining receivers already quit/crashed
                         break;
                     }
                 }

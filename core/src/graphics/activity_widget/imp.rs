@@ -175,7 +175,7 @@ impl ObjectImpl for ActivityWidgetPriv {
 
                 if let Some(next) = self.get_mode_widget(mode).borrow().as_ref() {
                     next.add_css_class("next");
-                    //put at the end so it recieves the inputs
+                    //put at the end so it receives the inputs
                     next.insert_before(self.obj().as_ref(), Option::None::<&gtk::Widget>);
                     css_context.set_size((next_size.0 as i32, next_size.1 as i32));
                 };

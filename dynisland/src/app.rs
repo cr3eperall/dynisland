@@ -32,6 +32,7 @@ pub enum BackendServerCommand {
     Stop,
     OpenInspector,
     ActivityNotification(ActivityIdentifier, ActivityMode),
+    ListActivities,
 }
 
 pub struct App {
@@ -54,6 +55,7 @@ impl App {
         self.config = config::get_config(config_dir);
 
         let (server_send, server_recv) = unbounded_channel::<BackendServerCommand>();
+        let (server_response_send, server_response_recv) = unbounded_channel::<Option<String>>();
         let runtime_path = self.config.get_runtime_dir();
 
         let mut app_recv_async = self.init_abi_app_channel();
@@ -168,7 +170,8 @@ impl App {
 
             self.restart_producer_runtimes(); // start producers
 
-            self.start_backend_server(server_recv, config_dir).await;
+            self.start_backend_server(server_recv, server_response_send, config_dir)
+                .await;
         });
 
         let _wathcer = start_config_dir_watcher(server_send.clone());
@@ -179,7 +182,7 @@ impl App {
         if running {
             log::error!("dynisland is already running");
         } else {
-            start_ipc_server(runtime_path.clone(), server_send);
+            start_ipc_server(runtime_path.clone(), server_send, server_response_recv);
         }
         app.run_with_args::<String>(&[]);
         if !running {
@@ -194,7 +197,7 @@ impl App {
         self.app_send = Some(abi_app_send);
         let (app_send_async, app_recv_async) = unbounded_channel::<UIServerCommand>();
 
-        //forward message to app reciever
+        //forward message to app receiver
         thread::spawn(move || {
             while let Ok(msg) = abi_app_recv.recv() {
                 app_send_async.send(msg).expect("failed to send message");
@@ -206,6 +209,7 @@ impl App {
     async fn start_backend_server(
         mut self,
         mut server_recv: tokio::sync::mpsc::UnboundedReceiver<BackendServerCommand>,
+        server_response_send: tokio::sync::mpsc::UnboundedSender<Option<String>>,
         config_dir: std::path::PathBuf,
     ) {
         while let Some(command) = server_recv.recv().await {
@@ -225,10 +229,12 @@ impl App {
                 }
                 BackendServerCommand::Stop => {
                     log::info!("Quitting");
+                    let _ = server_response_send.send(None);
                     self.application.quit();
                 }
                 BackendServerCommand::OpenInspector => {
                     log::info!("Opening inspector");
+                    let _ = server_response_send.send(None);
                     gtk::Window::set_interactive_debugging(true);
                 }
                 BackendServerCommand::ActivityNotification(id, mode) => {
@@ -241,9 +247,26 @@ impl App {
                                 mode: mode as u8,
                             })
                     {
+                        let _ = server_response_send.send(Some(err.to_string()));
                         log::error!("{err}");
+                    } else {
+                        let _ = server_response_send.send(None);
                     }
                 }
+                BackendServerCommand::ListActivities => match self.layout.clone() {
+                    Some(layout) => {
+                        let activities = layout.lock().await.1.list_activities();
+                        let mut response = String::new();
+                        for activity in activities {
+                            response += &activity.to_string();
+                            response += "\n";
+                        }
+                        let _ = server_response_send.send(Some(response));
+                    }
+                    None => {
+                        let _ = server_response_send.send(Some("no layout loaded".to_string()));
+                    }
+                },
             }
         }
     }
@@ -521,10 +544,11 @@ fn start_config_dir_watcher(
 fn start_ipc_server(
     runtime_path: std::path::PathBuf,
     server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>,
+    mut server_response_recv: tokio::sync::mpsc::UnboundedReceiver<Option<String>>,
 ) {
     thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_io()
+            .enable_all()
             .build()
             .unwrap();
         rt.block_on(async move {
@@ -534,7 +558,13 @@ fn start_ipc_server(
                     "starting ipc socket at {}",
                     runtime_path.canonicalize().unwrap().to_str().unwrap()
                 );
-                if let Err(err) = open_socket(&runtime_path, server_send.clone()).await {
+                if let Err(err) = open_socket(
+                    &runtime_path,
+                    server_send.clone(),
+                    &mut server_response_recv,
+                )
+                .await
+                {
                     log::error!("socket closed: {err}");
                     if matches!(
                         err.downcast::<std::io::Error>().unwrap().kind(),
@@ -544,7 +574,7 @@ fn start_ipc_server(
                         break;
                     }
                 } else {
-                    log::info!("kill message recieved");
+                    log::info!("kill message received");
                     break;
                 }
             }
