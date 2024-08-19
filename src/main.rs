@@ -23,7 +23,7 @@ use nix::unistd::Pid;
 // [x] TODO add docs
 // [x] TODO remove some unnecessary clones
 
-// [ ] TODO detect nvidia gpu and display warning (if dynisland uses too much ram, use GSK_RENDERER=vulkan)
+// [ ] TODO detect nvidia gpu and display warning (if dynisland uses too much ram, use GSK_RENDERER=vulkan or GSK_RENDERER=gl)
 
 // FIXME app sometimes segfaults when waking up from hibernation (Hyprland 0.40.0, ArchLinux, 6.6.40-1-lts)
 // there is a null pointer dereference somewhere in gtk or dynisland
