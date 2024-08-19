@@ -38,4 +38,5 @@ pub enum SubCommands {
         #[arg(skip = false)]
         replace_current_config: bool,
     },
+    ListActivities,
 }

@@ -49,24 +49,24 @@ fn main() -> Result<()> {
     log::debug!("{cli:?}");
     match cli.command {
         Daemon { no_daemonize } => {
+            let runtime_dir = config.get_runtime_dir();
+            if let Ok(stream) = UnixStream::connect(runtime_dir.join("dynisland.sock")) {
+                match ipc::send_recv_message(stream, &HealthCheck) {
+                    Ok(_) => {
+                        //app is already runnig
+                        log::error!("Application is already running");
+                    }
+                    Err(_) => {
+                        log::error!("Error sending HealthCheck");
+                    }
+                };
+                return Ok(());
+            } else {
+                let _ = std::fs::remove_file(runtime_dir.join("dynisland.sock"));
+            }
             let pid = if !no_daemonize {
-                let runtime_dir = config.get_runtime_dir();
-                if let Ok(stream) = UnixStream::connect(runtime_dir.join("dynisland.sock")) {
-                    match ipc::send_message(stream, &HealthCheck) {
-                        Ok(_) => {
-                            //app is already runnig
-                            log::error!("Application is already running");
-                        }
-                        Err(_) => {
-                            log::error!("Error sending HealthCheck");
-                        }
-                    };
-                    return Ok(());
-                } else {
-                    let _ = std::fs::remove_file(runtime_dir.join("dynisland.sock"));
-                }
-                let path = runtime_dir.join("dynisland.log");
-                detach(&path)?
+                let log_path = runtime_dir.join("dynisland.log");
+                detach(&log_path)?
             } else {
                 Pid::from_raw(std::process::id() as i32)
             };
@@ -82,14 +82,17 @@ fn main() -> Result<()> {
         | ActivityNotification {
             activity_identifier: _,
             mode: _,
-        } => {
+        }
+        | ListActivities => {
             let socket_path = config.get_runtime_dir().join("dynisland.sock");
             match UnixStream::connect(socket_path.clone()) {
                 Ok(stream) => {
-                    ipc::send_message(stream, &cli.command)?;
-                    if cli.command == HealthCheck {
-                        println!("OK");
+                    if let Some(response) = ipc::send_recv_message(stream, &cli.command)? {
+                        println!("Response: \n{response}");
                     }
+                    // if cli.command == HealthCheck {
+                    //     println!("OK");
+                    // }
                 }
                 Err(err) => {
                     log::error!("Error opening dynisland socket: {err}");
@@ -104,18 +107,26 @@ fn main() -> Result<()> {
             let socket_path = config.get_runtime_dir().join("dynisland.sock");
             match UnixStream::connect(socket_path.clone()) {
                 Ok(stream) => {
-                    ipc::send_message(stream, &cli.command)?;
+                    let response = ipc::send_recv_message(stream, &cli.command)?;
                     println!("Kill message sent");
+                    let has_responded = if let Some(response) = response {
+                        println!("Response: \n{response}");
+                        true
+                    } else {
+                        false
+                    };
                     let mut tries = 0;
                     while socket_path.exists() && tries < 10 {
                         thread::sleep(Duration::from_millis(500));
-                        print!(".");
+                        if !has_responded {
+                            print!(".");
+                        }
                         tries += 1;
                     }
                     println!();
                     if tries == 10 {
                         log::error!("Failed to stop the old instance, manual kill needed");
-                    } else {
+                    } else if !has_responded {
                         println!("OK");
                     }
                 }
@@ -135,17 +146,27 @@ fn main() -> Result<()> {
             let socket_path = config.get_runtime_dir().join("dynisland.sock");
             match UnixStream::connect(socket_path.clone()) {
                 Ok(stream) => {
-                    ipc::send_message(stream, &SubCommands::Kill)?;
+                    let response = ipc::send_recv_message(stream, &SubCommands::Kill)?;
+                    let has_responded = if let Some(response) = response {
+                        log::info!("Response: \n{response}");
+                        true
+                    } else {
+                        false
+                    };
                     log::info!("Waiting for daemon to die");
                     let mut tries = 0;
                     while socket_path.exists() && tries < 10 {
                         thread::sleep(Duration::from_millis(500));
-                        print!(".");
+                        if !has_responded {
+                            print!(".");
+                        }
                         tries += 1;
                     }
                     println!();
                     if tries == 10 {
                         log::error!("failed to stop the old instance, manual kill needed");
+                    } else if !has_responded {
+                        println!("OK");
                     }
                 }
                 Err(err) => {
