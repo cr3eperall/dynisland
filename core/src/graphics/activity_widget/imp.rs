@@ -21,23 +21,23 @@ pub struct ActivityWidgetPriv {
     #[property(get, set, nick = "Widget name")]
     pub(super) name: RefCell<String>,
 
-    /// To be used by dynisland::app only
+    /// To be used by dynisland::app and layout managers only
     #[property(get, set, nick = "Minimal height")]
     pub(super) config_minimal_height: RefCell<i32>,
 
-    /// To be used by dynisland::app only
+    /// To be used by dynisland::app and layout managers only
     #[property(get, set, nick = "Minimal width")]
     pub(super) config_minimal_width: RefCell<i32>,
 
-    /// To be used by dynisland::app only
+    /// To be used by dynisland::app and layout managers only
     #[property(get, set, nick = "Transition blur radius")]
     pub(super) config_blur_radius: RefCell<f64>,
 
-    /// To be used by dynisland::app only
+    /// To be used by dynisland::app and layout managers only
     #[property(get, set, nick = "Enable stretching on drag")]
     pub(super) config_enable_drag_stretch: RefCell<bool>,
 
-    /// To be used by dynisland::app only
+    /// To be used by dynisland::app and layout managers only
     #[property(get, set, nick = "Opacity Transition duration")]
     pub(super) config_transition_duration: RefCell<u32>,
 
@@ -99,19 +99,12 @@ impl Default for ActivityWidgetPriv {
 impl ObjectImpl for ActivityWidgetPriv {
     fn constructed(&self) {
         self.parent_constructed();
-
-        let label = gtk::Label::builder()
-            .label("")
-            .halign(gtk::Align::Start)
-            .valign(gtk::Align::Start)
-            .build();
         let background = gtk::Box::builder()
             .valign(gtk::Align::Start)
             .halign(gtk::Align::Center)
             .vexpand(true)
             .hexpand(true)
             .build();
-        background.append(&label);
         background.add_css_class("activity-background");
 
         gtk::style_context_add_provider_for_display(
@@ -193,16 +186,22 @@ impl ObjectImpl for ActivityWidgetPriv {
                     .borrow()
                     .as_ref()
                 {
-                    let prev_widget=prev.clone();
-                    if *self.last_mode.borrow()!=*self.mode.borrow(){
+                    let prev_widget = prev.clone();
+                    if *self.last_mode.borrow() != *self.mode.borrow() {
                         if let Some(cancel) = self.cancel_hide.take() {
-                            if glib::MainContext::default().find_source_by_id(&cancel).is_some(){
+                            if glib::MainContext::default()
+                                .find_source_by_id(&cancel)
+                                .is_some()
+                            {
                                 cancel.remove();
                             }
                         }
-                        let id =glib::timeout_add_local_once(Duration::from_millis(*self.config_transition_duration.borrow() as u64), move ||{
-                            prev_widget.set_visible(false);
-                        });
+                        let id = glib::timeout_add_local_once(
+                            Duration::from_millis(*self.config_transition_duration.borrow() as u64),
+                            move || {
+                                prev_widget.set_visible(false);
+                            },
+                        );
                         self.cancel_hide.replace(Some(id));
                     }
                     prev.remove_css_class("next");
@@ -262,7 +261,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-minimal");
                     widget.set_overflow(gtk::Overflow::Hidden);
-                    if *self.mode.borrow()!=ActivityMode::Minimal{
+                    if *self.mode.borrow() != ActivityMode::Minimal {
                         widget.set_visible(false);
                     }
                 }
@@ -280,7 +279,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-compact");
                     widget.set_overflow(gtk::Overflow::Hidden);
-                    if *self.mode.borrow()!=ActivityMode::Compact{
+                    if *self.mode.borrow() != ActivityMode::Compact {
                         widget.set_visible(false);
                     }
                 }
@@ -299,7 +298,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-expanded");
                     widget.set_overflow(gtk::Overflow::Hidden);
-                    if *self.mode.borrow()!=ActivityMode::Expanded{
+                    if *self.mode.borrow() != ActivityMode::Expanded {
                         widget.set_visible(false);
                     }
                 }
@@ -318,7 +317,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-overlay");
                     widget.set_overflow(gtk::Overflow::Hidden);
-                    if *self.mode.borrow()!=ActivityMode::Overlay{
+                    if *self.mode.borrow() != ActivityMode::Overlay {
                         widget.set_visible(false);
                     }
                 }

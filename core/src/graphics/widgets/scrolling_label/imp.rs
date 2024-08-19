@@ -26,6 +26,9 @@ pub struct ScrollingLabelPriv {
     #[property(get, set, nick = "Internal Label")]
     pub(super) label: RefCell<gtk::Label>,
 
+    #[property(get, set, nick = "Text")]
+    pub(super) text: RefCell<String>,
+
     #[property(get, nick = "Active scrolling")]
     pub(super) active: RefCell<bool>,
 
@@ -48,6 +51,7 @@ impl Default for ScrollingLabelPriv {
         ScrollingLabelPriv {
             bin: RefCell::new(gtk::Box::new(gtk::Orientation::Horizontal, 0)),
             label: RefCell::new(gtk::Label::new(Some(""))),
+            text: RefCell::new(String::new()),
             local_css_context: RefCell::new(ScrollingLabelLocalCssContext::default()),
             active: RefCell::new(false),
             config_fade_size: RefCell::new("4%".to_string()),
@@ -101,6 +105,15 @@ impl ObjectImpl for ScrollingLabelPriv {
                 self.bin.borrow_mut().append(&new_label);
                 self.label.replace(new_label);
 
+                self.obj().queue_draw();
+            }
+            "text" => {
+                let label = self.label.borrow();
+                let text: String = value.get().unwrap();
+                label.set_text(&text);
+                self.text.replace(text);
+
+                self.obj().queue_allocate();
                 self.obj().queue_draw();
             }
             "config-fade-size" => {

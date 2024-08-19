@@ -79,7 +79,7 @@ impl ScrollingLabelLocalCssContext {
         duration += delay;
         let start_percentage = (delay / duration) * 100.0;
 
-        // log::info!("speed: {}",self.config_speed.value);
+        // log::debug!("size: {} flag: {}",size, self.anim_restart_flag);
         // debug!("{size_timing_function}");
         let scroll_anim = if self.anim_restart_flag {
             "scroll-clone"
@@ -88,14 +88,8 @@ impl ScrollingLabelLocalCssContext {
         };
         let css = if active {
             // log::debug!("active");
-            //TODO add duration, delay, timing function to config
             format!(
-                r"@keyframes scroll {{ /* need 2 animations to swap when i want to reset it */
-                    0%    {{ transform: translateX(0px); }}
-                    {start_percentage:.3}% {{ transform: translateX(0px); }}
-                    100%  {{ transform: translateX(-{size}px); }}
-                }}
-                @keyframes scroll-clone {{
+                r"@keyframes {scroll_anim} {{ /* need 2 animations to swap when i want to reset it */
                     0%    {{ transform: translateX(0px); }}
                     {start_percentage:.3}% {{ transform: translateX(0px); }}
                     100%  {{ transform: translateX(-{size}px); }}
