@@ -1,7 +1,7 @@
 use rand::{distributions::Alphanumeric, Rng};
-use std::cell::RefCell;
+use std::{cell::RefCell, time::Duration};
 
-use glib::prelude::*;
+use glib::{prelude::*, SourceId};
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*, StateFlags};
 
@@ -37,7 +37,12 @@ pub struct ActivityWidgetPriv {
     #[property(get, set, nick = "Enable stretching on drag")]
     pub(super) config_enable_drag_stretch: RefCell<bool>,
 
+    /// To be used by dynisland::app only
+    #[property(get, set, nick = "Opacity Transition duration")]
+    pub(super) config_transition_duration: RefCell<u32>,
+
     pub(super) last_mode: RefCell<ActivityMode>,
+    pub(super) cancel_hide: RefCell<Option<SourceId>>,
 
     // pub(super) transition_manager: RefCell<TransitionManager>,
     pub(super) background_widget: RefCell<Option<gtk::Widget>>,
@@ -77,7 +82,9 @@ impl Default for ActivityWidgetPriv {
             config_minimal_width: RefCell::new(min_w),
             config_blur_radius: RefCell::new(blur),
             config_enable_drag_stretch: RefCell::new(enable_stretch),
+            config_transition_duration: RefCell::new(1000),
             last_mode: RefCell::new(ActivityMode::Minimal),
+            cancel_hide: RefCell::new(None),
             name: RefCell::new(name),
             minimal_mode_widget: RefCell::new(None),
             compact_mode_widget: RefCell::new(None),
@@ -140,6 +147,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                     .as_ref()
                 {
                     prev.remove_css_class("prev");
+                    prev.set_visible(false);
                 }
                 self.last_mode.replace(*self.mode.borrow());
                 self.mode.replace(mode);
@@ -175,6 +183,7 @@ impl ObjectImpl for ActivityWidgetPriv {
 
                 if let Some(next) = self.get_mode_widget(mode).borrow().as_ref() {
                     next.add_css_class("next");
+                    next.set_visible(true);
                     //put at the end so it receives the inputs
                     next.insert_before(self.obj().as_ref(), Option::None::<&gtk::Widget>);
                     css_context.set_size((next_size.0 as i32, next_size.1 as i32));
@@ -184,6 +193,18 @@ impl ObjectImpl for ActivityWidgetPriv {
                     .borrow()
                     .as_ref()
                 {
+                    let prev_widget=prev.clone();
+                    if *self.last_mode.borrow()!=*self.mode.borrow(){
+                        if let Some(cancel) = self.cancel_hide.take() {
+                            if glib::MainContext::default().find_source_by_id(&cancel).is_some(){
+                                cancel.remove();
+                            }
+                        }
+                        let id =glib::timeout_add_local_once(Duration::from_millis(*self.config_transition_duration.borrow() as u64), move ||{
+                            prev_widget.set_visible(false);
+                        });
+                        self.cancel_hide.replace(Some(id));
+                    }
                     prev.remove_css_class("next");
                     prev.add_css_class("prev");
                 }
@@ -223,6 +244,13 @@ impl ObjectImpl for ActivityWidgetPriv {
                 //     .borrow_mut()
                 //     .set_config_enable_drag_stretch(value.get().unwrap(), false);
             }
+            "config-transition-duration" => {
+                self.config_transition_duration
+                    .replace(value.get().unwrap());
+                // self.local_css_context
+                //     .borrow_mut()
+                //     .set_config_enable_drag_stretch(value.get().unwrap(), false);
+            }
             "minimal-mode-widget" => {
                 let widget: Option<gtk::Widget> = value.get().unwrap();
                 if let Some(content) = &*self.minimal_mode_widget.borrow() {
@@ -234,8 +262,10 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-minimal");
                     widget.set_overflow(gtk::Overflow::Hidden);
+                    if *self.mode.borrow()!=ActivityMode::Minimal{
+                        widget.set_visible(false);
+                    }
                 }
-
                 self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
                 self.obj().queue_draw(); // Queue a draw call with the updated widget
             }
@@ -250,6 +280,9 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-compact");
                     widget.set_overflow(gtk::Overflow::Hidden);
+                    if *self.mode.borrow()!=ActivityMode::Compact{
+                        widget.set_visible(false);
+                    }
                 }
 
                 self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
@@ -266,6 +299,9 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-expanded");
                     widget.set_overflow(gtk::Overflow::Hidden);
+                    if *self.mode.borrow()!=ActivityMode::Expanded{
+                        widget.set_visible(false);
+                    }
                 }
 
                 self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
@@ -282,6 +318,9 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-overlay");
                     widget.set_overflow(gtk::Overflow::Hidden);
+                    if *self.mode.borrow()!=ActivityMode::Overlay{
+                        widget.set_visible(false);
+                    }
                 }
 
                 self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
