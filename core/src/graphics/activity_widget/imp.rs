@@ -41,6 +41,7 @@ pub struct ActivityWidgetPriv {
     #[property(get, set, nick = "Opacity Transition duration")]
     pub(super) config_transition_duration: RefCell<u32>,
 
+    #[property(get, nick = "The Last Activity mode")]
     pub(super) last_mode: RefCell<ActivityMode>,
 
     // pub(super) transition_manager: RefCell<TransitionManager>,

@@ -12,6 +12,7 @@ impl ActivityIdentifier {
     pub fn module(&self) -> String {
         self.module.clone().into()
     }
+
     pub fn activity(&self) -> String {
         self.activity.clone().into()
     }

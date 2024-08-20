@@ -187,7 +187,7 @@ pub enum UIServerCommand {
 
 /// Module and activity name, used to uniquely identify a dynamic activity
 #[repr(C)]
-#[derive(StableAbi, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(StableAbi, Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub struct ActivityIdentifier {
     /// Module name, must be the same as the on provided in `ModuleBuilder`
     pub(crate) module: RString,
