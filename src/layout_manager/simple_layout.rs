@@ -24,7 +24,7 @@ use gtk::{prelude::*, EventController, StateFlags};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
-use crate::layout_manager::window_position::{Alignment, WindowPosition};
+use crate::layout_manager::window_position::WindowPosition;
 
 pub struct SimpleLayout {
     app: gtk::Application,
@@ -39,7 +39,6 @@ pub struct SimpleLayout {
 pub struct SimpleLayoutConfig {
     orientation_horizontal: bool,
     window_position: WindowPosition,
-    child_align: Alignment,
     auto_minimize_timeout: i32,
 }
 impl Default for SimpleLayoutConfig {
@@ -47,7 +46,6 @@ impl Default for SimpleLayoutConfig {
         Self {
             orientation_horizontal: true,
             window_position: WindowPosition::default(),
-            child_align: Alignment::Center,
             auto_minimize_timeout: 5000,
         }
     }
@@ -173,14 +171,8 @@ impl SabiLayoutManager for SimpleLayout {
 
 impl SimpleLayout {
     fn configure_widget(&self, id: &ActivityIdentifier, widget: &ActivityWidget) {
-        match self.config.orientation_horizontal {
-            true => {
-                widget.set_valign(self.config.child_align.map_gtk());
-            }
-            false => {
-                widget.set_halign(self.config.child_align.map_gtk());
-            }
-        }
+        widget.set_valign(self.config.window_position.v_anchor.map_gtk());
+        widget.set_halign(self.config.window_position.h_anchor.map_gtk());
         // remove old controllers
         let mut controllers = vec![];
         for controller in widget
