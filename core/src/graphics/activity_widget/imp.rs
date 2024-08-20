@@ -1,7 +1,7 @@
 use rand::{distributions::Alphanumeric, Rng};
-use std::{cell::RefCell, time::Duration};
+use std::cell::RefCell;
 
-use glib::{prelude::*, SourceId};
+use glib::prelude::*;
 use glib_macros::Properties;
 use gtk::{prelude::*, subclass::prelude::*, StateFlags};
 
@@ -42,7 +42,6 @@ pub struct ActivityWidgetPriv {
     pub(super) config_transition_duration: RefCell<u32>,
 
     pub(super) last_mode: RefCell<ActivityMode>,
-    pub(super) cancel_hide: RefCell<Option<SourceId>>,
 
     // pub(super) transition_manager: RefCell<TransitionManager>,
     pub(super) background_widget: RefCell<Option<gtk::Widget>>,
@@ -84,7 +83,6 @@ impl Default for ActivityWidgetPriv {
             config_enable_drag_stretch: RefCell::new(enable_stretch),
             config_transition_duration: RefCell::new(1000),
             last_mode: RefCell::new(ActivityMode::Minimal),
-            cancel_hide: RefCell::new(None),
             name: RefCell::new(name),
             minimal_mode_widget: RefCell::new(None),
             compact_mode_widget: RefCell::new(None),
@@ -140,7 +138,6 @@ impl ObjectImpl for ActivityWidgetPriv {
                     .as_ref()
                 {
                     prev.remove_css_class("prev");
-                    prev.set_visible(false);
                 }
                 self.last_mode.replace(*self.mode.borrow());
                 self.mode.replace(mode);
@@ -186,24 +183,6 @@ impl ObjectImpl for ActivityWidgetPriv {
                     .borrow()
                     .as_ref()
                 {
-                    let prev_widget = prev.clone();
-                    if *self.last_mode.borrow() != *self.mode.borrow() {
-                        if let Some(cancel) = self.cancel_hide.take() {
-                            if glib::MainContext::default()
-                                .find_source_by_id(&cancel)
-                                .is_some()
-                            {
-                                cancel.remove();
-                            }
-                        }
-                        let id = glib::timeout_add_local_once(
-                            Duration::from_millis(*self.config_transition_duration.borrow() as u64),
-                            move || {
-                                prev_widget.set_visible(false);
-                            },
-                        );
-                        self.cancel_hide.replace(Some(id));
-                    }
                     prev.remove_css_class("next");
                     prev.add_css_class("prev");
                 }
@@ -219,16 +198,25 @@ impl ObjectImpl for ActivityWidgetPriv {
                 self.obj().add_css_class(value.get().unwrap());
             }
             "config-minimal-height" => {
-                self.config_minimal_height.replace(value.get().unwrap());
+                let height = value.get().unwrap();
+                self.config_minimal_height.replace(height);
                 self.local_css_context
                     .borrow_mut()
                     .set_config_minimal_height(value.get().unwrap(), false);
+                if let Some(minimal) = self.minimal_mode_widget.borrow().as_ref() {
+                    minimal.set_height_request(height);
+                }
+                if let Some(compact) = self.compact_mode_widget.borrow().as_ref() {
+                    compact.set_height_request(height);
+                }
             }
             "config-minimal-width" => {
-                self.config_minimal_width.replace(value.get().unwrap());
-                // self.local_css_context
-                //     .borrow_mut()
-                //     .set_config_minimal_width(value.get().unwrap(), false);
+                let width = value.get().unwrap();
+                let height = *self.config_minimal_height.borrow();
+                self.config_minimal_width.replace(width);
+                if let Some(minimal) = self.minimal_mode_widget.borrow().as_ref() {
+                    minimal.set_width_request(width.max(height));
+                }
             }
             "config-blur-radius" => {
                 self.config_blur_radius.replace(value.get().unwrap());
@@ -261,9 +249,6 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-minimal");
                     widget.set_overflow(gtk::Overflow::Hidden);
-                    if *self.mode.borrow() != ActivityMode::Minimal {
-                        widget.set_visible(false);
-                    }
                 }
                 self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
                 self.obj().queue_draw(); // Queue a draw call with the updated widget
@@ -279,9 +264,6 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-compact");
                     widget.set_overflow(gtk::Overflow::Hidden);
-                    if *self.mode.borrow() != ActivityMode::Compact {
-                        widget.set_visible(false);
-                    }
                 }
 
                 self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
@@ -298,9 +280,6 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-expanded");
                     widget.set_overflow(gtk::Overflow::Hidden);
-                    if *self.mode.borrow() != ActivityMode::Expanded {
-                        widget.set_visible(false);
-                    }
                 }
 
                 self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
@@ -317,9 +296,6 @@ impl ObjectImpl for ActivityWidgetPriv {
                     widget.set_parent(self.obj().upcast_ref::<gtk::Widget>());
                     widget.add_css_class("mode-overlay");
                     widget.set_overflow(gtk::Overflow::Hidden);
-                    if *self.mode.borrow() != ActivityMode::Overlay {
-                        widget.set_visible(false);
-                    }
                 }
 
                 self.obj().set_mode(self.obj().mode()); //update the size and the position of the widget
