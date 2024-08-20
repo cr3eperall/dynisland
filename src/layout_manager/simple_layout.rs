@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, time::Duration};
 
 use abi_stable::{
     sabi_extern_fn,
@@ -19,7 +19,7 @@ use dynisland_core::graphics::activity_widget::{
     boxed_activity_mode::ActivityMode, ActivityWidget,
 };
 use gdk::prelude::*;
-use glib::Cast;
+use glib::{Cast, SourceId};
 use gtk::{prelude::*, EventController, StateFlags};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
@@ -29,6 +29,7 @@ use crate::layout_manager::window_position::{Alignment, WindowPosition};
 pub struct SimpleLayout {
     app: gtk::Application,
     widget_map: HashMap<ActivityIdentifier, ActivityWidget>,
+    cancel_minimize: Rc<RefCell<HashMap<ActivityIdentifier, SourceId>>>,
     container: Option<gtk::Box>,
     config: SimpleLayoutConfig,
 }
@@ -58,6 +59,7 @@ pub fn new(app: SabiApplication) -> RResult<LayoutManagerType, RBoxError> {
     let this = SimpleLayout {
         app,
         widget_map: HashMap::new(),
+        cancel_minimize: Rc::new(RefCell::new(HashMap::new())),
         container: None,
         config: SimpleLayoutConfig::default(),
     };
@@ -88,8 +90,8 @@ impl SabiLayoutManager for SimpleLayout {
             self.config.window_position.reconfigure_window(window);
         }
 
-        for widget in self.widget_map.values() {
-            self.configure_widget(widget);
+        for (id, widget) in self.widget_map.iter() {
+            self.configure_widget(id, widget);
         }
 
         ROk(())
@@ -114,7 +116,7 @@ impl SabiLayoutManager for SimpleLayout {
                 return;
             }
         };
-        self.configure_widget(&widget);
+        self.configure_widget(activity_id, &widget);
         self.container
             .as_ref()
             .expect("there should be a container")
@@ -170,7 +172,7 @@ impl SabiLayoutManager for SimpleLayout {
 }
 
 impl SimpleLayout {
-    fn configure_widget(&self, widget: &ActivityWidget) {
+    fn configure_widget(&self, id: &ActivityIdentifier, widget: &ActivityWidget) {
         match self.config.orientation_horizontal {
             true => {
                 widget.set_valign(self.config.child_align.map_gtk());
@@ -180,6 +182,7 @@ impl SimpleLayout {
             }
         }
         // remove old controllers
+        let mut controllers = vec![];
         for controller in widget
             .observe_controllers()
             .iter::<glib::Object>()
@@ -188,9 +191,12 @@ impl SimpleLayout {
         {
             if let Some(name) = controller.name() {
                 if name == "press_gesture" || name == "focus_controller" {
-                    widget.remove_controller(&controller);
+                    controllers.push(controller);
                 }
             }
+        }
+        for controller in controllers.iter() {
+            widget.remove_controller(controller);
         }
 
         let press_gesture = gtk::GestureClick::new();
@@ -219,14 +225,16 @@ impl SimpleLayout {
 
         // auto minimize (to Compact mode) controller
         if self.config.auto_minimize_timeout >= 0 {
+            let cancel_minimize = self.cancel_minimize.clone();
             let timeout = self.config.auto_minimize_timeout;
+            let activity_id = id.clone();
             focus_in.connect_leave(move |evt| {
                 let aw = evt.widget().downcast::<ActivityWidget>().unwrap();
                 let mode = aw.mode();
                 if matches!(mode, ActivityMode::Minimal | ActivityMode::Compact) {
                     return;
                 }
-                glib::timeout_add_local_once(
+                let id = glib::timeout_add_local_once(
                     Duration::from_millis(timeout.try_into().unwrap()),
                     move || {
                         if !aw.state_flags().contains(StateFlags::PRELIGHT) && aw.mode() == mode {
@@ -235,6 +243,17 @@ impl SimpleLayout {
                         }
                     },
                 );
+                let mut cancel_minimize = cancel_minimize.borrow_mut();
+                if let Some(source) = cancel_minimize.remove(&activity_id) {
+                    if glib::MainContext::default()
+                        .find_source_by_id(&source)
+                        .is_some()
+                    {
+                        source.remove();
+                    }
+                }
+
+                cancel_minimize.insert(activity_id.clone(), id);
             });
             widget.add_controller(focus_in);
         }
