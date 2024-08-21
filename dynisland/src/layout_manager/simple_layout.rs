@@ -19,7 +19,7 @@ use dynisland_core::graphics::activity_widget::{
     boxed_activity_mode::ActivityMode, ActivityWidget,
 };
 use gdk::prelude::*;
-use glib::{Cast, SourceId};
+use glib::SourceId;
 use gtk::{prelude::*, EventController, StateFlags};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};

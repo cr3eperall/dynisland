@@ -37,6 +37,9 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
         let activity_widget = activity_widget.unwrap();
 
         let min_height = activity_widget.config_minimal_height();
+        if activity_widget.has_css_class("hidden") && orientation==gtk::Orientation::Horizontal{
+            return (0, 0, -1, -1);
+        }
         let first_child = activity_widget.first_child(); //should be the background widget
         match first_child {
             Some(first_child) => {

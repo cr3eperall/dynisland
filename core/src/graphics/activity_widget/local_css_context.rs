@@ -169,9 +169,13 @@ impl ActivityWidgetLocalCssContext {
         // debug!("{size_timing_function}");
         let css = if self.stretch_on_resize {
             format!(
-                r".{name} .activity-background, .{name} .activity-background * {{ 
+                r".{name}:not(.hidden) .activity-background, .{name}:not(.hidden) .activity-background * {{ 
                     min-width: {w}px; 
                     min-height: {h}px;
+                }}
+
+                .{name} .hidden .activity-background {{
+                    min-width: 0px;
                 }}
                 
                 .{name} .mode-minimal{{
