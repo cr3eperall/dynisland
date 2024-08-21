@@ -140,12 +140,19 @@ impl App {
         glib::MainContext::default().spawn_local(async move {
             start_signal.recv().await.unwrap();
 
-            let renderer_name = self.application.windows()[0]
-                .native()
-                .expect("Layout manager has no windows")
-                .renderer()
-                .type_()
-                .name();
+            let renderer_name = match self.application.windows()[0]
+                            .native()
+                            .expect("Layout manager has no windows")
+                            .renderer() {
+                Some(renderer_type) => {
+                    renderer_type
+                        .type_()
+                        .name()
+                },
+                None => {
+                    "no renderer found"
+                },
+            };
 
             log::info!("Using renderer: {}", renderer_name);
 
@@ -220,8 +227,8 @@ impl App {
 
                     // without this sleep, reading the config file sometimes gives an empty file.
                     glib::timeout_future(std::time::Duration::from_millis(50)).await;
-                    self.load_configs(&config_dir);
                     self.update_general_configs();
+                    self.load_configs(&config_dir);
                     self.load_layout_config();
                     self.load_css();
 
