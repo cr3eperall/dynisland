@@ -2,7 +2,11 @@ use abi_stable::{
     external_types::crossbeam_channel::RSender,
     std_types::RResult::{RErr, ROk},
 };
-use std::{collections::HashMap, path::PathBuf, rc::Rc};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 use tokio::sync::Mutex;
 
 use abi_stable::{
@@ -23,9 +27,9 @@ use crate::{
 };
 
 impl App {
-    pub(crate) fn load_modules(&mut self) -> Vec<String> {
+    pub(crate) fn load_modules(&mut self, config_dir: &Path) -> Vec<String> {
         let mut module_order = vec![];
-        let module_def_map = crate::module_loading::get_module_definitions();
+        let module_def_map = crate::module_loading::get_module_definitions(config_dir);
 
         if self.config.loaded_modules.contains(&"all".to_string()) {
             //load all modules available in order of hash (random order)
@@ -52,7 +56,7 @@ impl App {
                 let module_constructor = module_def_map.get(module_name);
                 let module_constructor = match module_constructor {
                     None => {
-                        log::info!("module {} not found, skipping", module_name);
+                        log::warn!("module {} not found, skipping", module_name);
                         continue;
                     }
                     Some(x) => x,
@@ -78,8 +82,8 @@ impl App {
     }
 
     //TODO layout loading from .so not tested yet but it should work identically to module loading
-    pub(crate) fn load_layout_manager(&mut self) {
-        let layout_manager_definitions = crate::module_loading::get_lm_definitions();
+    pub(crate) fn load_layout_manager(&mut self, config_dir: &Path) {
+        let layout_manager_definitions = crate::module_loading::get_lm_definitions(config_dir);
 
         if self.config.layout.is_none() {
             log::info!("no layout manager in config, using default: SimpleLayout");
@@ -95,7 +99,7 @@ impl App {
         let lm_constructor = layout_manager_definitions.get(lm_name);
         let lm_constructor = match lm_constructor {
             None => {
-                log::info!(
+                log::warn!(
                     "layout manager {} not found, using default: SimpleLayout",
                     lm_name
                 );
@@ -129,6 +133,7 @@ impl App {
 }
 
 pub fn get_module_definitions(
+    _config_dir: &Path,
 ) -> HashMap<String, extern "C" fn(RSender<UIServerCommand>) -> RResult<ModuleType, RBoxError>> {
     let mut module_def_map = HashMap::<
         String,
@@ -139,12 +144,12 @@ pub fn get_module_definitions(
         #[cfg(debug_assertions)]
         {
             // TODO don't use hardcoded value
-            PathBuf::from("/home/david/dev/rust/dynisland/dynisland-core/target/debug/")
+            PathBuf::from("./target/debug/")
         }
 
         #[cfg(not(debug_assertions))]
         {
-            config::get_config_path().join("modules")
+            _config_dir.join("modules")
         }
     };
 
@@ -201,7 +206,9 @@ pub fn get_module_definitions(
     module_def_map
 }
 
-pub fn get_lm_definitions() -> HashMap<
+pub fn get_lm_definitions(
+    _config_dir: &Path,
+) -> HashMap<
     String,
     extern "C" fn(SabiApplication) -> RResult<LayoutManagerType, abi_stable::std_types::RBoxError>,
 > {
@@ -214,11 +221,11 @@ pub fn get_lm_definitions() -> HashMap<
         #[cfg(debug_assertions)]
         {
             // TODO don't use hardcoded value
-            PathBuf::from("/home/david/dev/rust/dynisland/dynisland-core/target/debug/")
+            PathBuf::from("./target/debug/")
         }
         #[cfg(not(debug_assertions))]
         {
-            config::get_config_path().join("layouts")
+            _config_dir.join("layouts")
         }
     };
 

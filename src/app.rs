@@ -1,4 +1,10 @@
-use std::{collections::HashMap, io::ErrorKind, path::Path, rc::Rc, thread};
+use std::{
+    collections::HashMap,
+    io::ErrorKind,
+    path::{Path, PathBuf},
+    rc::Rc,
+    thread,
+};
 
 use abi_stable::{
     external_types::crossbeam_channel::RSender,
@@ -45,14 +51,13 @@ pub struct App {
     pub app_send: Option<RSender<UIServerCommand>>,
     pub config: Config,
     pub css_provider: CssProvider,
+    pub config_dir: PathBuf,
 }
-
-// pub const MODS_DEBUG_PATH: &str =
-//     "/home/david/dev/rust/dynisland/dynisland-core/target/debug/libexample_module.so";
 
 impl App {
     pub fn run(mut self, config_dir: &Path) -> Result<()> {
         self.config = config::get_config(config_dir);
+        self.config_dir = config_dir.to_path_buf();
 
         let (server_send, server_recv) = unbounded_channel::<BackendServerCommand>();
         let (server_response_send, server_response_recv) = unbounded_channel::<Option<String>>();
@@ -61,10 +66,10 @@ impl App {
         let mut app_recv_async = self.init_abi_app_channel();
 
         // load layout manager and init modules
-        self.load_layout_manager();
+        self.load_layout_manager(config_dir);
         self.load_layout_config();
 
-        let module_order = self.load_modules();
+        let module_order = self.load_modules(config_dir);
         self.load_configs(config_dir);
         self.init_loaded_modules(&module_order);
 
@@ -141,17 +146,12 @@ impl App {
             start_signal.recv().await.unwrap();
 
             let renderer_name = match self.application.windows()[0]
-                            .native()
-                            .expect("Layout manager has no windows")
-                            .renderer() {
-                Some(renderer_type) => {
-                    renderer_type
-                        .type_()
-                        .name()
-                },
-                None => {
-                    "no renderer found"
-                },
+                .native()
+                .expect("Layout manager has no windows")
+                .renderer()
+            {
+                Some(renderer_type) => renderer_type.type_().name(),
+                None => "no renderer found",
             };
 
             log::info!("Using renderer: {}", renderer_name);
@@ -396,7 +396,7 @@ impl App {
         let mut base_conf = Config::default();
 
         // get all the loadable LayoutManager configs
-        let lm_defs = crate::module_loading::get_lm_definitions();
+        let lm_defs = crate::module_loading::get_lm_definitions(&self.config_dir);
         let mut layout_configs: Vec<(String, RResult<RString, RBoxError>)> = Vec::new();
         for (lm_name, lm_constructor) in lm_defs {
             let built_lm = match lm_constructor(self.application.clone().into()) {
@@ -416,7 +416,7 @@ impl App {
         ));
 
         // get all the loadable Module configs
-        let mod_defs = crate::module_loading::get_module_definitions();
+        let mod_defs = crate::module_loading::get_module_definitions(&self.config_dir);
         let mut module_configs: Vec<(String, RResult<RString, RBoxError>)> = Vec::new();
         for (mod_name, mod_constructor) in mod_defs {
             match mod_constructor(self.app_send.clone().unwrap()) {
@@ -509,6 +509,7 @@ impl Default for App {
             app_send: None,
             config: config::Config::default(),
             css_provider: gtk::CssProvider::new(),
+            config_dir: config::get_default_config_path(),
         }
     }
 }
