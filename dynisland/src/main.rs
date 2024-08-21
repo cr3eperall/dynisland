@@ -41,6 +41,10 @@ fn main() -> Result<()> {
         .init();
 
     let cli = Cli::parse();
+    // let cli = Cli{
+    //     command: Daemon { no_daemonize: true },
+    //     config_path: None,
+    // };
     let config_dir = cli
         .config_path
         .clone()

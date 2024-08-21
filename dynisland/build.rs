@@ -5,7 +5,7 @@ use std::io::Error;
 include!("src/cli.rs");
 
 fn main() -> Result<(), Error> {
-    let outdir = "../target"; //idk if it works
+    let outdir = "../target";
     let bin_name = "dynisland";
 
     let mut cmd: Command = Cli::command_for_update();

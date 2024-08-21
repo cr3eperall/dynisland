@@ -4,8 +4,10 @@ mod object_subclass_impl;
 
 glib::wrapper! {
     /// A Label with a max width (`width_request`) that scrolls when the inner label exceeds the max width
+    /// NOTE: i don't know why but this widget makes gtk crash if it's in an horizontal box with another widget
     pub struct ScrollingLabel(ObjectSubclass<imp::ScrollingLabelPriv>)
-        @extends gtk::Widget;
+        @extends gtk::Widget,
+        @implements gtk::Buildable;
 }
 
 impl Default for ScrollingLabel {

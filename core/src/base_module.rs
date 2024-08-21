@@ -68,7 +68,7 @@ impl ProducerRuntime {
     pub fn get_cleanup_notifier(&self) -> Sender<UnboundedSender<()>> {
         self.cleanup_notifier.clone()
     }
-    /// Shutdown the runtime after sending the cleanup notification and waiting for a confirmation.
+    /// Shuts down the runtime after sending the cleanup notification and waiting for a confirmation.
     pub async fn shutdown(&self) {
         let num = self.cleanup_notifier.receiver_count();
         log::debug!("stopping producer runtime: {} cleanup receivers", num);
@@ -91,7 +91,7 @@ impl ProducerRuntime {
             log::debug!("producer runtime has already quit")
         }
     }
-    /// Shutdown the runtime after sending the cleanup notification and waiting for a confirmation.
+    /// Shuts down the runtime after sending the cleanup notification and waiting for a confirmation.
     ///
     /// blocking
     pub fn shutdown_blocking(&self) {
