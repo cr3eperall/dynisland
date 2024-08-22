@@ -139,7 +139,35 @@ impl ObjectImpl for ActivityWidgetPriv {
                     .as_ref()
                 {
                     prev.remove_css_class("prev");
+                    prev.remove_css_class("next");
                 }
+                match mode {
+                    ActivityMode::Minimal => {
+                        obj.add_css_class("in-minimal-mode");
+                        obj.remove_css_class("in-compact-mode");
+                        obj.remove_css_class("in-expanded-mode");
+                        obj.remove_css_class("in-overlay-mode");
+                    }
+                    ActivityMode::Compact => {
+                        obj.remove_css_class("in-minimal-mode");
+                        obj.add_css_class("in-compact-mode");
+                        obj.remove_css_class("in-expanded-mode");
+                        obj.remove_css_class("in-overlay-mode");
+                    }
+                    ActivityMode::Expanded => {
+                        obj.remove_css_class("in-minimal-mode");
+                        obj.remove_css_class("in-compact-mode");
+                        obj.add_css_class("in-expanded-mode");
+                        obj.remove_css_class("in-overlay-mode");
+                    }
+                    ActivityMode::Overlay => {
+                        obj.remove_css_class("in-minimal-mode");
+                        obj.remove_css_class("in-compact-mode");
+                        obj.remove_css_class("in-expanded-mode");
+                        obj.add_css_class("in-overlay-mode");
+                    }
+                }
+
                 self.last_mode.replace(*self.mode.borrow());
                 self.mode.replace(mode);
 
@@ -173,6 +201,7 @@ impl ObjectImpl for ActivityWidgetPriv {
                 css_context.set_stretch_all(stretches);
 
                 if let Some(next) = self.get_mode_widget(mode).borrow().as_ref() {
+                    next.remove_css_class("prev");
                     next.add_css_class("next");
                     next.set_visible(true);
                     //put at the end so it receives the inputs
@@ -204,20 +233,10 @@ impl ObjectImpl for ActivityWidgetPriv {
                 self.local_css_context
                     .borrow_mut()
                     .set_config_minimal_height(value.get().unwrap(), false);
-                if let Some(minimal) = self.minimal_mode_widget.borrow().as_ref() {
-                    minimal.set_height_request(height);
-                }
-                if let Some(compact) = self.compact_mode_widget.borrow().as_ref() {
-                    compact.set_height_request(height);
-                }
             }
             "config-minimal-width" => {
                 let width = value.get().unwrap();
-                let height = *self.config_minimal_height.borrow();
                 self.config_minimal_width.replace(width);
-                if let Some(minimal) = self.minimal_mode_widget.borrow().as_ref() {
-                    minimal.set_width_request(width.max(height));
-                }
             }
             "config-blur-radius" => {
                 self.config_blur_radius.replace(value.get().unwrap());

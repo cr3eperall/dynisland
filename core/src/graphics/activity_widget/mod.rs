@@ -16,7 +16,7 @@ glib::wrapper! {
     /// It should contain at least the Minimal widget.
     ///
     /// It also stretches on drag if enabled
-    /// 
+    ///
     /// The valign and halign properties of the mode widgets
     /// decide the size of the sub-widget during a mode change, view [`get_child_aligned_allocation`](super::util::get_child_aligned_allocation) for more info
     pub struct ActivityWidget(ObjectSubclass<imp::ActivityWidgetPriv>)

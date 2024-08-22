@@ -92,10 +92,10 @@ pub(super) fn get_final_widget_size(
 }
 
 /// Get the allocation for a mode widget, aligned
-/// 
+///
 /// if an align is Fill, if the widget is smaller than the parent, the parent size is used,
 /// the widget is always centered
-/// 
+///
 /// otherwise the child size is used
 pub(super) fn get_child_aligned_allocation(
     parent_allocation: (i32, i32, i32),

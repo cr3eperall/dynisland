@@ -12,7 +12,7 @@ pub struct ScrollingLabelLocalCssContext {
     css_provider: CssProvider,
     name: String,
     size: i32,
-    anim_restart_flag: bool,
+    animation_name: String,
     active: bool,
 
     config_fade_size: ConfigVariable<CssSize>,
@@ -25,7 +25,7 @@ impl ScrollingLabelLocalCssContext {
         Self {
             css_provider: gtk::CssProvider::new(),
             name: name.to_string(),
-            anim_restart_flag: false,
+            animation_name: "scroll".to_string(),
             size: 0,
             active: true,
             config_fade_size: ConfigVariable::new(CssSize::Percent(4.0)),
@@ -62,7 +62,15 @@ impl ScrollingLabelLocalCssContext {
             return;
         }
         if active && self.size != size {
-            self.anim_restart_flag = !self.anim_restart_flag;
+            self.animation_name = "scroll"
+                .chars()
+                .chain(
+                    rand::thread_rng()
+                        .sample_iter(&Alphanumeric)
+                        .take(6)
+                        .map(char::from),
+                )
+                .collect::<String>();
         }
         self.active = active;
         self.size = size;
@@ -81,11 +89,7 @@ impl ScrollingLabelLocalCssContext {
 
         // log::debug!("size: {} flag: {}",size, self.anim_restart_flag);
         // debug!("{size_timing_function}");
-        let scroll_anim = if self.anim_restart_flag {
-            "scroll-clone"
-        } else {
-            "scroll"
-        };
+        let scroll_anim = &self.animation_name;
         let css = if active {
             // log::debug!("active");
             format!(
