@@ -6,6 +6,7 @@ members = [
     "core",
     "dynisland-modules/*",
 ]
+exclude = ["dynisland-modules/dynisland-module-template"]
 resolver = "2"
 
 [profile.release]

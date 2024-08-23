@@ -119,10 +119,6 @@ impl ObjectImpl for ActivityWidgetPriv {
             .replace(Some(background.upcast::<gtk::Widget>()));
     }
 
-    fn properties() -> &'static [glib::ParamSpec] {
-        Self::derived_properties()
-    }
-
     fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "mode" => {
@@ -324,10 +320,6 @@ impl ObjectImpl for ActivityWidgetPriv {
 
             x => panic!("Tried to set inexistant property of ActivityWidget: {}", x),
         }
-    }
-
-    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
-        self.derived_property(id, pspec)
     }
 
     fn dispose(&self) {

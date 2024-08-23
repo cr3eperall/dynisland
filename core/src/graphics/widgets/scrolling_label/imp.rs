@@ -110,6 +110,9 @@ impl ObjectImpl for ScrollingLabelPriv {
             "text" => {
                 let label = self.label.borrow();
                 let text: String = value.get().unwrap();
+                if label.label() == text {
+                    return;
+                }
                 label.set_text(&text);
                 self.text.replace(text);
 
@@ -140,14 +143,6 @@ impl ObjectImpl for ScrollingLabelPriv {
             }
             x => panic!("Tried to set inexistant property of ScrollingLabel: {}", x),
         }
-    }
-
-    fn properties() -> &'static [glib::ParamSpec] {
-        Self::derived_properties()
-    }
-
-    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
-        self.derived_property(id, pspec)
     }
 
     fn dispose(&self) {

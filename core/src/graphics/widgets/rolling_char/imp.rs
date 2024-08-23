@@ -54,18 +54,13 @@ impl ObjectImpl for RollingCharPriv {
         label_2.set_parent(self.obj().as_ref());
     }
 
-    fn properties() -> &'static [glib::ParamSpec] {
-        Self::derived_properties()
-    }
-
-    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
-        self.derived_property(id, pspec)
-    }
-
     fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
         match pspec.name() {
             "current-char" => {
-                let new_char = value.get().unwrap();
+                let new_char: char = value.get().unwrap();
+                if *self.current_char.borrow() == new_char {
+                    return;
+                }
                 self.current_char.replace(new_char);
 
                 let label_1 = self.primary_label.borrow();

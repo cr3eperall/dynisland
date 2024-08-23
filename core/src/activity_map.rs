@@ -33,20 +33,20 @@ impl ActivityMap {
     /// blocking
     pub fn get_property_any_blocking(
         &self,
-        activity_id: &str,
+        activity_name: &str,
         property_name: &str,
     ) -> Result<Arc<Mutex<DynamicPropertyAny>>> {
-        self.get_activity(activity_id)?
+        self.get_activity(activity_name)?
             .blocking_lock()
             .get_property_any(property_name)
     }
     /// Get a property from an activity
     pub async fn get_property_any(
         &self,
-        activity_id: &str,
+        activity_name: &str,
         property_name: &str,
     ) -> Result<Arc<Mutex<DynamicPropertyAny>>> {
-        self.get_activity(activity_id)?
+        self.get_activity(activity_name)?
             .lock()
             .await
             .get_property_any(property_name)
