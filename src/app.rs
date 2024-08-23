@@ -341,11 +341,6 @@ impl App {
     }
 
     fn update_general_configs_on_activity(config: &GeneralConfig, activity: &Widget) {
-        // let activity_widget = activity.clone().downcast::<ActivityWidget>();
-        // match activity_widget {
-        //     Ok(activity) => log::debug!("widget is an ActivityWidget"),
-        //     Err(err) => log::debug!("widget is NOT an ActivityWidget"),
-        // }
         //TODO define property names as constants
         activity.set_property("config-minimal-height", config.minimal_height as i32);
         activity.set_property("config-minimal-width", config.minimal_width as i32);

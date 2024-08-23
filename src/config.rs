@@ -25,9 +25,24 @@ pub struct Config {
     pub debug: Option<DebugConfig>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct DebugConfig {
     pub runtime_path: String,
     pub open_debugger_at_start: bool,
+}
+
+impl Default for DebugConfig {
+    fn default() -> Self {
+        Self {
+            runtime_path: get_default_runtime_path()
+                .canonicalize()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string(),
+            open_debugger_at_start: false,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
