@@ -35,10 +35,6 @@ macro_rules! implement_config_get_set {
         });
         concat_idents::concat_idents!(name = set_, $val {
             $vis fn name(&mut self, value: $type, user: bool){
-                // trace!("tried to set value {:?}", value);
-                // if self.$val.value.eq(&value) {
-                //     return Ok(());
-                // }
                 if user {
                     self.$val.set_by_user = true;
                 } else if self.$val.set_by_user {
@@ -61,10 +57,6 @@ macro_rules! implement_config_get_set {
         });
         concat_idents::concat_idents!(name = set_, $val {
             $vis fn name(&mut $_self, value: $type, user: bool) {
-                // trace!("tried to set value {:?}", value);
-                // if self.$val.value.eq(&value) {
-                //     return Ok(());
-                // }
                 if user {
                     $_self.$val.set_by_user = true;
                 } else if $_self.$val.set_by_user {

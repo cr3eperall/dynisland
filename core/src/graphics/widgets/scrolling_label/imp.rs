@@ -103,7 +103,7 @@ impl ObjectImpl for ScrollingLabelPriv {
                 let new_label: gtk::Label = value.get().unwrap();
                 new_label.add_css_class("inner-label");
                 new_label.set_wrap(false);
-                new_label.set_halign(gtk::Align::Start); //TODO let user choose halign
+                new_label.set_halign(gtk::Align::Start);
                 new_label.set_valign(gtk::Align::Center);
 
                 self.bin.borrow_mut().append(&new_label);

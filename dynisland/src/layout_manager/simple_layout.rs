@@ -266,6 +266,7 @@ impl SimpleLayout {
             container.set_halign(self.config.window_position.h_anchor.map_gtk());
             container.set_valign(self.config.window_position.v_anchor.map_gtk());
         }
+        container.set_spacing(0);
     }
 
     fn create_new_window(&mut self) {
@@ -274,6 +275,7 @@ impl SimpleLayout {
         let container = gtk::Box::new(gtk::Orientation::Horizontal, 5);
         container.add_css_class("activity-container");
         self.container = Some(container);
+        self.configure_container();
         window.set_child(self.container.as_ref());
         self.config
             .window_position

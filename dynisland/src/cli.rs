@@ -27,7 +27,6 @@ pub enum SubCommands {
         #[arg(help = "0: Minimal, 1: Compact, 2: Expanded, 3: Overlay")]
         mode: u8,
     },
-    // TODO add get activities
     Kill,
     Restart {
         #[arg(short, long, required = false, default_value_t = false)]

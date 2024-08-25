@@ -7,7 +7,6 @@ use super::activity_widget::boxed_activity_mode::ActivityMode;
 
 #[derive(Clone, Copy, Debug)]
 pub enum CssSize {
-    //TODO replace with proper data structure if I implement the custom css parsing
     Fixed(i32),
     Percent(f32),
 }
