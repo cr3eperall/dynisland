@@ -203,7 +203,7 @@ fn main() -> Result<()> {
                 abi_stable::external_types::crossbeam_channel::unbounded::<UIServerCommand>();
             app.app_send = Some(abi_app_send);
             let (_conf, conf_str) = app.get_default_config();
-            println!("Default Config: \n{conf_str}");
+            println!("{conf_str}");
             if replace_current_config {
                 todo!();
             }

@@ -205,11 +205,14 @@ impl App {
         let (app_send_async, app_recv_async) = unbounded_channel::<UIServerCommand>();
 
         //forward message to app receiver
-        thread::spawn(move || {
-            while let Ok(msg) = abi_app_recv.recv() {
-                app_send_async.send(msg).expect("failed to send message");
-            }
-        });
+        thread::Builder::new()
+            .name("abi-app-forwarder".to_string())
+            .spawn(move || {
+                while let Ok(msg) = abi_app_recv.recv() {
+                    app_send_async.send(msg).expect("failed to send message");
+                }
+            })
+            .expect("failed to spawn abi-app-forwarder thread");
         app_recv_async
     }
 
@@ -550,38 +553,41 @@ fn start_ipc_server(
     server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>,
     mut server_response_recv: tokio::sync::mpsc::UnboundedReceiver<Option<String>>,
 ) {
-    thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        rt.block_on(async move {
-            loop {
-                std::fs::create_dir_all(&runtime_path).expect("invalid runtime path");
-                log::info!(
-                    "starting ipc socket at {}",
-                    runtime_path.canonicalize().unwrap().to_str().unwrap()
-                );
-                if let Err(err) = open_socket(
-                    &runtime_path,
-                    server_send.clone(),
-                    &mut server_response_recv,
-                )
-                .await
-                {
-                    log::error!("socket closed: {err}");
-                    if matches!(
-                        err.downcast::<std::io::Error>().unwrap().kind(),
-                        ErrorKind::AddrInUse
-                    ) {
-                        log::error!("app was already started");
+    let thread = thread::Builder::new().name("file-watcher".to_string());
+    thread
+        .spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            rt.block_on(async move {
+                loop {
+                    std::fs::create_dir_all(&runtime_path).expect("invalid runtime path");
+                    log::info!(
+                        "starting ipc socket at {}",
+                        runtime_path.canonicalize().unwrap().to_str().unwrap()
+                    );
+                    if let Err(err) = open_socket(
+                        &runtime_path,
+                        server_send.clone(),
+                        &mut server_response_recv,
+                    )
+                    .await
+                    {
+                        log::error!("socket closed: {err}");
+                        if matches!(
+                            err.downcast::<std::io::Error>().unwrap().kind(),
+                            ErrorKind::AddrInUse
+                        ) {
+                            log::error!("app was already started");
+                            break;
+                        }
+                    } else {
+                        log::info!("kill message received");
                         break;
                     }
-                } else {
-                    log::info!("kill message received");
-                    break;
                 }
-            }
-        });
-    });
+            });
+        })
+        .expect("failed to spawn file-watcher thread");
 }
