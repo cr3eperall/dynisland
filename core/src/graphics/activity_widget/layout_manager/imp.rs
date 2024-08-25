@@ -1,7 +1,9 @@
 use gtk::{prelude::*, subclass::prelude::*};
 
 use crate::{
-    graphics::activity_widget::{boxed_activity_mode::ActivityMode, util, ActivityWidget},
+    graphics::activity_widget::{
+        boxed_activity_mode::ActivityMode, imp::ActivityWidgetPriv, util, ActivityWidget,
+    },
     randomize_name,
 };
 
@@ -40,6 +42,16 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
         if activity_widget.has_css_class("hidden") && orientation == gtk::Orientation::Horizontal {
             return (0, 0, -1, -1);
         }
+        if !activity_widget.has_css_class("dragging") {
+            let next_size = ActivityWidgetPriv::get_final_widget_size_for_mode(
+                activity_widget,
+                activity_widget.mode(),
+                min_height,
+                activity_widget.config_minimal_width(),
+            );
+            let mut css_context = activity_widget.imp().local_css_context.borrow_mut();
+            css_context.set_size((next_size.0 as i32, next_size.1 as i32));
+        }
         let first_child = activity_widget.first_child(); //should be the background widget
         match first_child {
             Some(first_child) => {
@@ -56,9 +68,9 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
             log::error!("Error downcasting ActivityWidget");
             return;
         }
-        let binding = activity_widget.unwrap();
-        let min_height = binding.config_minimal_height();
-        let activity = binding.imp();
+        let activity_widget = activity_widget.unwrap();
+        let min_height = activity_widget.config_minimal_height();
+        let activity = activity_widget.imp();
 
         if let Some(content) = &*activity.background_widget.borrow() {
             content.allocate(width, height, -1, None);
@@ -70,6 +82,7 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
                 content,
                 ActivityMode::Minimal,
                 min_height,
+                activity_widget.has_css_class("dragging"),
             );
 
             content.allocate(width, height, -1, transform);
@@ -80,6 +93,7 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
                 content,
                 ActivityMode::Compact,
                 min_height,
+                activity_widget.has_css_class("dragging"),
             );
 
             content.allocate(width, height, -1, transform);
@@ -90,6 +104,7 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
                 content,
                 ActivityMode::Expanded,
                 min_height,
+                activity_widget.has_css_class("dragging"),
             );
 
             content.allocate(width, height, -1, transform);
@@ -100,6 +115,7 @@ impl LayoutManagerImpl for ActivityLayoutManagerPriv {
                 content,
                 ActivityMode::Overlay,
                 min_height,
+                activity_widget.has_css_class("dragging"),
             );
 
             content.allocate(width, height, -1, transform);

@@ -823,7 +823,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eac8f7d7865dcb88bd4373ab671c8cf4508703796caa2b1985a9ca867b3fcb78"
 dependencies = [
  "futures-core",
- "futures-sink",
 ]
 
 [[package]]
@@ -879,11 +878,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d6401deb83407ab3da39eba7e33987a73c3df0c82b4bb5813ee871c19c41d48"
 dependencies = [
  "futures-core",
- "futures-io",
  "futures-macro",
- "futures-sink",
  "futures-task",
- "memchr",
  "pin-project-lite",
  "pin-utils",
  "slab",
@@ -2119,7 +2115,6 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "encoding_rs",
- "futures-channel",
  "futures-core",
  "futures-util",
  "h2",
@@ -2278,6 +2273,28 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "script-module"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "dynisland-abi",
+ "dynisland-core",
+ "env_logger",
+ "gdk4",
+ "glib",
+ "glib-build-tools",
+ "glib-macros",
+ "grass",
+ "gtk4",
+ "log",
+ "reqwest",
+ "ron",
+ "serde",
+ "tokio",
+]
 
 [[package]]
 name = "security-framework"

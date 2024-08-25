@@ -134,7 +134,7 @@ impl ProducerRuntime {
                 rt.block_on(async { shutdown_recv.recv().await }); //keep thread alive
                                                                    // log::info!("shutting down runtime");
             })
-            .expect("failed to spawn new trhread");
+            .expect("failed to spawn dyn-producers trhread");
 
         rt_recv.blocking_recv().expect("failed to receive rt")
     }

@@ -484,6 +484,7 @@ impl ActivityWidgetPriv {
                     widget,
                     mode,
                     min_height,
+                    false,
                 );
                 if measure.0 == 0 {
                     measure.0 = next_size.0 as i32;
@@ -509,6 +510,7 @@ impl ActivityWidgetPriv {
                     widget,
                     mode,
                     min_height,
+                    false,
                 );
                 if measure.0 == 0 {
                     measure.0 = next_size.0 as i32;
@@ -534,6 +536,7 @@ impl ActivityWidgetPriv {
                     widget,
                     mode,
                     min_height,
+                    false,
                 );
                 if measure.0 == 0 {
                     measure.0 = next_size.0 as i32;
@@ -559,6 +562,7 @@ impl ActivityWidgetPriv {
                     widget,
                     mode,
                     min_height,
+                    false,
                 );
                 if measure.0 == 0 {
                     measure.0 = next_size.0 as i32;

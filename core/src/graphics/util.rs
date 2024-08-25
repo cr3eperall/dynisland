@@ -102,6 +102,7 @@ pub(super) fn get_child_aligned_allocation(
     child: &gtk::Widget,
     mode: ActivityMode,
     minimal_height: i32,
+    use_max_width: bool,
 ) -> (i32, i32, Option<Transform>) {
     let parent_width = parent_allocation.0;
     let parent_height = parent_allocation.1;
@@ -114,7 +115,11 @@ pub(super) fn get_child_aligned_allocation(
     );
     let (child_height_min, child_height_nat, _, _) = child.measure(gtk::Orientation::Vertical, -1);
 
-    let child_width = parent_width.clamp(child_width_min, child_width_nat);
+    let child_width = if use_max_width {
+        child_width_nat
+    } else {
+        parent_width.clamp(child_width_min, child_width_nat)
+    };
     let child_height = parent_height.clamp(child_height_min, child_height_nat);
 
     let (x, width) = match child.halign() {

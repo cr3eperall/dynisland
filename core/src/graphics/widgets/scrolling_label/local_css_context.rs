@@ -35,8 +35,8 @@ impl ScrollingLabelLocalCssContext {
     }
 
     implement_config_get_set!(pub, config_fade_size, CssSize);
-    implement_config_get_set!(pub, config_speed, f32);
-    implement_config_get_set!(pub, config_delay, u64);
+    implement_config_get_set!(pub, config_speed, f32, self=>{self.set_new_animation_name("scroll"); self.update_provider();});
+    implement_config_get_set!(pub, config_delay, u64, self=>{self.set_new_animation_name("scroll"); self.update_provider();});
 
     // GET
     pub fn get_css_provider(&self) -> &CssProvider {
@@ -62,19 +62,23 @@ impl ScrollingLabelLocalCssContext {
             return;
         }
         if active && self.size != size {
-            self.animation_name = "scroll"
-                .chars()
-                .chain(
-                    rand::thread_rng()
-                        .sample_iter(&Alphanumeric)
-                        .take(6)
-                        .map(char::from),
-                )
-                .collect::<String>();
+            self.set_new_animation_name("scroll")
         }
         self.active = active;
         self.size = size;
         self.update_provider()
+    }
+
+    fn set_new_animation_name(&mut self, prefix: &str) {
+        self.animation_name = prefix
+            .chars()
+            .chain(
+                rand::thread_rng()
+                    .sample_iter(&Alphanumeric)
+                    .take(6)
+                    .map(char::from),
+            )
+            .collect::<String>();
     }
 
     fn update_provider(&self) {

@@ -38,6 +38,9 @@ pub struct ScrollingLabelPriv {
     #[property(get, set, nick = "Scrolling speed")]
     pub(super) config_scroll_speed: RefCell<f32>,
 
+    #[property(get, set, nick = "Max width")]
+    pub(super) max_width: RefCell<i32>,
+
     #[property(
         get,
         set,
@@ -57,6 +60,7 @@ impl Default for ScrollingLabelPriv {
             config_fade_size: RefCell::new("4%".to_string()),
             config_scroll_speed: RefCell::new(40.0),
             config_delay: RefCell::new(5000),
+            max_width: RefCell::new(-1),
         }
     }
 }
@@ -99,7 +103,7 @@ impl ObjectImpl for ScrollingLabelPriv {
                 let new_label: gtk::Label = value.get().unwrap();
                 new_label.add_css_class("inner-label");
                 new_label.set_wrap(false);
-                new_label.set_halign(gtk::Align::Start);
+                new_label.set_halign(gtk::Align::Start); //TODO let user choose halign
                 new_label.set_valign(gtk::Align::Center);
 
                 self.bin.borrow_mut().append(&new_label);
@@ -116,7 +120,7 @@ impl ObjectImpl for ScrollingLabelPriv {
                 label.set_text(&text);
                 self.text.replace(text);
 
-                self.obj().queue_allocate();
+                self.obj().queue_resize();
                 self.obj().queue_draw();
             }
             "config-fade-size" => {
@@ -141,6 +145,15 @@ impl ObjectImpl for ScrollingLabelPriv {
                     .borrow_mut()
                     .set_config_delay(value, false);
             }
+            "max-width" => {
+                let value: i32 = value.get().unwrap();
+                if value == *self.max_width.borrow() {
+                    return;
+                }
+                self.max_width.replace(value);
+                self.obj().queue_resize();
+                self.obj().queue_draw();
+            }
             x => panic!("Tried to set inexistant property of ScrollingLabel: {}", x),
         }
     }
@@ -154,15 +167,15 @@ impl ObjectImpl for ScrollingLabelPriv {
 }
 
 impl WidgetImpl for ScrollingLabelPriv {
-    /// If width_request is specified, that becomes the max width of the widget
+    /// If max-width is specified, that becomes the max width of the widget
     fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
         let bin = self.bin.borrow();
         let mut measure = bin.measure(orientation, for_size);
         match orientation {
             gtk::Orientation::Horizontal => {
                 measure.0 = 0;
-                if self.obj().width_request() > 0 {
-                    measure.1 = measure.1.clamp(0, self.obj().width_request());
+                if *self.max_width.borrow() > 0 {
+                    measure.1 = measure.1.clamp(0, *self.max_width.borrow());
                 }
                 measure.2 = measure.2.clamp(-1, measure.0);
             }
@@ -172,7 +185,7 @@ impl WidgetImpl for ScrollingLabelPriv {
             }
             _ => {}
         }
-        // log::info!("min: {}, nat: {}", measure.0, measure.1);
+        // log::info!("measure width-> min: {}, nat: {}", measure.0, measure.1);
         measure
     }
 
@@ -199,9 +212,11 @@ impl WidgetImpl for ScrollingLabelPriv {
             self.local_css_context
                 .borrow_mut()
                 .set_active(true, bin.width());
+            self.obj().add_css_class("active");
             self.active.replace(true);
         } else {
             self.local_css_context.borrow_mut().set_active(false, 0);
+            self.obj().remove_css_class("active");
             self.active.replace(false);
         }
     }

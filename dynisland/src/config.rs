@@ -34,12 +34,7 @@ pub struct DebugConfig {
 impl Default for DebugConfig {
     fn default() -> Self {
         Self {
-            runtime_path: get_default_runtime_path()
-                .canonicalize()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string(),
+            runtime_path: get_default_runtime_path().to_str().unwrap().to_string(),
             open_debugger_at_start: false,
         }
     }
