@@ -122,6 +122,7 @@ impl App {
                     }
                     UIServerCommand::RemoveActivity { activity_id } => {
                         layout.lock().await.1.remove_activity(&activity_id);
+                        log::info!("unregistered activity on {}", activity_id.module());
                     }
                     UIServerCommand::RestartProducers { module_name } => {
                         if let Some(module) = module_map.lock().await.get(module_name.as_str()) {
