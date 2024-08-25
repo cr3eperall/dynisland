@@ -81,7 +81,6 @@ impl App {
         module_order
     }
 
-    //TODO layout loading from .so not tested yet but it should work identically to module loading
     pub(crate) fn load_layout_manager(&mut self, config_dir: &Path) {
         let layout_manager_definitions = crate::module_loading::get_lm_definitions(config_dir);
 
@@ -143,7 +142,6 @@ pub fn get_module_definitions(
     let module_path = {
         #[cfg(debug_assertions)]
         {
-            // TODO don't use hardcoded value
             PathBuf::from("./target/debug/")
         }
 
@@ -220,7 +218,6 @@ pub fn get_lm_definitions(
     let lm_path = {
         #[cfg(debug_assertions)]
         {
-            // TODO don't use hardcoded value
             PathBuf::from("./target/debug/")
         }
         #[cfg(not(debug_assertions))]

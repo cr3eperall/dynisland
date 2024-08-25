@@ -9,7 +9,7 @@ use log::warn;
 use ron::{extensions::Extensions, ser::PrettyConfig, Value};
 use serde::{Deserialize, Serialize};
 
-pub const CONFIG_REL_PATH: &str = "dynisland/"; //TODO add cli override
+pub const CONFIG_REL_PATH: &str = "dynisland/";
 
 // ron sucks, ~~i need to switch to pkl~~
 // nvm, there are no good pkl crates
@@ -63,7 +63,6 @@ impl Default for GeneralConfig {
     }
 }
 
-// TODO add api for getting default config from modules
 impl Default for Config {
     fn default() -> Self {
         let module_map = HashMap::<String, Value>::new();

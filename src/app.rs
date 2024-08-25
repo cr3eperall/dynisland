@@ -226,7 +226,7 @@ impl App {
             match command {
                 BackendServerCommand::ReloadConfig => {
                     log::info!("Reloading Config");
-                    //FIXME split config and css reload (producers don't need to be restarted if only css changed)
+                    //TODO split config and css reload (producers don't need to be restarted if only css changed)
 
                     // without this sleep, reading the config file sometimes gives an empty file.
                     glib::timeout_future(std::time::Duration::from_millis(50)).await;
