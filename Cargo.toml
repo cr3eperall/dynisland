@@ -1,8 +1,11 @@
 [package]
 name = "dynisland"
 version = "0.1.0"
+authors = ["cr3eperall"]
+description = "A Dynamic Island bar"
+license = "MIT"
+repository = "https://github.com/cr3eperall/dynisland"
 edition = "2021"
-license = "mit"
 build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
