@@ -1,11 +1,15 @@
+#[cfg(feature="completions")]
 use clap::{Command, CommandFactory};
+#[cfg(feature="completions")]
 use clap_complete::{generate_to, Shell};
 use std::io::Error;
 
 include!("src/cli.rs");
 
 fn main() -> Result<(), Error> {
-    let outdir = "../target";
+    #[cfg(feature="completions")]
+    {
+        let outdir = "../target";
     let bin_name = "dynisland";
 
     let mut cmd: Command = Cli::command_for_update();
@@ -18,5 +22,6 @@ fn main() -> Result<(), Error> {
         //     _path.to_str().unwrap()
         // );
     }
+}
     Ok(())
 }
