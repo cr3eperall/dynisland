@@ -11,8 +11,8 @@ build = "build.rs"
 
 [dependencies]
 
-dynisland-core = { path = "../core" }
-dynisland-abi = { path = "../abi" }
+dynisland-core = { version = "0.1.0" }
+dynisland-abi = { version = "0.1.0" }
 # dynisland-modules = { path = "../dynisland-modules"}
 
 anyhow = { workspace = true }
