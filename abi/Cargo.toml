@@ -1,6 +1,10 @@
 [package]
 name = "dynisland-abi"
 version = "0.1.0"
+authors = ["cr3eperall"]
+description = "abi_stable types for the dynisland bar"
+license = "MIT"
+repository = "https://github.com/cr3eperall/dynisland"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

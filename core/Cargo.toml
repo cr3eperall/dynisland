@@ -1,8 +1,11 @@
 [package]
 name = "dynisland-core"
 version = "0.1.0"
+authors = ["cr3eperall"]
+description = "common logic and widgets for dynisland modules and layout managers"
+license = "MIT"
+repository = "https://github.com/cr3eperall/dynisland"
 edition = "2021"
-license = "mit"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

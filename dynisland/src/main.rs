@@ -198,7 +198,10 @@ fn main() -> Result<()> {
             replace_current_config,
         } => {
             gtk::init().with_context(|| "failed to init gtk")?;
-            let mut app = App::default();
+            let mut app = App {
+                config_dir,
+                ..Default::default()
+            };
             let (abi_app_send, _abi_app_recv) =
                 abi_stable::external_types::crossbeam_channel::unbounded::<UIServerCommand>();
             app.app_send = Some(abi_app_send);
