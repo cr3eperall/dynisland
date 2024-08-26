@@ -1,12 +1,13 @@
 [package]
 name = "dynisland"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["cr3eperall"]
 description = "A Dynamic Island bar"
 license = "MIT"
 repository = "https://github.com/cr3eperall/dynisland"
 edition = "2021"
 build = "build.rs"
+readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -40,4 +41,7 @@ bincode = { version = "1.3.3"}
 clap = {version = "4.5.15", features = ["derive"] }
 clap_complete = "4.5.14"
 serde = { workspace = true, features = ["serde_derive"] }
+
+[features]
+completions =[]
 
