@@ -1,4 +1,4 @@
-name: Rust
+name: Release on tag
 
 on:
   push:
@@ -28,9 +28,6 @@ jobs:
 
     - name: Setup problem matchers
       uses: r7kamura/rust-problem-matchers@v1
-
-    - name: Check formatting
-      run: cargo fmt -- --check
       
     - name: Build
       run: cargo build --release --package dynisland
