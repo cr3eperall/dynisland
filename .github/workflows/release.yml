@@ -1,0 +1,46 @@
+name: Rust
+
+on:
+  push:
+    tags: 
+      - '*'
+      
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install libgtk-4-dev gtk4-layer-shell-dev
+    - uses: actions/checkout@v4
+    
+    - name: Setup rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy,rustfmt
+
+    - name: Load rust cache
+      uses: Swatinem/rust-cache@v2
+
+    - name: Setup problem matchers
+      uses: r7kamura/rust-problem-matchers@v1
+
+    - name: Check formatting
+      run: cargo fmt -- --check
+      
+    - name: Build
+      run: cargo build --release --package dynisland
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        draft: true
+        files: |
+          target/release/dynisland
+          
+      
