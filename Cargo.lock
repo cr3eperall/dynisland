@@ -380,8 +380,8 @@ dependencies = [
  "abi_stable",
  "anyhow",
  "chrono",
- "dynisland-abi",
- "dynisland-core",
+ "dynisland-abi 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
+ "dynisland-core 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
  "env_logger",
  "gdk4",
  "glib",
@@ -574,8 +574,8 @@ version = "0.1.0"
 dependencies = [
  "abi_stable",
  "anyhow",
- "dynisland-abi",
- "dynisland-core",
+ "dynisland-abi 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
+ "dynisland-core 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
  "env_logger",
  "gdk4",
  "glib",
@@ -597,8 +597,8 @@ dependencies = [
  "clap",
  "clap_complete",
  "colored",
- "dynisland-abi",
- "dynisland-core",
+ "dynisland-abi 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dynisland-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger",
  "gdk4",
  "glib",
@@ -626,6 +626,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "dynisland-abi"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f257d96db6d9bd7bb9e26863bb205ecd55fa093b7049c193f8fd6cda1aefe497"
+dependencies = [
+ "abi_stable",
+ "gdk4",
+ "glib",
+ "glib-macros",
+ "gtk4",
+]
+
+[[package]]
+name = "dynisland-abi"
+version = "0.1.0"
+source = "git+https://github.com/cr3eperall/dynisland#03c13cbc130c0c02b796ff5314adf1362725cc0c"
+dependencies = [
+ "abi_stable",
+ "gdk4",
+ "glib",
+ "glib-macros",
+ "gtk4",
+]
+
+[[package]]
 name = "dynisland-core"
 version = "0.1.0"
 dependencies = [
@@ -635,7 +660,56 @@ dependencies = [
  "concat-idents",
  "const-random",
  "dyn-clone",
- "dynisland-abi",
+ "dynisland-abi 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gdk4",
+ "glib",
+ "glib-macros",
+ "gtk4",
+ "log",
+ "notify",
+ "rand",
+ "ron",
+ "serde",
+ "tokio",
+]
+
+[[package]]
+name = "dynisland-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f88ad3ff32f450c84d7e0e91a81d852b841faf5a46409e16a6173d2f44687ec3"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "clap",
+ "concat-idents",
+ "const-random",
+ "dyn-clone",
+ "dynisland-abi 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gdk4",
+ "glib",
+ "glib-macros",
+ "gtk4",
+ "log",
+ "notify",
+ "rand",
+ "ron",
+ "serde",
+ "tokio",
+]
+
+[[package]]
+name = "dynisland-core"
+version = "0.1.0"
+source = "git+https://github.com/cr3eperall/dynisland#03c13cbc130c0c02b796ff5314adf1362725cc0c"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "clap",
+ "concat-idents",
+ "const-random",
+ "dyn-clone",
+ "dynisland-abi 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
  "gdk4",
  "glib",
  "glib-macros",
@@ -713,8 +787,8 @@ version = "0.1.0"
 dependencies = [
  "abi_stable",
  "anyhow",
- "dynisland-abi",
- "dynisland-core",
+ "dynisland-abi 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
+ "dynisland-core 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
  "env_logger",
  "gdk4",
  "glib",
@@ -1714,8 +1788,8 @@ version = "0.1.0"
 dependencies = [
  "abi_stable",
  "anyhow",
- "dynisland-abi",
- "dynisland-core",
+ "dynisland-abi 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
+ "dynisland-core 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
  "env_logger",
  "gdk4",
  "glib",
@@ -2280,8 +2354,8 @@ version = "0.1.0"
 dependencies = [
  "abi_stable",
  "anyhow",
- "dynisland-abi",
- "dynisland-core",
+ "dynisland-abi 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
+ "dynisland-core 0.1.0 (git+https://github.com/cr3eperall/dynisland)",
  "env_logger",
  "gdk4",
  "glib",

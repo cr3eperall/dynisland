@@ -2,7 +2,7 @@
 name = "dynisland-core"
 version = "0.1.0"
 authors = ["cr3eperall"]
-description = "common logic and widgets for dynisland modules and layout managers"
+description = "Common logic and widgets for dynisland modules and layout managers"
 license = "MIT"
 repository = "https://github.com/cr3eperall/dynisland"
 edition = "2021"
@@ -11,7 +11,7 @@ edition = "2021"
 
 [dependencies]
 
-dynisland-abi = { path = "../abi" }
+dynisland-abi = { version="0.1.0" }
 
 anyhow = { workspace = true }
 gtk = { workspace = true }
