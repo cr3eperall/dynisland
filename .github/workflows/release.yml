@@ -16,7 +16,7 @@ jobs:
 
     steps:        
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install libgtk-4-dev libgtk4-layer-shell-dev
+      run: apt update && apt install libgtk-4-dev libgtk4-layer-shell-dev
     - uses: actions/checkout@v4
     
     - name: Setup rust
