@@ -12,7 +12,7 @@ readme = "../README.md"
 
 [dependencies]
 
-dynisland-core = { path="../core" }
+dynisland-core = { git="https://github.com/cr3eperall/dynisland-core.git" }
 
 linkme = { version = "0.3.17" }
 tokio = { version = "1.39.0", features = ["rt", "time", "sync", "macros", "io-util", "net"] }
