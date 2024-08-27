@@ -6,7 +6,7 @@ Dynisland is designed to look and feel like Apple's Dynamic Island.
 
 ## Demo
 
-https://github.com/user-attachments/assets/3a8ae42e-a688-48d9-b76b-9d8292d7d9a7
+<https://github.com/user-attachments/assets/3a8ae42e-a688-48d9-b76b-9d8292d7d9a7>
 
 ## Features
 
@@ -43,8 +43,7 @@ dynisland inspector
 ## Dependencies
 
 - gtk4
-- gtk4-layer-shell  
-<!-- TODO - probably other dependencies -->
+- gtk4-layer-shell
 
 ## Installation
 
@@ -70,22 +69,26 @@ mkdir ~/.config/dynisland/modules
 mkdir ~/.config/dynisland/layouts
 ```
 
-### Compile or download the modules and put them in the modules directory
+### Download or compile the modules and put them in the modules directory
 
-Build the modules
+Download the precompiled modules from the [Release page](https://github.com/cr3eperall/dynisland-modules/releases/latest)
 
 ```bash
-git clone --recursive https://github.com/cr3eperall/dynisland
-cd dynisland
-cargo build --release --package music-module --package script-module --package dynamic-layout
-mv target/release/libmusic_module.so target/release/libscript_module.so ~/.config/dynisland/modules
-mv targer/release/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
+mv Download/libmusic_module.so Download/libscript_module.so Download/libclock_module.so ~/.config/dynisland/modules
+mv Download/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
 ```
 
-Or download the precompiled modules from the [Release page](https://github.com/cr3eperall/dynisland-modules/releases)
+Or build the modules from source
 
 ```bash
-mv Download/libmusic_module.so Download/libscript_module.so ~/.config/dynisland/modules
+git clone --recursive https://github.com/cr3eperall/dynisland-modules
+cd dynisland-modules
+cargo build --release --target-dir ./target --manifest-path ./clock-module/Cargo.toml
+cargo build --release --target-dir ./target --manifest-path ./dynamic-layout/Cargo.toml
+cargo build --release --target-dir ./target --manifest-path ./music-module/Cargo.toml
+cargo build --release --target-dir ./target --manifest-path ./script-module/Cargo.toml
+mv target/release/libmusic_module.so target/release/libscript_module.so target/release/libclock_module.so ~/.config/dynisland/modules
+mv targer/release/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
 ```
 
 ### Generate the default config file
@@ -95,7 +98,7 @@ dynisland default-config >> ~/.config/dynisland/dynisland.ron
 touch ~/.config/dynisland/dynisland.scss
 ```
 
-Then edit the configs to your liking.
+Then edit the configs and scss to your liking.
 
 ## Building
 
