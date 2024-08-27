@@ -16,7 +16,7 @@ use dynisland::{
     },
     config, ipc,
 };
-use dynisland_core::abi::{abi_stable, gtk, log, module::UIServerCommand};
+use dynisland_core::abi::{abi_stable, log, module::UIServerCommand};
 use env_logger::Env;
 use log::Level;
 use nix::unistd::Pid;

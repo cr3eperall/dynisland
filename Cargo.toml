@@ -13,7 +13,7 @@ readme = "../README.md"
 [dependencies]
 
 dynisland-core = { git="https://github.com/cr3eperall/dynisland-core.git" }
-
+gtk = { version = "0.8.0", package = "gtk4", features = ["v4_12"] }
 linkme = { version = "0.3.17" }
 tokio = { version = "1.39.0", features = ["rt", "time", "sync", "macros", "io-util", "net"] }
 anyhow = "1.0.86"

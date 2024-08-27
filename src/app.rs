@@ -18,7 +18,7 @@ use anyhow::Result;
 use colored::Colorize;
 use dynisland_core::{
     abi::{
-        abi_stable, gdk, glib, gtk,
+        abi_stable, gdk, glib,
         layout::LayoutManagerType,
         log,
         module::{ActivityIdentifier, ModuleType, UIServerCommand},
