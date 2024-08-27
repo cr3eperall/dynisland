@@ -1,3 +1,4 @@
+use dynisland_core::abi::{gdk, gtk, gtk_layer_shell, log};
 use gdk::prelude::*;
 use gtk::{prelude::*, Window};
 use gtk_layer_shell::{Layer, LayerShell};

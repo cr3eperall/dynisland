@@ -10,13 +10,16 @@ use abi_stable::{
     },
 };
 use anyhow::Context;
-use dynisland_abi::{
-    layout::{LayoutManagerType, SabiLayoutManager, SabiLayoutManager_TO},
-    module::ActivityIdentifier,
-    SabiApplication, SabiWidget,
-};
-use dynisland_core::graphics::activity_widget::{
-    boxed_activity_mode::ActivityMode, ActivityWidget,
+use dynisland_core::{
+    abi::{
+        abi_stable, gdk, glib, gtk,
+        layout::{LayoutManagerType, SabiLayoutManager, SabiLayoutManager_TO},
+        log,
+        module::ActivityIdentifier,
+        SabiApplication, SabiWidget,
+    },
+    graphics::activity_widget::{boxed_activity_mode::ActivityMode, ActivityWidget},
+    ron,
 };
 use gdk::prelude::*;
 use glib::SourceId;
@@ -52,7 +55,7 @@ impl Default for SimpleLayoutConfig {
 }
 
 #[sabi_extern_fn]
-pub fn new(app: SabiApplication) -> RResult<LayoutManagerType, RBoxError> {
+pub extern "C" fn new(app: SabiApplication) -> RResult<LayoutManagerType, RBoxError> {
     let app = app.try_into().unwrap();
     let this = SimpleLayout {
         app,

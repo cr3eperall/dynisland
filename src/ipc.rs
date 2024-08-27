@@ -5,8 +5,10 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use dynisland_abi::module::ActivityIdentifier;
-use dynisland_core::graphics::activity_widget::boxed_activity_mode::ActivityMode;
+use dynisland_core::{
+    abi::{log, module::ActivityIdentifier},
+    graphics::activity_widget::boxed_activity_mode::ActivityMode,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{UnixListener, UnixStream},

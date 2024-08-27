@@ -8,12 +8,15 @@ use std::{
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use dynisland::{app::App, cli::Cli, config};
 use dynisland::{
-    cli::SubCommands::{self, *},
-    ipc,
+    app::App,
+    cli::{
+        Cli,
+        SubCommands::{self, *},
+    },
+    config, ipc,
 };
-use dynisland_abi::module::UIServerCommand;
+use dynisland_core::abi::{abi_stable, gtk, log, module::UIServerCommand};
 use env_logger::Env;
 use log::Level;
 use nix::unistd::Pid;

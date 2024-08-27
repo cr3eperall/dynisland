@@ -16,7 +16,16 @@ use abi_stable::{
 };
 use anyhow::Result;
 use colored::Colorize;
-use dynisland_core::graphics::activity_widget::boxed_activity_mode::ActivityMode;
+use dynisland_core::{
+    abi::{
+        abi_stable, gdk, glib, gtk,
+        layout::LayoutManagerType,
+        log,
+        module::{ActivityIdentifier, ModuleType, UIServerCommand},
+    },
+    graphics::activity_widget::boxed_activity_mode::ActivityMode,
+    ron,
+};
 use gtk::{prelude::*, CssProvider, Widget};
 use notify::{RecommendedWatcher, Watcher};
 use ron::{extensions::Extensions, ser::PrettyConfig};
@@ -26,11 +35,6 @@ use crate::{
     config::{self, Config, GeneralConfig},
     ipc::open_socket,
     layout_manager::{self, simple_layout},
-};
-
-use dynisland_abi::{
-    layout::LayoutManagerType,
-    module::{ActivityIdentifier, ModuleType, UIServerCommand},
 };
 
 pub enum BackendServerCommand {
