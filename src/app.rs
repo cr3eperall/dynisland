@@ -116,6 +116,17 @@ impl App {
                             &activity,
                         );
 
+                        if layout
+                            .lock()
+                            .await
+                            .1
+                            .get_activity(&activity_id)
+                            .is_some()
+                        {
+                            log::debug!("activity already registered on {}", activity_id.module());
+                            continue;
+                        }
+
                         layout
                             .lock()
                             .await
@@ -124,8 +135,11 @@ impl App {
                         log::info!("registered activity on {}", activity_id.module());
                     }
                     UIServerCommand::RemoveActivity { activity_id } => {
-                        layout.lock().await.1.remove_activity(&activity_id);
-                        log::info!("unregistered activity on {}", activity_id.module());
+                        let mut layout = layout.lock().await;
+                        if layout.1.get_activity(&activity_id).is_some(){
+                            layout.1.remove_activity(&activity_id);
+                            log::info!("unregistered activity on {}", activity_id.module());
+                        }
                     }
                     UIServerCommand::RestartProducers { module_name } => {
                         if let Some(module) = module_map.lock().await.get(module_name.as_str()) {
