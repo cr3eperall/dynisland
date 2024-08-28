@@ -71,6 +71,10 @@ mkdir ~/.config/dynisland/layouts
 
 ### Download or compile the modules and put them in the modules directory
 
+> [!NOTE]
+> If dynisland was compiled with the `embed_modules` feature (dynisland v0.1.2 has this as the default), the [official](https://github.com/cr3eperall/dynisland-modules) modules are already included in the binary.
+> You would only have to do this if you want to use third party modules.
+
 Download the precompiled modules from the [Release page](https://github.com/cr3eperall/dynisland-modules/releases/latest)
 
 ```bash
@@ -102,10 +106,23 @@ Then edit the configs and scss to your liking.
 
 ## Building
 
+### Without including the modules
+
 ```bash
 git clone https://github.com/cr3eperall/dynisland
 cd dynisland
 cargo build --release
+cd target/release
+install dynisland ~/.local/bin/dynisland
+```
+
+### Including the modules
+
+```bash
+git clone https://github.com/cr3eperall/dynisland
+git clone https://github.com/cr3eperall/dynisland-modules
+cd dynisland
+cargo build --release --features embed_modules
 cd target/release
 install dynisland ~/.local/bin/dynisland
 ```

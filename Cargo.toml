@@ -1,6 +1,6 @@
 [package]
 name = "dynisland"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["cr3eperall"]
 description = "A Dynamic Island bar"
 license = "MIT"
@@ -40,6 +40,7 @@ clap_complete = "4.5.14"
 serde = { version = "1.0.188", features = ["serde_derive"] }
 
 [features]
+default = ["embed_modules"]
 completions = []
 embed_modules = ["clock_module", "dynamic_layoutmanager", "music_module", "script_module"]
 
