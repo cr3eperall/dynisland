@@ -153,7 +153,25 @@ pub fn get_module_definitions(
         }
     };
 
-    let files = std::fs::read_dir(module_path).unwrap();
+    #[cfg(feature = "embed_modules")]
+    {
+        let clock_module = clock_module::instantiate_root_module();
+        module_def_map.insert(clock_module.name().into(), clock_module.new());
+
+        let music_module = music_module::instantiate_root_module();
+        module_def_map.insert(music_module.name().into(), music_module.new());
+
+        let script_module = script_module::instantiate_root_module();
+        module_def_map.insert(script_module.name().into(), script_module.new());
+    }
+
+    let files = match std::fs::read_dir(&module_path) {
+        Ok(files) => files,
+        Err(err) => {
+            log::error!("failed to read module directory ({module_path:?}): {err}");
+            return module_def_map;
+        }
+    };
     for file in files {
         let file = file.unwrap();
         let path = file.path();
@@ -228,7 +246,19 @@ pub fn get_lm_definitions(
         }
     };
 
-    let files = std::fs::read_dir(lm_path).unwrap();
+    #[cfg(feature = "embed_modules")]
+    {
+        let dynamic_layout = dynamic_layoutmanager::instantiate_root_module();
+        lm_def_map.insert(dynamic_layout.name().into(), dynamic_layout.new());
+    }
+
+    let files = match std::fs::read_dir(&lm_path) {
+        Ok(files) => files,
+        Err(err) => {
+            log::error!("failed to read layout manager directory ({lm_path:?}): {err}");
+            return lm_def_map;
+        }
+    };
     for file in files {
         let file = file.unwrap();
         let path = file.path();

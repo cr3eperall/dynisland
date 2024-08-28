@@ -4,7 +4,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use colored::Colorize;
 use dynisland_core::{
     abi::{glib, log},
     ron,
@@ -116,9 +115,8 @@ pub fn get_config(config_dir: &Path) -> Config {
     let ron: Config = match content {
         Ok(content) => options.from_str(&content).unwrap_or_else(|err| {
             warn!(
-                "{} {}",
-                "failed to parse config, using default. Err:".red(),
-                err.to_string().red()
+                "failed to parse config, using default. Err:{}",
+                err.to_string()
             );
             Config::default()
         }),

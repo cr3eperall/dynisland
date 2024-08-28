@@ -15,7 +15,6 @@ use abi_stable::{
     },
 };
 use anyhow::Result;
-use colored::Colorize;
 use dynisland_core::{
     abi::{
         abi_stable, gdk, glib,
@@ -297,7 +296,7 @@ impl App {
                     .load_from_string(&content);
             }
             Err(err) => {
-                log::warn!("{} {}", "failed to parse css:".red(), err.to_string().red());
+                log::warn!("failed to parse css: {}", err.to_string());
             }
         }
     }
@@ -394,8 +393,7 @@ impl App {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn get_default_config(&self) -> (Config, String) {
+    pub fn get_default_config(self) -> (Config, String) {
         let mut base_conf = Config::default();
 
         // get all the loadable LayoutManager configs
@@ -417,6 +415,8 @@ impl App {
                 .unwrap()
                 .default_config(),
         ));
+
+        base_conf.layout = Some(layout_configs.first().unwrap().0.clone());
 
         // get all the loadable Module configs
         let mod_defs = crate::module_loading::get_module_definitions(&self.config_dir);
