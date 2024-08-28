@@ -7,12 +7,12 @@ license = "MIT"
 repository = "https://github.com/cr3eperall/dynisland"
 edition = "2021"
 build = "build.rs"
-readme = "../README.md"
+readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 
-dynisland-core = { git="https://github.com/cr3eperall/dynisland-core.git" }
+dynisland-core = { git="https://github.com/cr3eperall/dynisland-core.git", version="0.1.1" }
 gtk = { version = "0.8.0", package = "gtk4", features = ["v4_12"] }
 linkme = { version = "0.3.17" }
 tokio = { version = "1.39.0", features = ["rt", "time", "sync", "macros", "io-util", "net"] }
@@ -28,10 +28,10 @@ clap = { version = "4.5.15", features = ["derive"]}
 nix = { version = "0.29.0", features = ["process", "fs"]}
 bincode = { version = "1.3.3"}
 
-clock_module = { path = "../dynisland-modules/clock-module", features = ["embedded"], optional = true}
-dynamic_layoutmanager ={ path = "../dynisland-modules/dynamic-layout", features = ["embedded"], optional = true}
-music_module = { path = "../dynisland-modules/music-module", features = ["embedded"], optional = true}
-script_module = { path = "../dynisland-modules/script-module", features = ["embedded"], optional = true}
+dynisland_clock_module = { git = "https://github.com/cr3eperall/dynisland-modules.git", version="0.1.0", features = ["embedded"], optional = true}
+dynisland_dynamic_layoutmanager ={ git = "https://github.com/cr3eperall/dynisland-modules.git", version="0.1.0", features = ["embedded"], optional = true}
+dynisland_music_module = { git = "https://github.com/cr3eperall/dynisland-modules.git", version="0.1.0", features = ["embedded"], optional = true}
+dynisland_script_module = { git = "https://github.com/cr3eperall/dynisland-modules.git", version="0.1.0", features = ["embedded"], optional = true}
 
 
 [build-dependencies]
@@ -42,5 +42,5 @@ serde = { version = "1.0.188", features = ["serde_derive"] }
 [features]
 default = ["embed_modules"]
 completions = []
-embed_modules = ["clock_module", "dynamic_layoutmanager", "music_module", "script_module"]
+embed_modules = ["dynisland_clock_module", "dynisland_dynamic_layoutmanager", "dynisland_music_module", "dynisland_script_module"]
 
