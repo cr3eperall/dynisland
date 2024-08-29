@@ -367,7 +367,7 @@ impl App {
         activity.set_property("config-minimal-width", config.minimal_width as i32);
         activity.set_property("config-blur-radius", config.blur_radius);
         activity.set_property("config-enable-drag-stretch", config.enable_drag_stretch);
-        activity.set_property("config-transition-duration", config.hide_widget_timeout_ms);
+        // activity.set_property("config-transition-duration", config.hide_widget_timeout_ms);
         // update widget size
         activity.set_property("mode", activity.property::<ActivityMode>("mode"));
     }

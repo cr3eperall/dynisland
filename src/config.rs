@@ -50,7 +50,7 @@ pub struct GeneralConfig {
     pub minimal_width: u32,
     pub blur_radius: f64,
     pub enable_drag_stretch: bool,
-    pub hide_widget_timeout_ms: u32,
+    // pub hide_widget_timeout_ms: u32,
 }
 
 impl Default for GeneralConfig {
@@ -59,8 +59,8 @@ impl Default for GeneralConfig {
             minimal_height: 40,
             minimal_width: 60,
             blur_radius: 6.0,
-            enable_drag_stretch: false,
-            hide_widget_timeout_ms: 1000,
+            enable_drag_stretch: false, // whether to enable stretching widgets by dragging
+            // hide_widget_timeout_ms: 1000,
             //TODO find a way to add scrolling label to settings
         }
     }

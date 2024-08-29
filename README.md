@@ -47,17 +47,17 @@ dynisland inspector
 
 ## Installation
 
-<!-- ### Generic -->
+### Using cargo
 
 ```bash
 cargo install dynisland
 ```
 
-<!-- TODO ### Arch Linux
+### Arch Linux
 
 ```bash
 yay -S dynisland-git
-``` -->
+```
 
 ## Configuration
 
@@ -102,6 +102,10 @@ dynisland default-config >> ~/.config/dynisland/dynisland.ron
 touch ~/.config/dynisland/dynisland.scss
 ```
 
+### See the [Wiki](https://github.com/cr3eperall/dynisland/wiki) for the main config options
+
+### See [dynisland-modules](https://github.com/cr3eperall/dynisland-modules) for the module specific configs
+
 Then edit the configs and scss to your liking.
 
 ## Building
@@ -111,7 +115,7 @@ Then edit the configs and scss to your liking.
 ```bash
 git clone https://github.com/cr3eperall/dynisland
 cd dynisland
-cargo build --release
+cargo build --release --no-default-features --features completions
 cd target/release
 install dynisland ~/.local/bin/dynisland
 ```
@@ -120,11 +124,20 @@ install dynisland ~/.local/bin/dynisland
 
 ```bash
 git clone https://github.com/cr3eperall/dynisland
-git clone https://github.com/cr3eperall/dynisland-modules
 cd dynisland
-cargo build --release --features embed_modules
+cargo build --release --features completions
 cd target/release
-install dynisland ~/.local/bin/dynisland
+install -Dm755 dynisland ~/.local/bin/dynisland
+```
+
+### Install shell completions
+
+```bash
+install -Dm644 "target/_dynisland" "/usr/share/zsh/site-functions/_dynisland"
+
+install -Dm644 "target/dynisland.bash" "/usr/share/bash-completion/completions/dynisland.bash"
+
+install -Dm644 "target/dynisland.fish" "/usr/share/fish/vendor_completions.d/dynisland.fish"
 ```
 
 ## Status
