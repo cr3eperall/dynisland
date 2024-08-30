@@ -1,0 +1,9 @@
+[submodule "dynisland-modules"]
+	path = dynisland-modules
+	url = https://github.com/cr3eperall/dynisland-modules
+[submodule "dynisland-core"]
+	path = dynisland-core
+	url = https://github.com/cr3eperall/dynisland-core
+[submodule "dynisland-abi"]
+	path = dynisland-abi
+	url = https://github.com/cr3eperall/dynisland-abi

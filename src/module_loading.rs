@@ -1,8 +1,10 @@
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::Path,
     rc::Rc,
 };
+#[cfg(all(debug_assertions, not(feature = "embed_modules")))]
+use std::path::PathBuf;
 
 use abi_stable::{
     external_types::crossbeam_channel::RSender,
@@ -142,12 +144,11 @@ pub fn get_module_definitions(
     >::new();
 
     let module_path = {
-        #[cfg(debug_assertions)]
+        #[cfg(all(debug_assertions, not(feature = "embed_modules")))]
         {
             PathBuf::from("./target/debug/")
         }
-
-        #[cfg(not(debug_assertions))]
+        #[cfg(any(not(debug_assertions), feature = "embed_modules"))]
         {
             _config_dir.join("modules")
         }
@@ -236,11 +237,11 @@ pub fn get_lm_definitions(
     >::new();
 
     let lm_path = {
-        #[cfg(debug_assertions)]
+        #[cfg(all(debug_assertions, not(feature = "embed_modules")))]
         {
             PathBuf::from("./target/debug/")
         }
-        #[cfg(not(debug_assertions))]
+        #[cfg(any(not(debug_assertions), feature = "embed_modules"))]
         {
             _config_dir.join("layouts")
         }

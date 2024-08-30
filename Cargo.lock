@@ -563,7 +563,6 @@ dependencies = [
 [[package]]
 name = "dynisland-abi"
 version = "0.1.1"
-source = "git+https://github.com/cr3eperall/dynisland-abi#bd7f8b08ec7faa5bb93d5801ea78c1bd0c97ed35"
 dependencies = [
  "abi_stable",
  "gdk4",
@@ -577,7 +576,6 @@ dependencies = [
 [[package]]
 name = "dynisland-core"
 version = "0.1.1"
-source = "git+https://github.com/cr3eperall/dynisland-core.git#d15c3a90aee2219a39a5ccc2dab3110d077af97e"
 dependencies = [
  "anyhow",
  "clap",
@@ -595,7 +593,6 @@ dependencies = [
 [[package]]
 name = "dynisland_clock_module"
 version = "0.1.0"
-source = "git+https://github.com/cr3eperall/dynisland-modules.git#1f0415ebc77796d4b23b681266d52d604b00fc2e"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -612,7 +609,6 @@ dependencies = [
 [[package]]
 name = "dynisland_dynamic_layoutmanager"
 version = "0.1.0"
-source = "git+https://github.com/cr3eperall/dynisland-modules.git#1f0415ebc77796d4b23b681266d52d604b00fc2e"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -624,9 +620,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "dynisland_example_module"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "dynisland-core",
+ "env_logger",
+ "glib-build-tools",
+ "grass",
+ "ron",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "dynisland_music_module"
 version = "0.1.1"
-source = "git+https://github.com/cr3eperall/dynisland-modules.git#1f0415ebc77796d4b23b681266d52d604b00fc2e"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -645,7 +655,6 @@ dependencies = [
 [[package]]
 name = "dynisland_script_module"
 version = "0.1.0"
-source = "git+https://github.com/cr3eperall/dynisland-modules.git#1f0415ebc77796d4b23b681266d52d604b00fc2e"
 dependencies = [
  "abi_stable",
  "anyhow",
