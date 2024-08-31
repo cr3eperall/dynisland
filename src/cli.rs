@@ -26,6 +26,7 @@ pub enum SubCommands {
         activity_identifier: String,
         #[arg(help = "0: Minimal, 1: Compact, 2: Expanded, 3: Overlay")]
         mode: u8,
+        duration: Option<u64>,
     },
     Kill,
     Restart {

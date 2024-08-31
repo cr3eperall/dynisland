@@ -89,6 +89,7 @@ fn main() -> Result<()> {
         | ActivityNotification {
             activity_identifier: _,
             mode: _,
+            duration: _,
         }
         | ListActivities => {
             let socket_path = config.get_runtime_dir().join("dynisland.sock");

@@ -58,6 +58,7 @@ pub async fn open_socket(
             SubCommands::ActivityNotification {
                 activity_identifier,
                 mode,
+                duration,
             } => {
                 let components: Vec<&str> = activity_identifier.split('@').collect();
                 if components.len() != 2 {
@@ -66,7 +67,9 @@ pub async fn open_socket(
                 }
                 let id = ActivityIdentifier::new(components[1], components[0]);
                 let mode = ActivityMode::try_from(mode).map_err(|e| anyhow!(e))?;
-                server_send.send(BackendServerCommand::ActivityNotification(id, mode))?;
+                server_send.send(BackendServerCommand::ActivityNotification(
+                    id, mode, duration,
+                ))?;
                 if let Ok(Some(response)) =
                     tokio::time::timeout(Duration::from_millis(800), server_response_recv.recv())
                         .await

@@ -127,7 +127,7 @@ impl WindowPosition {
         if self.layer_shell {
             window.init_layer_shell();
             self.config_layer_shell_for(window.upcast_ref());
-            window.connect_destroy(|_| log::error!("LayerShell window was destroyed"));
+            window.connect_destroy(|_| log::debug!("LayerShell window was destroyed"));
         } else {
             window.connect_destroy(|_| std::process::exit(0));
         }

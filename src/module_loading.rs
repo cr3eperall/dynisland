@@ -1,10 +1,6 @@
-use std::{
-    collections::HashMap,
-    path::Path,
-    rc::Rc,
-};
 #[cfg(all(debug_assertions, not(feature = "embed_modules")))]
 use std::path::PathBuf;
+use std::{collections::HashMap, path::Path, rc::Rc};
 
 use abi_stable::{
     external_types::crossbeam_channel::RSender,

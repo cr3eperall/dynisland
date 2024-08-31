@@ -1,4 +1,5 @@
 use std::io::Error;
+
 #[cfg(feature = "completions")]
 use clap::{Command, CommandFactory};
 #[cfg(feature = "completions")]
@@ -9,11 +10,11 @@ include!("src/cli.rs");
 fn main() -> Result<(), Error> {
     #[cfg(feature = "completions")]
     {
-        let outdir = if PathBuf::from("../target").exists(){
+        let outdir = if PathBuf::from("../target").exists() {
             "../target/"
-        }else if PathBuf::from("target").exists(){
+        } else if PathBuf::from("target").exists() {
             "./target/"
-        }else{
+        } else {
             return Ok(());
         };
         let bin_name = "dynisland";

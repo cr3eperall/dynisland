@@ -9,7 +9,7 @@ use std::{
 use abi_stable::{
     external_types::crossbeam_channel::RSender,
     std_types::{
-        RBoxError,
+        RBoxError, ROption,
         RResult::{self, RErr, ROk},
         RString,
     },
@@ -40,7 +40,7 @@ pub enum BackendServerCommand {
     ReloadConfig,
     Stop,
     OpenInspector,
-    ActivityNotification(ActivityIdentifier, ActivityMode),
+    ActivityNotification(ActivityIdentifier, ActivityMode, Option<u64>),
     ListActivities,
 }
 
@@ -139,6 +139,8 @@ impl App {
                         if layout.1.get_activity(&activity_id).is_some(){
                             layout.1.remove_activity(&activity_id);
                             log::info!("unregistered activity on {}", activity_id.module());
+                        }else{
+                            log::warn!("error removing activity, not found: {:?}", activity_id);
                         }
                     }
                     UIServerCommand::RestartProducers { module_name } => {
@@ -146,11 +148,11 @@ impl App {
                             module.restart_producers();
                         }
                     }
-                    UIServerCommand::RequestNotification { activity_id, mode } => {
+                    UIServerCommand::RequestNotification { activity_id, mode, duration} => {
                         if mode>3{
                             continue;
                         }
-                        layout.lock().await.1.activity_notification(&activity_id, mode);
+                        layout.lock().await.1.activity_notification(&activity_id, mode, duration);
                     }
                 }
             }
@@ -265,7 +267,7 @@ impl App {
                     let _ = server_response_send.send(None);
                     gtk::Window::set_interactive_debugging(true);
                 }
-                BackendServerCommand::ActivityNotification(id, mode) => {
+                BackendServerCommand::ActivityNotification(id, mode, duration) => {
                     if let Err(err) =
                         self.app_send
                             .clone()
@@ -273,6 +275,7 @@ impl App {
                             .send(UIServerCommand::RequestNotification {
                                 activity_id: id,
                                 mode: mode as u8,
+                                duration: ROption::from(duration),
                             })
                     {
                         let _ = server_response_send.send(Some(err.to_string()));
