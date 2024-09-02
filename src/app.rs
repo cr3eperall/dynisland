@@ -254,8 +254,8 @@ impl App {
 
                     // without this sleep, reading the config file sometimes gives an empty file.
                     glib::timeout_future(std::time::Duration::from_millis(50)).await;
-                    self.update_general_configs();
                     self.load_configs(&config_dir);
+                    self.update_general_configs();
                     self.load_layout_config();
                     self.load_css();
 
@@ -334,7 +334,6 @@ impl App {
                         ron::ser::to_string_pretty(&conf, PrettyConfig::default())
                             .unwrap()
                             .into();
-
                     if let Err(err) = json_strip_comments::strip(&mut confs) {
                         log::warn!("failed to strip trailing commas from {module_name} err: {err}");
                     };

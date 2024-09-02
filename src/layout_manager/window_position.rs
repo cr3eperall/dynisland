@@ -7,8 +7,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "Alignment")]
 pub enum Alignment {
+    #[serde(alias = "start")]
     Start,
+    #[serde(alias = "center")]
     Center,
+    #[serde(alias = "end")]
     End,
 }
 
@@ -25,14 +28,14 @@ impl Alignment {
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 #[serde(tag = "Layer")]
 pub enum Layer {
-    #[serde(alias="background")]
+    #[serde(alias = "background")]
     Background,
-    #[serde(alias="bottom")]
+    #[serde(alias = "bottom")]
     Bottom,
     #[default]
-    #[serde(alias="top")]
+    #[serde(alias = "top")]
     Top,
-    #[serde(alias="overlay")]
+    #[serde(alias = "overlay")]
     Overlay,
 }
 
@@ -77,7 +80,7 @@ impl Default for WindowPosition {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct WindowPositionOptional {
+pub struct DeWindowPosition {
     pub(crate) layer: Option<Layer>,
     pub(crate) h_anchor: Option<Alignment>,
     pub(crate) v_anchor: Option<Alignment>,

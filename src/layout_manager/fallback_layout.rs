@@ -28,7 +28,7 @@ use ron::ser::PrettyConfig;
 
 use crate::layout_manager::{
     self,
-    config::{FallbackLayoutConfigMain, FallbackLayoutConfigMainOptional},
+    config::{DeFallbackLayoutConfigMain, FallbackLayoutConfigMain},
 };
 
 pub struct FallbackLayout {
@@ -58,13 +58,9 @@ impl SabiLayoutManager for FallbackLayout {
     }
 
     fn update_config(&mut self, config: RString) -> RResult<(), RBoxError> {
-        // let conf = ron::from_str::<ron::Value>(&config)
-        //     .with_context(|| "failed to parse config to value")
-        //     .unwrap();
-        let mut conf_opt = FallbackLayoutConfigMainOptional::default();
-        match serde_json::from_str(&config) {
+        match serde_json::from_str::<DeFallbackLayoutConfigMain>(&config) {
             Ok(conf) => {
-                conf_opt = conf;
+                self.config = conf.into_main_config();
             }
             Err(err) => {
                 log::warn!(
@@ -74,7 +70,6 @@ impl SabiLayoutManager for FallbackLayout {
             }
         }
 
-        self.config = conf_opt.into_main_config();
         log::trace!("current config: {:#?}", self.config);
 
         if self.app.windows().first().is_some() {

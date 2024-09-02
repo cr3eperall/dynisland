@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::window_position::{WindowPosition, WindowPositionOptional};
+use super::window_position::{DeWindowPosition, WindowPosition};
 
 pub const DEFAULT_AUTO_MINIMIZE_TIMEOUT: i32 = 5000;
+
+// TODO cleanup
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(default)]
@@ -61,14 +63,14 @@ impl Default for FallbackLayoutConfig {
 }
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct FallbackLayoutConfigMainOptional {
+pub struct DeFallbackLayoutConfigMain {
     orientation_horizontal: bool,
     window_position: WindowPosition,
     auto_minimize_timeout: i32,
-    windows: HashMap<String, FallbackLayoutConfigOptional>,
+    windows: HashMap<String, DeFallbackLayoutConfig>,
 }
 
-impl Default for FallbackLayoutConfigMainOptional {
+impl Default for DeFallbackLayoutConfigMain {
     fn default() -> Self {
         Self {
             orientation_horizontal: true,
@@ -78,13 +80,15 @@ impl Default for FallbackLayoutConfigMainOptional {
         }
     }
 }
-impl FallbackLayoutConfigMainOptional {
+impl DeFallbackLayoutConfigMain {
     pub fn into_main_config(self) -> FallbackLayoutConfigMain {
         let mut windows = HashMap::new();
         for (name, opt_conf) in self.windows {
             let window_pos = match opt_conf.window_position {
                 Some(opt_window_pos) => WindowPosition {
-                    layer: opt_window_pos.layer.unwrap_or(self.window_position.layer.clone()),
+                    layer: opt_window_pos
+                        .layer
+                        .unwrap_or(self.window_position.layer.clone()),
                     h_anchor: opt_window_pos
                         .h_anchor
                         .unwrap_or(self.window_position.h_anchor.clone()),
@@ -135,8 +139,8 @@ impl FallbackLayoutConfigMainOptional {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct FallbackLayoutConfigOptional {
+pub struct DeFallbackLayoutConfig {
     orientation_horizontal: Option<bool>,
-    window_position: Option<WindowPositionOptional>,
+    window_position: Option<DeWindowPosition>,
     auto_minimize_timeout: Option<i32>,
 }

@@ -8,6 +8,10 @@ Dynisland is designed to look and feel like Apple's Dynamic Island.
 
 <https://github.com/user-attachments/assets/3a8ae42e-a688-48d9-b76b-9d8292d7d9a7>
 
+## Status
+
+This project is still in early development; There will likely be bugs and breaking changes, including changes to the config format.
+
 ## Features
 
 - Easy to configure with a dynamically generated default config
@@ -28,7 +32,7 @@ Dynisland is designed to look and feel like Apple's Dynamic Island.
 
 ```bash
 dynisland daemon
-
+# or
 dynisland restart
 ```
 
@@ -85,12 +89,8 @@ mv Download/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
 Or build the modules from source
 
 ```bash
-git clone --recursive https://github.com/cr3eperall/dynisland-modules
-cd dynisland-modules
-cargo build --release --target-dir ./target --manifest-path ./clock-module/Cargo.toml
-cargo build --release --target-dir ./target --manifest-path ./dynamic-layout/Cargo.toml
-cargo build --release --target-dir ./target --manifest-path ./music-module/Cargo.toml
-cargo build --release --target-dir ./target --manifest-path ./script-module/Cargo.toml
+git clone --recursive https://github.com/cr3eperall/dynisland
+cargo build --release --no-default-features --package dynisland_clock_module --package dynisland_dynamic_layoutmanager --package dynisland_music_module --package dynisland_script_module
 mv target/release/libmusic_module.so target/release/libscript_module.so target/release/libclock_module.so ~/.config/dynisland/modules
 mv targer/release/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
 ```
@@ -139,10 +139,6 @@ install -Dm644 "target/dynisland.bash" "/usr/share/bash-completion/completions/d
 
 install -Dm644 "target/dynisland.fish" "/usr/share/fish/vendor_completions.d/dynisland.fish"
 ```
-
-## Status
-
-This project is still in early development; There will likely be bugs and breaking changes.
 
 ## Acknowledgements
 
