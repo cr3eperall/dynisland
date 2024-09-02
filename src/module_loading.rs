@@ -23,7 +23,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     app::App,
-    layout_manager::{self, simple_layout},
+    layout_manager::{self, fallback_layout},
 };
 
 impl App {
@@ -70,7 +70,7 @@ impl App {
                     }
                 };
                 module_order.push(module_name.to_string());
-                // info!("loading module {}", module.get_name());
+                // log::info!("loading module {}", module.get_name());
                 self.module_map
                     .blocking_lock()
                     .insert(module_name.to_string(), built_module);
@@ -85,24 +85,24 @@ impl App {
         let layout_manager_definitions = crate::module_loading::get_lm_definitions(config_dir);
 
         if self.config.layout.is_none() {
-            log::info!("no layout manager in config, using default: SimpleLayout");
-            self.load_simple_layout();
+            log::info!("no layout manager in config, using default: FallbackLayout");
+            self.load_fallback_layout();
             return;
         }
         let lm_name = self.config.layout.as_ref().unwrap();
         if lm_name == layout_manager::NAME {
-            log::info!("using layout manager: SimpleLayout");
-            self.load_simple_layout();
+            log::info!("using layout manager: FallbackLayout");
+            self.load_fallback_layout();
             return;
         }
         let lm_constructor = layout_manager_definitions.get(lm_name);
         let lm_constructor = match lm_constructor {
             None => {
                 log::warn!(
-                    "layout manager {} not found, using default: SimpleLayout",
+                    "layout manager {} not found, using default: FallbackLayout",
                     lm_name
                 );
-                self.load_simple_layout();
+                self.load_fallback_layout();
                 return;
             }
             Some(x) => x,
@@ -112,8 +112,8 @@ impl App {
             ROk(x) => x,
             RErr(e) => {
                 log::error!("error during creation of {lm_name}: {e:#?}");
-                log::info!("using default layout manager SimpleLayout");
-                self.load_simple_layout();
+                log::info!("using default layout manager FallbackLayout");
+                self.load_fallback_layout();
                 return;
             }
         };
@@ -121,8 +121,8 @@ impl App {
         self.layout = Some(Rc::new(Mutex::new((lm_name.clone(), built_lm))));
     }
 
-    pub(crate) fn load_simple_layout(&mut self) {
-        let layout_builder = simple_layout::new(self.application.clone().into());
+    pub(crate) fn load_fallback_layout(&mut self) {
+        let layout_builder = fallback_layout::new(self.application.clone().into());
         let layout = layout_builder.unwrap();
         self.layout = Some(Rc::new(Mutex::new((
             layout_manager::NAME.to_string(),

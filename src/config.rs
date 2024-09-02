@@ -8,7 +8,6 @@ use dynisland_core::{
     abi::{glib, log},
     ron,
 };
-use log::warn;
 use ron::{extensions::Extensions, ser::PrettyConfig, Value};
 use serde::{Deserialize, Serialize};
 
@@ -73,7 +72,7 @@ impl Default for Config {
         Self {
             module_config: module_map,
             layout_configs: layout_map,
-            layout: Some("SimpleLayout".to_string()),
+            layout: Some("FallbackLayout".to_string()),
             general_style_config: GeneralConfig::default(),
             loaded_modules: vec!["all".to_string()],
             debug: None,
@@ -114,7 +113,7 @@ pub fn get_config(config_dir: &Path) -> Config {
 
     let ron: Config = match content {
         Ok(content) => options.from_str(&content).unwrap_or_else(|err| {
-            warn!(
+            log::warn!(
                 "failed to parse config, using default. Err:{}",
                 err.to_string()
             );

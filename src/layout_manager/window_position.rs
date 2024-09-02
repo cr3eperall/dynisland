@@ -1,7 +1,7 @@
 use dynisland_core::abi::{gdk, gtk, gtk_layer_shell, log};
 use gdk::prelude::*;
 use gtk::{prelude::*, Window};
-use gtk_layer_shell::{Layer, LayerShell};
+use gtk_layer_shell::LayerShell;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -22,21 +22,34 @@ impl Alignment {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[non_exhaustive]
-#[serde(remote = "Layer", tag = "Layer")]
-enum LayerRef {
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[serde(tag = "Layer")]
+pub enum Layer {
+    #[serde(alias="background")]
     Background,
+    #[serde(alias="bottom")]
     Bottom,
+    #[default]
+    #[serde(alias="top")]
     Top,
+    #[serde(alias="overlay")]
     Overlay,
-    EntryNumber,
-    __Unknown(i32),
+}
+
+impl Layer {
+    pub fn map_gtk(&self) -> gtk_layer_shell::Layer {
+        match self {
+            Layer::Background => gtk_layer_shell::Layer::Background,
+            Layer::Bottom => gtk_layer_shell::Layer::Bottom,
+            Layer::Top => gtk_layer_shell::Layer::Top,
+            Layer::Overlay => gtk_layer_shell::Layer::Overlay,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct WindowPosition {
-    #[serde(with = "LayerRef")]
     pub(crate) layer: Layer,
     pub(crate) h_anchor: Alignment,
     pub(crate) v_anchor: Alignment,
@@ -62,9 +75,22 @@ impl Default for WindowPosition {
     }
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct WindowPositionOptional {
+    pub(crate) layer: Option<Layer>,
+    pub(crate) h_anchor: Option<Alignment>,
+    pub(crate) v_anchor: Option<Alignment>,
+    pub(crate) margin_x: Option<i32>,
+    pub(crate) margin_y: Option<i32>,
+    pub(crate) exclusive_zone: Option<i32>,
+    pub(crate) monitor: Option<String>,
+    pub(crate) layer_shell: Option<bool>,
+}
+
 impl WindowPosition {
     pub fn config_layer_shell_for(&self, window: &Window) {
-        window.set_layer(self.layer);
+        window.set_layer(self.layer.map_gtk());
         match self.v_anchor {
             Alignment::Start => {
                 window.set_anchor(gtk_layer_shell::Edge::Top, true);

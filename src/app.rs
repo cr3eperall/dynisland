@@ -33,7 +33,7 @@ use tokio::sync::{mpsc::unbounded_channel, Mutex};
 use crate::{
     config::{self, Config, GeneralConfig},
     ipc::open_socket,
-    layout_manager::{self, simple_layout},
+    layout_manager::{self, fallback_layout},
 };
 
 pub enum BackendServerCommand {
@@ -152,7 +152,11 @@ impl App {
                         if mode>3{
                             continue;
                         }
-                        layout.lock().await.1.activity_notification(&activity_id, mode, duration);
+                        let layout = layout.lock().await;
+                        if layout.1.get_activity(&activity_id).is_none(){
+                            continue;
+                        }
+                        layout.1.activity_notification(&activity_id, mode, duration);
                     }
                 }
             }
@@ -326,11 +330,16 @@ impl App {
             let config_to_parse = self.config.module_config.get(module_name);
             let config_parsed = match config_to_parse {
                 Some(conf) => {
-                    let confs: RString = ron::ser::to_string_pretty(&conf, PrettyConfig::default())
-                        .unwrap()
-                        .into();
-                    // log::debug!("config for : {}", confs);
-                    module.update_config(confs)
+                    let mut confs: String =
+                        ron::ser::to_string_pretty(&conf, PrettyConfig::default())
+                            .unwrap()
+                            .into();
+
+                    if let Err(err) = json_strip_comments::strip(&mut confs) {
+                        log::warn!("failed to strip trailing commas from {module_name} err: {err}");
+                    };
+                    log::trace!("{module_name} config: {}", confs);
+                    module.update_config(confs.into())
                 }
                 None => {
                     log::debug!("no config for module: {:#?}", module_name);
@@ -342,7 +351,7 @@ impl App {
                     log::error!("failed to parse config for module {}: {err:?}", module_name)
                 }
                 ROk(()) => {
-                    // debug!("{}: {:#?}", module_name, config_to_parse);
+                    // log::debug!("{}: {:#?}", module_name, config_to_parse);
                 }
             }
         }
@@ -388,10 +397,15 @@ impl App {
         let mut layout = layout.blocking_lock();
         let layout_name = layout.0.clone();
         if let Some(config) = self.config.layout_configs.get(&layout_name) {
-            let confs: RString = ron::ser::to_string_pretty(&config, PrettyConfig::default())
+            let mut confs: String = ron::ser::to_string_pretty(&config, PrettyConfig::default())
                 .unwrap()
                 .into();
-            match layout.1.update_config(confs) {
+
+            if let Err(err) = json_strip_comments::strip(&mut confs) {
+                log::warn!("failed to strip trailing commas from {layout_name} err: {err}");
+            };
+            log::debug!("{layout_name} config: {}", confs);
+            match layout.1.update_config(confs.into()) {
                 ROk(()) => {
                     log::info!("loaded layout config for {layout_name}");
                 }
@@ -428,7 +442,7 @@ impl App {
         }
         layout_configs.push((
             layout_manager::NAME.to_owned(),
-            simple_layout::new(self.application.clone().into())
+            fallback_layout::new(self.application.clone().into())
                 .unwrap()
                 .default_config(),
         ));
@@ -554,7 +568,7 @@ fn start_config_dir_watcher(
                     }
                     _ => {}
                 }
-                // debug!("{evt:?}");
+                // log::debug!("{evt:?}");
             }
             Err(err) => {
                 log::error!("Notify watcher error: {err}")

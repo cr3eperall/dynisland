@@ -1,3 +1,4 @@
-pub mod simple_layout;
+mod config;
+pub mod fallback_layout;
 mod window_position;
-pub const NAME: &str = "SimpleLayout";
+pub const NAME: &str = "FallbackLayout";
