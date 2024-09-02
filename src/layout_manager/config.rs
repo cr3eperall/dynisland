@@ -131,8 +131,10 @@ impl DeFallbackLayoutConfigMain {
             auto_minimize_timeout: self.auto_minimize_timeout,
             windows,
         };
-        let default = main_conf.default_conf();
-        main_conf.windows.insert("".to_string(), default);
+        if main_conf.windows.is_empty() {
+            let default = main_conf.default_conf();
+            main_conf.windows.insert("".to_string(), default);
+        }
         main_conf
     }
 }

@@ -99,9 +99,6 @@ impl SabiLayoutManager for FallbackLayout {
     }
 
     fn add_activity(&mut self, activity_id: &ActivityIdentifier, widget: SabiWidget) {
-        if self.widget_map.contains_key(activity_id) {
-            return;
-        }
         let widget: gtk::Widget = widget.try_into().unwrap();
         let widget = match widget.downcast::<ActivityWidget>() {
             Ok(widget) => widget,
@@ -114,6 +111,7 @@ impl SabiLayoutManager for FallbackLayout {
         self.add_activity_to_container(activity_id, &widget);
         self.widget_map.insert(activity_id.clone(), widget);
     }
+
     fn get_activity(&self, activity: &ActivityIdentifier) -> ROption<SabiWidget> {
         self.widget_map
             .get(activity)
@@ -386,7 +384,6 @@ impl FallbackLayout {
         let container = gtk::Box::new(gtk::Orientation::Horizontal, 5);
         container.add_css_class("activity-container");
         window.set_child(Some(&container));
-        self.configure_containers();
         self.config
             .get_for_window(window_name)
             .window_position
@@ -395,6 +392,7 @@ impl FallbackLayout {
         window.present();
         self.windows_containers
             .insert(window_name.to_string(), (window, container));
+        self.configure_containers();
         log::trace!("created new window {}", window_name);
     }
 

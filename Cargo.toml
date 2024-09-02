@@ -8,8 +8,8 @@ members = [
 exclude = ["dynisland-modules/dynisland-module-template"]
 
 [workspace.dependencies]
-dynisland-core = { path="./dynisland-core", version="0.1.1" }
-dynisland-abi = { path="./dynisland-abi", version="0.1.1" }
+dynisland-core = { path="./dynisland-core", version="0.1.2" }
+dynisland-abi = { path="./dynisland-abi", version="0.1.2" }
 
 [profile.release]
 strip = false
@@ -30,7 +30,7 @@ readme = "README.md"
 
 [dependencies]
 
-dynisland-core = { workspace=true, version="0.1.1" }
+dynisland-core = { workspace=true, version="0.1.2" }
 json-strip-comments = "1.0.4"
 serde_json = "1.0.127"
 gtk = { version = "0.8.0", package = "gtk4", features = ["v4_12"] }
