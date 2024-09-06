@@ -164,7 +164,7 @@ impl App {
 
         let app = self.application.clone();
         let mut start_signal = start_signal_rx.resubscribe();
-        let config_dir = config_dir.to_path_buf();
+        let conf_dir = config_dir.to_path_buf();
         //server command consumer
         glib::MainContext::default().spawn_local(async move {
             start_signal.recv().await.unwrap();
@@ -201,11 +201,11 @@ impl App {
 
             self.restart_producer_runtimes(); // start producers
 
-            self.start_backend_server(server_recv, server_response_send, config_dir)
+            self.start_backend_server(server_recv, server_response_send, conf_dir)
                 .await;
         });
 
-        let _wathcer = start_config_dir_watcher(server_send.clone());
+        let _wathcer = start_config_dir_watcher(server_send.clone(), &config_dir);
 
         //start application
         app.register(None as Option<&gtk::gio::Cancellable>)?;
@@ -330,10 +330,11 @@ impl App {
             let config_to_parse = self.config.module_config.get(module_name);
             let config_parsed = match config_to_parse {
                 Some(conf) => {
-                    let mut confs: String =
-                        ron::ser::to_string_pretty(&conf, PrettyConfig::default())
-                            .unwrap()
-                            .into();
+                    let confs: String = ron::ser::to_string_pretty(&conf, PrettyConfig::default())
+                        .unwrap()
+                        .into();
+                    log::trace!("{module_name} config before strip comments: {}", confs);
+                    let mut confs = confs.replace("\\'", "\'");
                     if let Err(err) = json_strip_comments::strip(&mut confs) {
                         log::warn!("failed to strip trailing commas from {module_name} err: {err}");
                     };
@@ -549,6 +550,7 @@ impl Default for App {
 
 fn start_config_dir_watcher(
     server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>,
+    config_dir: &Path,
 ) -> RecommendedWatcher {
     log::info!("starting config watcher");
     let mut watcher =
@@ -574,10 +576,7 @@ fn start_config_dir_watcher(
             }
         })
         .expect("Failed to get file watcher");
-    if let Err(err) = watcher.watch(
-        &config::get_default_config_path(),
-        notify::RecursiveMode::NonRecursive,
-    ) {
+    if let Err(err) = watcher.watch(&config_dir, notify::RecursiveMode::NonRecursive) {
         log::warn!("Failed to start config file watcher, restart dynisland to get automatic config updates: {err}")
     }
     watcher

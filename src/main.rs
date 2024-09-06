@@ -28,9 +28,6 @@ use nix::unistd::Pid;
 
 // [ ] TODO detect nvidia gpu and display warning (if dynisland uses too much ram, use GSK_RENDERER=vulkan or GSK_RENDERER=gl)
 
-// FIXME app sometimes segfaults when waking up from hibernation (Hyprland 0.40.0, ArchLinux, 6.6.40-1-lts)
-// there is a null pointer dereference somewhere in gtk or dynisland
-// the backtrace is in backtrace.txt
 
 // FIXME Gsk-WARNING **: 13:09:06.082: Clipping is broken, everything is clipped, but we didn't early-exit.
 // maybe it's in ScrollableLabel
@@ -40,14 +37,11 @@ fn main() -> Result<()> {
         // .filter_module("dynisland", log::LevelFilter::Debug)
         // .filter_module("dynisland_core", log::LevelFilter::Debug)
         // .filter_module("dynisland_modules", log::LevelFilter::Debug)
+        .filter(Some("reqwest"), log::LevelFilter::Warn)
         .parse_env(Env::default().default_filter_or(Level::Info.as_str()))
         .init();
 
     let cli = Cli::parse();
-    // let cli = Cli{
-    //     command: Daemon { no_daemonize: true },
-    //     config_path: None,
-    // };
     let config_dir = cli
         .config_path
         .clone()
