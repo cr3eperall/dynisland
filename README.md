@@ -18,10 +18,10 @@ This project is still in early development; There will likely be bugs and breaki
 - Animated transitions
 - Themable with hot loaded css
 - Extensible with third party Rust modules and layout managers
+- multi-monitor support
 
 **Planned features:**
 
-- [ ] multi-monitor support
 - [ ] loading modules after startup
 - [ ] ? unload modules at runtime
 - [ ] ? custom widgets in lua
