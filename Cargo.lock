@@ -545,7 +545,7 @@ dependencies = [
  "bincode",
  "clap",
  "clap_complete",
- "dynisland-core",
+ "dynisland-core 0.1.3",
  "dynisland_clock_module",
  "dynisland_dynamic_layoutmanager",
  "dynisland_music_module",
@@ -564,7 +564,22 @@ dependencies = [
 
 [[package]]
 name = "dynisland-abi"
-version = "0.1.2"
+version = "0.1.3"
+dependencies = [
+ "abi_stable",
+ "gdk4",
+ "glib",
+ "glib-macros",
+ "gtk4",
+ "gtk4-layer-shell",
+ "log",
+]
+
+[[package]]
+name = "dynisland-abi"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc8f469accc9f5a5c968c4c262b60be90bfb58e000d6659e4ec37bb38fc9accf"
 dependencies = [
  "abi_stable",
  "gdk4",
@@ -577,14 +592,15 @@ dependencies = [
 
 [[package]]
 name = "dynisland-core"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "clap",
  "concat-idents",
  "const-random",
  "dyn-clone",
- "dynisland-abi",
+ "dynisland-abi 0.1.3",
+ "dynisland-macro 0.1.0",
  "env_logger",
  "notify",
  "rand",
@@ -593,13 +609,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "dynisland-core"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7644ccbc512bc862a6d38e9b9b35f740bdd0ece4043ca99580a527ee5b687c74"
+dependencies = [
+ "anyhow",
+ "clap",
+ "concat-idents",
+ "const-random",
+ "dyn-clone",
+ "dynisland-abi 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dynisland-macro 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger",
+ "notify",
+ "rand",
+ "ron",
+ "tokio",
+]
+
+[[package]]
+name = "dynisland-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote 1.0.37",
+ "serde",
+ "serde_json",
+ "syn 2.0.77",
+]
+
+[[package]]
+name = "dynisland-macro"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea2ddb35d5d48ec4f4edfd619f6eb980f6801ead4ad3a51ce7b160c6c2aadc92"
+dependencies = [
+ "proc-macro2",
+ "quote 1.0.37",
+ "serde",
+ "syn 2.0.77",
+]
+
+[[package]]
 name = "dynisland_clock_module"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "abi_stable",
  "anyhow",
  "chrono",
- "dynisland-core",
+ "dynisland-core 0.1.3",
  "env_logger",
  "glib-build-tools",
  "grass",
@@ -611,11 +670,11 @@ dependencies = [
 
 [[package]]
 name = "dynisland_dynamic_layoutmanager"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "abi_stable",
  "anyhow",
- "dynisland-core",
+ "dynisland-core 0.1.3",
  "env_logger",
  "ron",
  "serde",
@@ -625,11 +684,11 @@ dependencies = [
 
 [[package]]
 name = "dynisland_example_module"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "abi_stable",
  "anyhow",
- "dynisland-core",
+ "dynisland-core 0.1.3",
  "env_logger",
  "glib-build-tools",
  "grass",
@@ -641,11 +700,11 @@ dependencies = [
 
 [[package]]
 name = "dynisland_music_module"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "abi_stable",
  "anyhow",
- "dynisland-core",
+ "dynisland-core 0.1.3",
  "env_logger",
  "glib-build-tools",
  "grass",
@@ -659,11 +718,11 @@ dependencies = [
 
 [[package]]
 name = "dynisland_script_module"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "abi_stable",
  "anyhow",
- "dynisland-core",
+ "dynisland-core 0.1.3",
  "env_logger",
  "glib-build-tools",
  "grass",
@@ -2512,6 +2571,21 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "template-module"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "dynisland-core 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger",
+ "glib-build-tools",
+ "grass",
+ "ron",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

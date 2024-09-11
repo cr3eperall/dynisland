@@ -28,9 +28,8 @@ use nix::unistd::Pid;
 
 // [ ] TODO detect nvidia gpu and display warning (if dynisland uses too much ram, use GSK_RENDERER=vulkan or GSK_RENDERER=gl)
 
-
 // FIXME Gsk-WARNING **: 13:09:06.082: Clipping is broken, everything is clipped, but we didn't early-exit.
-// maybe it's in ScrollableLabel
+// maybe it's in ScrollingLabel
 
 fn main() -> Result<()> {
     env_logger::Builder::new()

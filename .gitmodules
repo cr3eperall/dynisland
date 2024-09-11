@@ -7,3 +7,6 @@
 [submodule "dynisland-abi"]
 	path = dynisland-abi
 	url = https://github.com/cr3eperall/dynisland-abi
+[submodule "dynisland-macro"]
+	path = dynisland-macro
+	url = https://github.com/cr3eperall/dynisland-macro

@@ -587,7 +587,7 @@ fn start_ipc_server(
     server_send: tokio::sync::mpsc::UnboundedSender<BackendServerCommand>,
     mut server_response_recv: tokio::sync::mpsc::UnboundedReceiver<Option<String>>,
 ) {
-    let thread = thread::Builder::new().name("file-watcher".to_string());
+    let thread = thread::Builder::new().name("ipc-server".to_string());
     thread
         .spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
