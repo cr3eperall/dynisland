@@ -42,6 +42,7 @@ pub enum BackendServerCommand {
     OpenInspector,
     ActivityNotification(ActivityIdentifier, ActivityMode, Option<u64>),
     ListActivities,
+    CliCommand(String, String),
 }
 
 pub struct App {
@@ -302,6 +303,17 @@ impl App {
                         let _ = server_response_send.send(Some("no layout loaded".to_string()));
                     }
                 },
+                BackendServerCommand::CliCommand(module_name, args) => {
+                    match self.module_map.lock().await.get(&module_name) {
+                        Some(module) => {
+                            let response = module.cli_command(args.into());
+                            let _ = server_response_send.send(Some(format!("{:?}", response)));
+                        }
+                        None => {
+                            let _ = server_response_send.send(Some("module not found".to_string()));
+                        }
+                    }
+                }
             }
         }
     }

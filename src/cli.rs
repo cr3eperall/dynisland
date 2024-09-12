@@ -39,4 +39,9 @@ pub enum SubCommands {
         replace_current_config: bool,
     },
     ListActivities,
+    Module {
+        module_name: String,
+        // #[arg(required = true, value_delimiter = ' ', num_args = 1..)]
+        args: Vec<String>,
+    },
 }

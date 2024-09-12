@@ -86,6 +86,18 @@ pub async fn open_socket(
                     let _ = send_response(&mut stream, response).await;
                 }
             }
+            SubCommands::Module { module_name, args } => {
+                server_send.send(BackendServerCommand::CliCommand(
+                    module_name,
+                    args.join(" "),
+                ))?;
+                if let Ok(Some(response)) =
+                    tokio::time::timeout(Duration::from_millis(800), server_response_recv.recv())
+                        .await
+                {
+                    let _ = send_response(&mut stream, response).await;
+                }
+            }
             SubCommands::DefaultConfig {
                 replace_current_config: _,
             }
