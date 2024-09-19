@@ -198,7 +198,7 @@ impl App {
                 &self.css_provider,
                 gtk::STYLE_PROVIDER_PRIORITY_USER,
             );
-            self.load_css(); //load user's scss
+            self.load_css(&conf_dir); //load user's scss
 
             self.restart_producer_runtimes(); // start producers
 
@@ -258,7 +258,7 @@ impl App {
                     self.load_configs(&config_dir);
                     self.update_general_configs();
                     self.load_layout_config();
-                    self.load_css();
+                    self.load_css(&config_dir);
 
                     self.restart_producer_runtimes();
                 }
@@ -318,9 +318,9 @@ impl App {
         }
     }
 
-    pub fn load_css(&mut self) {
+    pub fn load_css(&mut self, config_dir: &Path) {
         let css_content = grass::from_path(
-            config::get_default_config_path().join("dynisland.scss"),
+            config_dir.join("dynisland.scss"),
             &grass::Options::default(),
         );
         match css_content {
