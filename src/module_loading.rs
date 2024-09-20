@@ -160,6 +160,9 @@ pub fn get_module_definitions(
 
         let script_module = script_module::instantiate_root_module();
         module_def_map.insert(script_module.name().into(), script_module.new());
+
+        let systray_module = systray_module::instantiate_root_module();
+        module_def_map.insert(systray_module.name().into(), systray_module.new());
     }
 
     let files = match std::fs::read_dir(&module_path) {
