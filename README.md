@@ -92,7 +92,7 @@ Or build the modules from source
 git clone --recursive https://github.com/cr3eperall/dynisland
 cargo build --release --no-default-features --package dynisland_clock_module --package dynisland_dynamic_layoutmanager --package dynisland_music_module --package dynisland_script_module
 mv target/release/libmusic_module.so target/release/libscript_module.so target/release/libclock_module.so ~/.config/dynisland/modules
-mv targer/release/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
+mv target/release/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
 ```
 
 ### Generate the default config file
