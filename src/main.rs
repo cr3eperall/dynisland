@@ -88,6 +88,7 @@ fn main() -> Result<()> {
             module_name: _,
             args: _,
         }
+        | Layout { args: _ }
         | ListActivities => {
             let socket_path = config.get_runtime_dir().join("dynisland.sock");
             match UnixStream::connect(socket_path.clone()) {

@@ -87,10 +87,19 @@ pub async fn open_socket(
                 }
             }
             SubCommands::Module { module_name, args } => {
-                server_send.send(BackendServerCommand::CliCommand(
+                server_send.send(BackendServerCommand::ModuleCliCommand(
                     module_name,
                     args.join(" "),
                 ))?;
+                if let Ok(Some(response)) =
+                    tokio::time::timeout(Duration::from_millis(800), server_response_recv.recv())
+                        .await
+                {
+                    let _ = send_response(&mut stream, response).await;
+                }
+            }
+            SubCommands::Layout { args } => {
+                server_send.send(BackendServerCommand::LayoutCliCommand(args.join(" ")))?;
                 if let Ok(Some(response)) =
                     tokio::time::timeout(Duration::from_millis(800), server_response_recv.recv())
                         .await
