@@ -142,5 +142,5 @@ install -Dm644 "target/dynisland.fish" "/usr/share/fish/vendor_completions.d/dyn
 
 ## Acknowledgements
 
-- [eww](https://github.com/elkowar/eww) - For reference on how to do IPC and custom gtk widgets
+- [eww](https://github.com/elkowar/eww) - For reference on how to do IPC, custom gtk widgets and some of the systray code
 - [Nullderef](https://nullderef.com/) - For a deep dive on how to implement a plugin system in rust
