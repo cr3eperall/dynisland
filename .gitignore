@@ -6,3 +6,4 @@ disabled-rust-toolchain.toml
 *tmp.txt
 heaptrack.*
 *.sh
+/*.txt

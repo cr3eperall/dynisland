@@ -21,7 +21,7 @@ activity-widget {
     .mode-compact,
     .mode-expanded,
     .mode-overlay {
-        border-radius: $border-radius;
+        // border-radius: $border-radius;
         transition-property: transform, opacity, filter;
         transition-duration: $transition-duration, $transition-duration,
             $transition-duration;

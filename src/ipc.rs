@@ -86,6 +86,15 @@ pub async fn open_socket(
                     let _ = send_response(&mut stream, response).await;
                 }
             }
+            SubCommands::ListLoadedModules => {
+                server_send.send(BackendServerCommand::ListLoadedModules)?;
+                if let Ok(Some(response)) =
+                    tokio::time::timeout(Duration::from_millis(800), server_response_recv.recv())
+                        .await
+                {
+                    let _ = send_response(&mut stream, response).await;
+                }
+            }
             SubCommands::Module { module_name, args } => {
                 server_send.send(BackendServerCommand::ModuleCliCommand(
                     module_name,

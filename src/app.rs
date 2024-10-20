@@ -42,6 +42,7 @@ pub enum BackendServerCommand {
     OpenInspector,
     ActivityNotification(ActivityIdentifier, ActivityMode, Option<u64>),
     ListActivities,
+    ListLoadedModules,
     ModuleCliCommand(String, String),
     LayoutCliCommand(String),
 }
@@ -304,6 +305,14 @@ impl App {
                         let _ = server_response_send.send(Some("no layout loaded".to_string()));
                     }
                 },
+                BackendServerCommand::ListLoadedModules => {
+                    let mut response = String::new();
+                    let mod_map = self.module_map.lock().await;
+                    for module in mod_map.keys() {
+                        response += &format!("{module}\n");
+                    }
+                    let _ = server_response_send.send(Some(response));
+                }
                 BackendServerCommand::ModuleCliCommand(module_name, args) => {
                     match self.module_map.lock().await.get(&module_name) {
                         Some(module) => {
