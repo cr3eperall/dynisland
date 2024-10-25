@@ -68,9 +68,7 @@ yay -S dynisland-git
 ### Create the directory structure
 
 ```bash
-mkdir ~/.config/dynisland
-mkdir ~/.config/dynisland/modules
-mkdir ~/.config/dynisland/layouts
+mkdir -p ~/.config/dynisland/{modules,layouts}
 ```
 
 ### Download or compile the modules and put them in the modules directory
@@ -90,6 +88,7 @@ Or build the modules from source
 
 ```bash
 git clone --recursive https://github.com/cr3eperall/dynisland
+cd dynisland
 cargo build --release --no-default-features --package dynisland_clock_module --package dynisland_dynamic_layoutmanager --package dynisland_music_module --package dynisland_script_module
 mv target/release/libmusic_module.so target/release/libscript_module.so target/release/libclock_module.so ~/.config/dynisland/modules
 mv target/release/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
@@ -123,7 +122,7 @@ install dynisland ~/.local/bin/dynisland
 ### Including the modules
 
 ```bash
-git clone https://github.com/cr3eperall/dynisland
+git clone --recursive https://github.com/cr3eperall/dynisland
 cd dynisland
 cargo build --release --features completions
 cd target/release
