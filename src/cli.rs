@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use bincode::{Decode, Encode};
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,7 @@ pub struct Cli {
     pub config_path: Option<PathBuf>,
 }
 
-#[derive(Subcommand, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Subcommand, Debug, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
 pub enum SubCommands {
     Daemon {
         #[arg(short, long, required = false, default_value_t = false)]

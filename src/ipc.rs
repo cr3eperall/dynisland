@@ -139,11 +139,11 @@ pub async fn read_message(stream: &mut UnixStream) -> Result<SubCommands> {
         stream.read_buf(&mut message).await?;
     }
 
-    Ok(bincode::deserialize(&message)?)
+    Ok(bincode::decode_from_slice(&message,bincode::config::standard())?.0)
 }
 
 pub async fn send_response(stream: &mut UnixStream, message: Option<String>) -> Result<()> {
-    let response = bincode::serialize(&message.unwrap_or("OK".to_string()))?;
+    let response = bincode::encode_to_vec(&message.unwrap_or("OK".to_string()),bincode::config::standard())?;
     stream.write_all(&response).await?;
     Ok(())
 }
@@ -154,7 +154,7 @@ pub fn send_recv_message(
 ) -> Result<Option<String>> {
     stream.set_nonblocking(false)?;
 
-    let message = bincode::serialize(&message)?;
+    let message = bincode::encode_to_vec(&message,bincode::config::standard())?;
     let message_len_bytes = (message.len() as u32).to_be_bytes();
     stream.write_all(&message_len_bytes)?;
     stream.write_all(&message)?;
@@ -165,7 +165,7 @@ pub fn send_recv_message(
     Ok(if buf.is_empty() {
         None
     } else {
-        let buf = bincode::deserialize(&buf)?;
+        let (buf,_) = bincode::decode_from_slice(&buf,bincode::config::standard())?;
         Some(buf)
     })
 }

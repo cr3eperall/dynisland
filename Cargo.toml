@@ -36,20 +36,20 @@ readme = "README.md"
 dynisland-core = { workspace=true, version="=0.1.3" }
 json-strip-comments = "1.0.4"
 serde_json = "1.0.127"
-gtk = { version = "0.8.0", package = "gtk4", features = ["v4_12"] }
+gtk = { version = "0.8.2", package = "gtk4", features = ["v4_12"] }
 linkme = { version = "0.3.17" }
-tokio = { version = "1.39.0", features = ["rt", "time", "sync", "macros", "io-util", "net"] }
+tokio = { version = "1.46.0", features = ["rt", "time", "sync", "macros", "io-util", "net"] }
 anyhow = "1.0.86"
 serde = { version = "1.0.188", features = ["serde_derive"] }
-env_logger = "0.11.2"
+env_logger = "0.11.8"
 abi_stable = "0.11.3"
 grass={version = "0.13.4", default-features = false, features = ["macro"]}
 
-notify = { version = "6.1.1", features = ["fsevent-sys"] }
+notify = { version = "8.0.0", features = ["fsevent-sys"] }
 # colored = "2.1.0"
 clap = { version = "4.5.15", features = ["derive"]}
-nix = { version = "0.29.0", features = ["process", "fs"]}
-bincode = { version = "1.3.3"}
+nix = { version = "0.30.1", features = ["process", "fs"]}
+bincode = { version = "2.0.1"}
 
 dynisland_clock_module = { path="./dynisland-modules/clock-module", version="0.1.1", features = ["embedded"], optional = true}
 dynisland_dynamic_layoutmanager ={ path="./dynisland-modules/dynamic-layout", version="0.1.1", features = ["embedded"], optional = true}
@@ -59,7 +59,7 @@ dynisland_systray_module = { path="./dynisland-modules/systray-module", version=
 
 [build-dependencies]
 clap = {version = "4.5.15", features = ["derive"] }
-clap_complete = "4.5.14"
+clap_complete = "4.5.54"
 serde = { version = "1.0.188", features = ["serde_derive"] }
 
 [features]

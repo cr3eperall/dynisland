@@ -1,6 +1,6 @@
 use std::{
     io::ErrorKind,
-    os::{fd::AsRawFd, unix::net::UnixStream},
+    os::{fd::AsFd, unix::net::UnixStream},
     path::Path,
     thread,
     time::Duration,
@@ -32,6 +32,7 @@ use nix::unistd::Pid;
 // maybe it's in ScrollingLabel
 
 fn main() -> Result<()> {
+    system_mimalloc::use_mimalloc!();
     env_logger::Builder::new()
         // .filter_module("dynisland", log::LevelFilter::Debug)
         // .filter_module("dynisland_core", log::LevelFilter::Debug)
@@ -89,7 +90,8 @@ fn main() -> Result<()> {
             args: _,
         }
         | Layout { args: _ }
-        | ListActivities => {
+        | ListActivities
+        | ListLoadedModules => {
             let socket_path = config.get_runtime_dir().join("dynisland.sock");
             match UnixStream::connect(socket_path.clone()) {
                 Ok(stream) => {
@@ -219,6 +221,16 @@ fn main() -> Result<()> {
 
 fn detach(log_file_path: &Path) -> Result<Pid> {
     std::fs::create_dir_all(log_file_path.parent().expect("invalid log path"))?;
+
+    // detach from terminal
+    let pid = match unsafe { nix::unistd::fork()? } {
+        nix::unistd::ForkResult::Child => nix::unistd::setsid(),
+        nix::unistd::ForkResult::Parent { .. } => {
+            // nix::unistd::daemon(false, false);
+            std::process::exit(0);
+        }
+    }?;
+
     let file = std::fs::OpenOptions::new()
         .create(true)
         .write(true)
@@ -231,22 +243,13 @@ fn detach(log_file_path: &Path) -> Result<Pid> {
                 log_file_path.to_string_lossy()
             )
         });
-    let fd = file.as_raw_fd();
+    let fd = file.as_fd();
 
-    // detach from terminal
-    let pid = match unsafe { nix::unistd::fork()? } {
-        nix::unistd::ForkResult::Child => nix::unistd::setsid(),
-        nix::unistd::ForkResult::Parent { .. } => {
-            // nix::unistd::daemon(false, false);
-            std::process::exit(0);
-        }
-    }?;
-
-    if nix::unistd::isatty(1)? {
-        nix::unistd::dup2(fd, std::io::stdout().as_raw_fd())?;
+    if nix::unistd::isatty(std::io::stdout().as_fd())? {
+        nix::unistd::dup2_stdout(fd)?;
     }
-    if nix::unistd::isatty(2)? {
-        nix::unistd::dup2(fd, std::io::stderr().as_raw_fd())?;
+    if nix::unistd::isatty(std::io::stderr().as_fd())? {
+        nix::unistd::dup2_stderr(fd)?;
     }
     Ok(pid)
 }
