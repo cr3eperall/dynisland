@@ -163,6 +163,9 @@ pub fn get_module_definitions(
 
         let systray_module = systray_module::instantiate_root_module();
         module_def_map.insert(systray_module.name().into(), systray_module.new());
+
+        let power_module = power_module::instantiate_root_module();
+        module_def_map.insert(power_module.name().into(), power_module.new());
     }
 
     let files = match std::fs::read_dir(&module_path) {

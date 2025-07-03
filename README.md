@@ -16,15 +16,9 @@ This project is still in early development; There will likely be bugs and breaki
 
 - Easy to configure with a dynamically generated default config
 - Animated transitions
-- Themable with hot loaded css
+- Themeable with hot loaded css
 - Extensible with third party Rust modules and layout managers
 - multi-monitor support
-
-**Planned features:**
-
-- [ ] loading modules after startup
-- [ ] ? unload modules at runtime
-- [ ] ? custom widgets in lua
 
 ## Usage
 
@@ -73,28 +67,6 @@ mkdir ~/.config/dynisland/modules
 mkdir ~/.config/dynisland/layouts
 ```
 
-### Download or compile the modules and put them in the modules directory
-
-> [!NOTE]
-> If dynisland was compiled with the `embed_modules` feature (dynisland v0.1.2 has this as the default), the [official](https://github.com/cr3eperall/dynisland-modules) modules are already included in the binary.
-> You would only have to do this if you want to use third party modules.
-
-Download the precompiled modules from the [Release page](https://github.com/cr3eperall/dynisland-modules/releases/latest)
-
-```bash
-mv Download/libmusic_module.so Download/libscript_module.so Download/libclock_module.so ~/.config/dynisland/modules
-mv Download/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
-```
-
-Or build the modules from source
-
-```bash
-git clone --recursive https://github.com/cr3eperall/dynisland
-cargo build --release --no-default-features --package dynisland_clock_module --package dynisland_dynamic_layoutmanager --package dynisland_music_module --package dynisland_script_module
-mv target/release/libmusic_module.so target/release/libscript_module.so target/release/libclock_module.so ~/.config/dynisland/modules
-mv target/release/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
-```
-
 ### Generate the default config file
 
 ```bash
@@ -110,17 +82,7 @@ Then edit the configs and scss to your liking.
 
 ## Building
 
-### Without including the modules
-
-```bash
-git clone https://github.com/cr3eperall/dynisland
-cd dynisland
-cargo build --release --no-default-features --features completions
-cd target/release
-install dynisland ~/.local/bin/dynisland
-```
-
-### Including the modules
+### Building with all the modules included
 
 ```bash
 git clone https://github.com/cr3eperall/dynisland
@@ -138,6 +100,39 @@ install -Dm644 "target/_dynisland" "/usr/share/zsh/site-functions/_dynisland"
 install -Dm644 "target/dynisland.bash" "/usr/share/bash-completion/completions/dynisland.bash"
 
 install -Dm644 "target/dynisland.fish" "/usr/share/fish/vendor_completions.d/dynisland.fish"
+```
+
+---
+
+### Building without including the modules
+
+```bash
+git clone https://github.com/cr3eperall/dynisland
+cd dynisland
+cargo build --release --no-default-features --features completions
+cd target/release
+install dynisland ~/.local/bin/dynisland
+```
+
+> [!NOTE]
+> When compiled with the `embed_modules` or `default` feature the [official](https://github.com/cr3eperall/dynisland-modules) modules are already included in the binary and this part can be skipped
+
+#### Download or compile the external modules and put them in the modules directory
+
+Download the precompiled modules from the [Release page](https://github.com/cr3eperall/dynisland-modules/releases/latest)
+
+```bash
+mv Download/libmusic_module.so Download/libscript_module.so Download/libclock_module.so ~/.config/dynisland/modules
+mv Download/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
+```
+
+Or build the modules from source
+
+```bash
+git clone --recursive https://github.com/cr3eperall/dynisland
+cargo build --release --no-default-features --package dynisland_clock_module --package dynisland_dynamic_layoutmanager --package dynisland_music_module --package dynisland_script_module
+mv target/release/libmusic_module.so target/release/libscript_module.so target/release/libclock_module.so ~/.config/dynisland/modules
+mv target/release/libdynamic_layoutmanager.so ~/.config/dynisland/layouts
 ```
 
 ## Acknowledgements
