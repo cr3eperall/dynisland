@@ -62,9 +62,7 @@ yay -S dynisland-git
 ### Create the directory structure
 
 ```bash
-mkdir ~/.config/dynisland
-mkdir ~/.config/dynisland/modules
-mkdir ~/.config/dynisland/layouts
+mkdir -p ~/.config/dynisland/{modules,layouts}
 ```
 
 ### Generate the default config file
@@ -85,7 +83,7 @@ Then edit the configs and scss to your liking.
 ### Building with all the modules included
 
 ```bash
-git clone https://github.com/cr3eperall/dynisland
+git clone --recursive https://github.com/cr3eperall/dynisland
 cd dynisland
 cargo build --release --features completions
 cd target/release
