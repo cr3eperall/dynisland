@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  buidl-upload-assets:
+  build-upload-assets:
     permissions: 
       contents: write
     runs-on: ubuntu-latest
@@ -20,10 +20,11 @@ jobs:
     container: ubuntu:24.10
     steps:
       - name: Install dependencies
-        run: apt update -y && apt install -y curl nodejs libdbus-1-dev pkg-config build-essential libssl-dev libgtk-4-dev libgtk4-layer-shell-dev libmimalloc-dev
+        run: apt update -y && apt install -y curl git nodejs libdbus-1-dev pkg-config build-essential libssl-dev libgtk-4-dev libgtk4-layer-shell-dev libmimalloc-dev
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Checkout submodules
+        run: |
+          git submodule update --init --recursive
       - name: Setup rust
         uses: dtolnay/rust-toolchain@stable
         with:
