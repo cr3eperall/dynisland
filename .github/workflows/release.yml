@@ -22,6 +22,8 @@ jobs:
       - name: Install dependencies
         run: apt update -y && apt install -y curl nodejs libdbus-1-dev pkg-config build-essential libssl-dev libgtk-4-dev libgtk4-layer-shell-dev libmimalloc-dev
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Setup rust
         uses: dtolnay/rust-toolchain@stable
         with:
