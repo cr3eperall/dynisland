@@ -1,0 +1,56 @@
+name: Build and Release
+
+on:
+  push:
+    tags: 
+      - '*'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-upload-assets:
+    permissions: 
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      TZ: Etc/UTC
+    container: ubuntu:24.10
+    steps:
+      - name: Install dependencies
+        run: apt update -y && apt install -y curl git nodejs libdbus-1-dev pkg-config build-essential libssl-dev libgtk-4-dev libgtk4-layer-shell-dev libmimalloc-dev
+      - uses: actions/checkout@v4
+      - name: Checkout submodules
+        run: |
+          git config --global --add safe.directory /__w/dynisland/dynisland
+          git submodule update --init --recursive
+      - name: Setup rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy,rustfmt
+      - name: Load rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup problem matchers
+        uses: r7kamura/rust-problem-matchers@v1
+
+      - name: Create target directory
+        run: mkdir -p target
+      
+      - name: Build
+        run: cargo build --release --target-dir ./target --features embed_modules,completions
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          draft: true
+          files: |
+            target/release/dynisland
+            target/_dynisland
+            target/dynisland.bash
+            target/dynisland.fish
+            target/dynisland.elv
